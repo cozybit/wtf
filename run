@@ -3,8 +3,32 @@
 import os, sys
 import nose
 
-testdir = os.path.join(os.path.dirname(__file__), "tests/basic.py" )
+# detect whether the caller supplied a list of tests, or whether we should use
+# the suites in the wtfconfig file.  To do this, we hijack nose's option
+# parser.  There's probably a fancier and more stable way to do this, but I
+# didn't figure it out.
+cfg_files = nose.config.all_config_files()
+plugins = nose.plugins.manager.DefaultPluginManager()
+c = nose.config.Config(env=os.environ, files=cfg_files, plugins=plugins)
+(opts, tests) = c._parseArgs(sys.argv, cfg_files)
 
-sys.argv.append(testdir)
+if tests == []:
+	# no tests specified on command line.
+	try:
+		from wtfconfig import suites
+	except ImportError:
+		print """
+		Please specify which test suites to run either in the 'suites' list in your
+		wtfconfig.py, or explicitly on the command line.
+		"""
+		sys.exit(1)
+	test_dir = os.path.join(os.path.dirname(__file__), "tests")
+	for s in suites:
+		suite_file = os.path.join(test_dir, s + ".py")
+		if not os.path.isfile(suite_file):
+			print "No such test suite " + suite_file
+			sys.exit(1)
+		sys.argv.append(suite_file)
 
+# run the tests
 nose.run()

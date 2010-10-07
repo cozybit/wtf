@@ -6,3 +6,6 @@ ap = wtf.node.ap.APSet([ap_config_1])
 
 # tell wtf about all of your nodes
 nodes = [ ap ]
+
+# tell wtf which test suites you want to run
+suites = [ "basic" ]
