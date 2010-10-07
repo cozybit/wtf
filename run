@@ -1,0 +1,10 @@
+#!/usr/bin/python
+
+import os, sys
+import nose
+
+testdir = os.path.join(os.path.dirname(__file__), "tests/basic.py" )
+
+sys.argv.append(testdir)
+
+nose.run()
