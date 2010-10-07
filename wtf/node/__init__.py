@@ -33,8 +33,9 @@ class NodeBase():
     started and stopped, repeatedly.
     """
 
-    def __init__(self):
+    def __init__(self, comm):
         self.initialized = False
+        self.comm = comm
 
     def init(self):
         """

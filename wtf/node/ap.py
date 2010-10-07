@@ -9,12 +9,12 @@ class APBase(node.NodeBase):
     Real APs should extend this class and implement the actual AP functions.
     """
 
-    def __init__(self):
+    def __init__(self, comm):
         """
         Create an AP with the supplied default configuration.
         """
         self.defconfig = None
-        node.NodeBase.__init__(self)
+        node.NodeBase.__init__(self, comm=comm)
 
 class APConfig():
     """
@@ -38,9 +38,9 @@ class APSet(APBase):
     in the right place.
     """
 
-    def __init__(self, configs):
+    def __init__(self, comm, configs):
         """
         create an AP that represents all the supplied configs
         """
         self.configs = configs
-        APBase.__init__(self)
+        APBase.__init__(self, comm)
