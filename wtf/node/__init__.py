@@ -79,3 +79,9 @@ class NodeBase():
         stop the node
         """
         pass
+
+    def _cmd_or_die(self, cmd):
+        (r, o) = self.comm.send_cmd(cmd)
+        if r != 0:
+            raise ActionFailureError("Failed to \"" + cmd + "\"")
+        return o

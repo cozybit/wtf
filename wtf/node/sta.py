@@ -1,4 +1,5 @@
 import wtf.node as node
+import re, sys
 
 class STABase(node.NodeBase):
     """
@@ -15,34 +16,58 @@ class STABase(node.NodeBase):
         """
         node.NodeBase.__init__(self, comm=comm)
 
+    def scan(self):
+        """
+        scan for wireless networks
+
+        Return a list of APConfigs representing the APs in the neighborhood.
+        """
+        raise node.UnimplementedError("scan not implemented!")
+
 class LinuxSTA(STABase):
     """
     Represent a typical linux STA with iwconfig, ifconfig, etc.  It should have
     wireless hardware controlled by the specified driver.
     """
 
-    def __init__(self, comm, driver):
+    def __init__(self, comm, driver, iface):
         self.driver = driver
+        self.iface = iface
         STABase.__init__(self, comm)
 
     def init(self):
-        r = self.comm.send_cmd("modprobe " + self.driver)
-        if r == 0:
-            self.initialized = True
-        else:
-            raise node.ActionFailureError("Failed to modprobe " + self.driver)
+        self._cmd_or_die("modprobe " + self.driver)
+        self.initialized = True
 
     def shutdown(self):
-        r = self.comm.send_cmd("modprobe -r " + self.driver)
-        if r == 0:
-            self.initialized = False
-        else:
-            raise node.ActionFailureError("Failed to remove " + self.driver)
+        self.stop()
+        self._cmd_or_die("modprobe -r " + self.driver)
+        self.initialized = False
 
     def start(self):
         if self.initialized != True:
             raise UninitializedError()
-        raise node.InsufficientConfigurationError()
+        self._cmd_or_die("ifconfig " + self.iface + " up")
 
     def stop(self):
-        pass
+        self.comm.send_cmd("ifconfig " + self.iface + " down")
+
+    def scan(self):
+        o = self._cmd_or_die("iwlist " + self.iface + " scan")
+        # the first line is "<interface>     scan completed".  Skip it.
+        results = "".join(o[1:]).split(" "*10 + "Cell ")
+        ret = []
+        for r in results:
+            fields = r.split(" "*20)
+            bssid = ""
+            channel = None
+            ssid = ""
+            for f in fields:
+                if re.match(".*Address:.*", f):
+                    bssid = f.split("Address: ")[1]
+                if re.match(".*Channel:.*", f):
+                    channel = int(f.split("Channel:")[1])
+                if re.match(".*ESSID:.*", f):
+                    ssid = f.split("ESSID:")[1].replace('"','')
+            ret.append(node.ap.APConfig(ssid, channel))
+        return ret
