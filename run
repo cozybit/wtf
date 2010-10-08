@@ -21,7 +21,7 @@ if tests == []:
 		Please specify which test suites to run either in the 'suites' list in your
 		wtfconfig.py, or explicitly on the command line.
 		"""
-		sys.exit(1)
+		raise
 	test_dir = os.path.join(os.path.dirname(__file__), "tests")
 	for s in suites:
 		suite_file = os.path.join(test_dir, s + ".py")

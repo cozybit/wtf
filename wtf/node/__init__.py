@@ -16,6 +16,12 @@ class UnsupportedConfigurationError(Exception):
     """
     pass
 
+class ActionFailureError(Exception):
+    """
+    Exception raised when an action on a node fails.
+    """
+    pass
+
 class UnimplementedError(Exception):
     """
     A method should have been implemented by a subclass but is not.
