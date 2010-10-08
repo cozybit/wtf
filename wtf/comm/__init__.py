@@ -21,7 +21,9 @@ class CommBase():
 
     def send_cmd(self, command):
         """
-        Send a command via this comm channel and return the return code
+        Send a command via this comm channel
+
+        return a tuple containing the return code and the stdout lines
 
         raise a CommandFailureError if it was not possible to send the command.
         """
@@ -50,9 +52,11 @@ class Serial(CommBase):
         self.serial.close()
 
     def send_cmd(self, command):
+        print command
         self.ffd.send("%s\n" % command)
         r = self.ffd.expect_exact([self.prompt, fdpexpect.TIMEOUT])
-        for l in self.ffd.before.split("\r\n")[:-1]:
+        output = self.ffd.before.split("\r\n")[1:-1]
+        for l in output:
             print l
         if r == 1:
             return -1
@@ -62,7 +66,12 @@ class Serial(CommBase):
         r = self.ffd.expect_exact([self.prompt, fdpexpect.TIMEOUT])
         if r == 1:
             return -1
-        return int(self.ffd.before.split("\r\n")[-2])
+        try:
+            return (int(self.ffd.before.split("\r\n")[-2]), output)
+        except ValueError:
+            print "Failed to find return code in:"
+            print self.ffd.before
+        return (-1, output)
 
 class SSH(CommBase):
     """
@@ -84,13 +93,20 @@ class SSH(CommBase):
         # that the prompt "[PEXPECT]# " is 11 chars, and 69 + 11 is 80, and
         # there's a line discipline problem somewhere?  If you figure it out
         # you'll be my hero.
+        print command
         if len(command) == 69:
             command = "  " + command
 
         self.session.sendline(command)
         self.session.prompt()
-        for l in self.session.before.split("\r\n")[:-1]:
+        output = self.session.before.split("\r\n")[1:-1]
+        for l in output:
             print l
         self.session.sendline("echo $?")
         self.session.prompt()
-        return int(self.session.before.split("\n")[-2])
+        try:
+            return (int(self.session.before.split("\n")[-2]), output)
+        except ValueError:
+            print "Failed to find return code in:"
+            print self.session.before
+        return (-1, output)
