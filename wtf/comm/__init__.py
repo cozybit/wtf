@@ -1,5 +1,6 @@
 import serial
 import fdpexpect
+import pxssh
 
 class CommandFailureError(Exception):
     """
@@ -62,3 +63,34 @@ class Serial(CommBase):
         if r == 1:
             return -1
         return int(self.ffd.before.split("\r\n")[-2])
+
+class SSH(CommBase):
+    """
+    communicate with a node via ssh
+
+    The console on the other end must at least be able to 'echo $?' so we can
+    get the return code.
+    """
+    def __init__(self, ipaddr, user="root"):
+        self.session = pxssh.pxssh()
+        self.session.login(ipaddr, user)
+        CommBase.__init__(self)
+
+    def send_cmd(self, command):
+        # TODO: Okay.  Here's a mystery.  If the command is 69 chars long,
+        # pxssh chokes on whatever it sees over ssh and all subsequent tests
+        # fail.  Amazing!  If it's longer, or shorter, everything works fine.
+        # But the magic number 69 breaks the command flow.  Why?  Could it be
+        # that the prompt "[PEXPECT]# " is 11 chars, and 69 + 11 is 80, and
+        # there's a line discipline problem somewhere?  If you figure it out
+        # you'll be my hero.
+        if len(command) == 69:
+            command = "  " + command
+
+        self.session.sendline(command)
+        self.session.prompt()
+        for l in self.session.before.split("\r\n")[:-1]:
+            print l
+        self.session.sendline("echo $?")
+        self.session.prompt()
+        return int(self.session.before.split("\n")[-2])
