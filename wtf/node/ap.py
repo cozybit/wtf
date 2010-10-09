@@ -102,4 +102,5 @@ own_ip_addr=127.0.0.1
         config += "ssid=" + self.config.ssid + "\n"
         config += "channel=%d\n" % self.config.channel
         config += "interface=" + self.iface + "\n"
-        self._cmd_or_die("echo -e \"" + config + "\"> /tmp/hostapd.conf")
+        self._cmd_or_die("echo -e \"" + config + "\"> /tmp/hostapd.conf",
+                         verbosity=0)

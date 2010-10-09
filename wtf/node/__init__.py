@@ -80,8 +80,8 @@ class NodeBase():
         """
         pass
 
-    def _cmd_or_die(self, cmd):
-        (r, o) = self.comm.send_cmd(cmd)
+    def _cmd_or_die(self, cmd, verbosity=None):
+        (r, o) = self.comm.send_cmd(cmd, verbosity)
         if r != 0:
             raise ActionFailureError("Failed to \"" + cmd + "\"")
         return o

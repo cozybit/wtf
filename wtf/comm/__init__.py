@@ -15,15 +15,19 @@ class CommBase():
     wtf needs a way to pass commands to nodes, retrieve return codes, and
     retrieve output.
     """
-
+    verbosity = 0
+    name = ""
     def __init__(self):
         pass
 
-    def send_cmd(self, command):
+    def send_cmd(self, command, verbosity=None):
         """
         Send a command via this comm channel
 
         return a tuple containing the return code and the stdout lines
+
+        override the default verbosity for the command being sent by setting
+        the verbosity argument.
 
         raise a CommandFailureError if it was not possible to send the command.
 
@@ -31,10 +35,16 @@ class CommBase():
         implement _send_cmd() to send a command and return the stdout, and
         _get_retcode() to get the return code of the last command.
         """
-        print command
+        if verbosity == None:
+            verbosity = self.verbosity
+        elif verbosity > self.verbosity:
+            verbosity = self.verbosity
+        if verbosity > 0:
+            print self.name + ": " + command
         output = self._send_cmd(command)
-        for l in output:
-            print l
+        if verbosity > 1:
+            for l in output:
+                print self.name + ": " + l
         r = self._get_retcode()
         return (r, output)
 
