@@ -1,0 +1,47 @@
+From ac0b1f75db04ad0e64db153d8ae9a66e098c5d35 Mon Sep 17 00:00:00 2001
+From: Nishant Sarmukadam <nishants@marvell.com>
+Date: Thu, 15 Jul 2010 04:53:41 -0700
+Subject: [PATCH 4/5] mwl8k: Set xmitcontrol in AP tx descriptor to indicate non-AMPDU frames
+
+AP firmware uses xmitcontrol to differentiate between AMPDU and non-AMPDU
+frames. As the support for AMPDU is not yet added, set xmitcontrol
+to non-AMPDU for all tx frames for AP firmware. This field will be set
+to indicate ampdu/non-ampdu frames when tx AMPDU support is added.
+
+Signed-off-by: Pradeep Nemavat <pnemavat@marvell.com>
+---
+ drivers/net/wireless/mwl8k.c |    7 ++++++-
+ 1 files changed, 6 insertions(+), 1 deletions(-)
+
+diff --git a/drivers/net/wireless/mwl8k.c b/drivers/net/wireless/mwl8k.c
+index de2dc40..f899526 100644
+--- a/drivers/net/wireless/mwl8k.c
++++ b/drivers/net/wireless/mwl8k.c
+@@ -1125,11 +1125,13 @@ struct mwl8k_tx_desc {
+ 	__le32 reserved;
+ 	__le16 rate_info;
+ 	__u8 peer_id;
+-	__u8 tx_frag_cnt;
++	__u8 xmitcontrol;
+ 	__le32 pad[5];
+ } __packed;
+ 
+ #define MWL8K_TX_DESCS		128
++ #define MWL8K_XMITCONTROL_NON_AMPDU	0x04
++
+ 
+ static int mwl8k_txq_init(struct ieee80211_hw *hw, int index)
+ {
+@@ -1449,6 +1451,9 @@ mwl8k_txq_xmit(struct ieee80211_hw *hw, int index, struct sk_buff *skb)
+ 		tx->peer_id = MWL8K_STA(tx_info->control.sta)->peer_id;
+ 	else
+ 		tx->peer_id = 0;
++
++	if (priv->ap_fw)
++		tx->xmitcontrol = MWL8K_XMITCONTROL_NON_AMPDU;
+ 	wmb();
+ 	tx->status = cpu_to_le32(MWL8K_TXD_STATUS_FW_OWNED | txstatus);
+ 
+-- 
+1.7.0.1
+
