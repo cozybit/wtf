@@ -5,9 +5,10 @@ class STABase(node.NodeBase):
     """
     client STA
 
-    This represents the platform-independent client STA that should be used by tests.
+    This represents the platform-independent client STA that should be used by
+    tests.
 
-    Real STAs should extend this class and implement the actual STA functions.
+    Real STAs might extend this class and implement the actual STA functions.
     """
 
     def __init__(self, comm):
@@ -24,7 +25,7 @@ class STABase(node.NodeBase):
         """
         raise node.UnimplementedError("scan not implemented!")
 
-class LinuxSTA(STABase):
+class LinuxSTA(node.LinuxNode, STABase):
     """
     Represent a typical linux STA with iwconfig, ifconfig, etc.  It should have
     wireless hardware controlled by the specified driver.
@@ -71,3 +72,13 @@ class LinuxSTA(STABase):
                     ssid = f.split("ESSID:")[1].replace('"','')
             ret.append(node.ap.APConfig(ssid, channel))
         return ret
+
+    def assoc(self, ssid):
+        self._cmd_or_die("iwconfig " + self.iface + " essid " + ssid)
+        for i in range(1, 10):
+            (r, o) = self.comm.send_cmd("iwconfig " + self.iface)
+            if r != 0:
+                raise ActionFailureError("iwconfig failed with code %d" % r)
+            if o[0].split("ESSID:")[1].strip() == '"' + ssid + '"':
+                return 0
+        return -1

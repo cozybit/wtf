@@ -33,3 +33,16 @@ class TestAPSTA(unittest.TestCase):
 
         self.failIf(found == None, "Failed to find ssid wtf-scantest")
         self.failIf(r.channel != 11, "Expected wtf-scantest on channel 11")
+
+    def test_associate(self):
+        wtfconfig.ap.config = wtf.node.ap.APConfig(ssid="wtf-assoctest",
+                                                   channel=6)
+        wtfconfig.ap.start()
+        wtfconfig.ap.set_ip("192.168.99.1")
+
+        wtfconfig.sta.start()
+        self.failIf(wtfconfig.sta.assoc(ssid="wtf-assoctest"),
+                    "Failed to associate with AP")
+        wtfconfig.sta.set_ip("192.168.99.2")
+        self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
+                    "Failed to ping AP at 192.168.99.1")

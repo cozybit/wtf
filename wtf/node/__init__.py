@@ -80,8 +80,38 @@ class NodeBase():
         """
         pass
 
+    def set_ip(self, ipaddr):
+        """
+        set the ip address of a node
+        """
+        raise UnimplementedError("set_ip is not implemented for this node")
+
+    def ping(self, host, timeout=2, count=1):
+        """
+        ping a remote host from this node
+
+        timeout: seconds to wait before quitting
+
+        count: number of ping requests to send
+
+        return 0 on success, anything else on failure
+        """
+        raise UnimplementedError("ping is not implemented for this node")
+
     def _cmd_or_die(self, cmd, verbosity=None):
         (r, o) = self.comm.send_cmd(cmd, verbosity)
         if r != 0:
             raise ActionFailureError("Failed to \"" + cmd + "\"")
         return o
+
+class LinuxNode(NodeBase):
+    """
+    A linux network node
+    """
+
+    def set_ip(self, ipaddr):
+        self.comm.send_cmd("ifconfig " + self.iface + " " + ipaddr + " up")
+
+    def ping(self, host, timeout=2, count=1):
+        return self.comm.send_cmd("ping -c " + str(count) + " -w " +
+                                  str(timeout) + " " + host)[0]

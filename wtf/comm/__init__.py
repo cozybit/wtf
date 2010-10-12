@@ -86,8 +86,8 @@ class Serial(CommBase):
         try:
             return int(self.ffd.before.split("\r\n")[-2])
         except ValueError:
-            print "Failed to find return code in:"
             print self.ffd.before
+            raise CommandFailureError("Failed to find return code in stdout")
         return -1
 
 class SSH(CommBase):

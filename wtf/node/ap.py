@@ -45,7 +45,7 @@ class APSet(APBase):
         self.configs = configs
         APBase.__init__(self, comm)
 
-class Hostapd(APBase):
+class Hostapd(node.LinuxNode, APBase):
     """
     Hostapd-based AP
     """
