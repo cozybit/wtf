@@ -27,23 +27,6 @@ class APConfig():
         self.ssid = ssid
         self.channel = channel
 
-class APSet(APBase):
-    """
-    Represent a set of confiured APs in your vicinity as one configurable AP
-
-    Sometimes, you just want to run a frickin' test against an AP in your
-    office without having to go through the rigamarole of setting up something
-    that wtf can have absolute control over.  If this sounds like you, you're
-    in the right place.
-    """
-
-    def __init__(self, comm, configs):
-        """
-        create an AP that represents all the supplied configs
-        """
-        self.configs = configs
-        APBase.__init__(self, comm)
-
 class Hostapd(node.LinuxNode, APBase):
     """
     Hostapd-based AP
