@@ -13,7 +13,6 @@ class APBase(node.NodeBase):
         """
         Create an AP with the supplied default configuration.
         """
-        self.defconfig = None
         node.NodeBase.__init__(self, comm=comm)
 
 class APConfig():
@@ -49,20 +48,9 @@ class Hostapd(node.LinuxNode, APBase):
     """
     Hostapd-based AP
     """
-    def __init__(self, comm, driver, iface):
-        self.driver = driver
-        self.iface = iface
-        APBase.__init__(self, comm)
+    def __init__(self, comm, iface, driver=None):
+        node.LinuxNode.__init__(self, comm, iface, driver)
         self.config = None
-
-    def init(self):
-        r = self._cmd_or_die("modprobe " + self.driver)
-        self.initialized = True
-
-    def shutdown(self):
-        self.stop()
-        self.comm.send_cmd("ifconfig " + self.iface + " down")
-        self.comm.send_cmd("modprobe -r " + self.driver)
 
     def start(self):
         if self.initialized != True:
@@ -74,6 +62,8 @@ class Hostapd(node.LinuxNode, APBase):
 
     def stop(self):
         self.comm.send_cmd("killall hostapd")
+        self.comm.send_cmd("iw dev mon." + self.iface + " del")
+        self.comm.send_cmd("rm -f /var/run/hostapd/" + self.iface)
 
     base_config = """
 driver=nl80211

@@ -108,6 +108,30 @@ class LinuxNode(NodeBase):
     """
     A linux network node
     """
+    def __init__(self, comm, iface, driver=None):
+        self.driver = driver
+        self.iface = iface
+        NodeBase.__init__(self, comm)
+
+    def init(self):
+        if self.driver:
+            self._cmd_or_die("modprobe " + self.driver)
+        self.initialized = True
+
+    def shutdown(self):
+        self.stop()
+        self.comm.send_cmd("ifconfig " + self.iface + " down")
+        if self.driver:
+            self.comm.send_cmd("modprobe -r " + self.driver)
+        self.initialized = False
+
+    def start(self):
+        if self.initialized != True:
+            raise UninitializedError()
+        self._cmd_or_die("ifconfig " + self.iface + " up")
+
+    def stop(self):
+        self.comm.send_cmd("ifconfig " + self.iface + " down")
 
     def set_ip(self, ipaddr):
         self.comm.send_cmd("ifconfig " + self.iface + " " + ipaddr + " up")

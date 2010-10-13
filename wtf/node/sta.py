@@ -30,29 +30,6 @@ class LinuxSTA(node.LinuxNode, STABase):
     Represent a typical linux STA with iwconfig, ifconfig, etc.  It should have
     wireless hardware controlled by the specified driver.
     """
-
-    def __init__(self, comm, driver, iface):
-        self.driver = driver
-        self.iface = iface
-        STABase.__init__(self, comm)
-
-    def init(self):
-        self._cmd_or_die("modprobe " + self.driver)
-        self.initialized = True
-
-    def shutdown(self):
-        self.stop()
-        self._cmd_or_die("modprobe -r " + self.driver)
-        self.initialized = False
-
-    def start(self):
-        if self.initialized != True:
-            raise UninitializedError()
-        self._cmd_or_die("ifconfig " + self.iface + " up")
-
-    def stop(self):
-        self.comm.send_cmd("ifconfig " + self.iface + " down")
-
     def scan(self):
         o = self._cmd_or_die("iwlist " + self.iface + " scan")
         # the first line is "<interface>     scan completed".  Skip it.
