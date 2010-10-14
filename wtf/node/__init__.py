@@ -131,6 +131,7 @@ class LinuxNode(NodeBase):
         self._cmd_or_die("ifconfig " + self.iface + " up")
 
     def stop(self):
+        self.comm.send_cmd("killall wpa_supplicant")
         self.comm.send_cmd("ifconfig " + self.iface + " down")
 
     def set_ip(self, ipaddr):

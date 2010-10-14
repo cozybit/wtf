@@ -1,5 +1,5 @@
 import wtf.node as node
-import re, sys
+import re, sys, time
 
 class STABase(node.NodeBase):
     """
@@ -50,12 +50,54 @@ class LinuxSTA(node.LinuxNode, STABase):
             ret.append(node.ap.APConfig(ssid, channel))
         return ret
 
-    def assoc(self, ssid):
+    def _open_assoc(self, ssid):
         self._cmd_or_die("iwconfig " + self.iface + " essid " + ssid)
         for i in range(1, 10):
-            (r, o) = self.comm.send_cmd("iwconfig " + self.iface)
+            (r, o) = self.comm.send_cmd("iwconfig " + self.iface, verbosity=0)
             if r != 0:
                 raise ActionFailureError("iwconfig failed with code %d" % r)
-            if o[0].split("ESSID:")[1].strip() == '"' + ssid + '"':
+
+            if o[0].split("ESSID:")[1].strip() == '"' + ssid + '"' and \
+               o[1].split("Access Point: ")[1].split(" ")[0].strip() != "Not-Associated":
                 return 0
+            time.sleep(0.5)
         return -1
+
+    base_config = """
+ctrl_interface=/var/run/wpa_supplicant
+ctrl_interface_group=root
+"""
+
+    def _configure_supplicant(self, apconfig):
+        config = self.base_config
+        if apconfig.security == node.ap.SECURITY_WPA:
+            config += "network={\n"
+            config += '    ssid="' + apconfig.ssid + '"\n'
+            if apconfig.auth == node.ap.AUTH_PSK:
+                config += "    key_mgmt=WPA-PSK\n"
+                config += '    psk="' + apconfig.password + '"\n'
+            config += "}\n"
+
+        self._cmd_or_die("echo -e '" + config + "'> /tmp/sup.conf",
+                         verbosity=0)
+
+    def _secure_assoc(self):
+        cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c/tmp/sup.conf"
+        self._cmd_or_die(cmd)
+        for i in range(1, 20):
+            (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
+            if r != 0:
+                raise ActionFailureError("wpa_cli failed (err=%d)" % r)
+
+            state = [re.match(r'wpa_state=.*', i) for i in o]
+            state = [f for f in state if f != None]
+            if state[0].group(0) == "wpa_state=COMPLETED":
+                return 0
+            time.sleep(0.5)
+        return -1
+
+    def assoc(self, apconfig):
+        if not apconfig.security:
+            return self._open_assoc(apconfig.ssid)
+        self._configure_supplicant(apconfig)
+        return self._secure_assoc()

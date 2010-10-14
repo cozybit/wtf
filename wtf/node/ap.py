@@ -15,6 +15,19 @@ class APBase(node.NodeBase):
         """
         node.NodeBase.__init__(self, comm=comm)
 
+# Security options
+SECURITY_WEP = 1
+SECURITY_WPA = 2
+SECURITY_WPA2 = 3
+
+# Client authentication schemes.  None is used to represent open.
+AUTH_PSK = 1
+AUTH_EAP = 2
+
+# Encryption ciphers
+ENCRYPT_TKIP = 1
+ENCRYPT_CCMP = 2
+
 class APConfig():
     """
     Access Point configuration object
@@ -23,9 +36,19 @@ class APConfig():
     familiar ones are the SSID and the channel.
     """
 
-    def __init__(self, ssid, channel=None):
+    def __init__(self, ssid, channel=6, security=None, auth=None,
+                 password=None, encrypt=None):
         self.ssid = ssid
         self.channel = channel
+        self.security = security
+        self.auth = auth
+        self.password = password
+        self.encrypt = encrypt
+        if security == SECURITY_WEP and not password:
+            raise InsufficientConfigurationError("WEP requires a password")
+        if (security == SECURITY_WPA or security == SECURITY_WPA2) and \
+               (not password or not auth):
+            raise InsufficientConfigurationError("WPA(2) requires a password and auth scheme")
 
 class Hostapd(node.LinuxNode, APBase):
     """
@@ -75,5 +98,14 @@ own_ip_addr=127.0.0.1
         config += "ssid=" + self.config.ssid + "\n"
         config += "channel=%d\n" % self.config.channel
         config += "interface=" + self.iface + "\n"
+        if self.config.security == SECURITY_WPA:
+            config += "wpa=1"
+            if self.config.auth == AUTH_PSK:
+                config += "wpa_key_mgmt=WPA-PSK\n"
+                config += 'wpa_passphrase="' + self.config.password + '"\n'
+
+            if self.config.encrypt == ENCRYPT_TKIP:
+                config += "wpa_pairwise=TKIP\n"
+
         self._cmd_or_die("echo -e \"" + config + "\"> /tmp/hostapd.conf",
                          verbosity=0)
