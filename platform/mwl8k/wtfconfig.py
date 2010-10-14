@@ -3,7 +3,7 @@ import wtf.node.sta
 import wtf.comm
 
 # create AP configuration for the mwl8k
-ap_serial = wtf.comm.Serial(port="/dev/ttyUSB0", prompt="~ # ")
+ap_serial = wtf.comm.Serial(port="/dev/ttyUSB0", prompt="[root@fedora-arm /]# ")
 ap_serial.name = "AP"
 ap_serial.verbosity = 2
 ap = wtf.node.ap.Hostapd(ap_serial, "wlan0")

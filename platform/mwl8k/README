@@ -31,29 +31,62 @@ These instructions were developed using Ubuntu 10.04:
    $ export CROSS_COMPILE=arm-uclinuxeabi-
    $ export ARCH=arm
    $ export TFTPROOT=/srv/tftp/
-   $ export ROOTDIR=/path/to/your/nfs/roots/install_root
+   $ export ROOTDIR=/path/to/your/nfs/roots/rootfs-f12
    [ see "Preparing the rootfs" for more details on this ]
+   $ export INSTALL_MOD_PATH=$ROOTDIR
 
 Preparing the rootfs
 ====================
 
-1. Install the baseline fs from Marvell.  This comes with the
-   mwl8k-quick-start.zip package from Marvell.
+Fedora provides an arm build.  Handy.
 
-   $ cd /where/you/put/your/nfsroots
-   $ sudo tar xzf /path/to/mwl8k-quick-start/install_root.tgz
-   [ The tarball contains device nodes.  So you have to be root. ]
+1. Get the prebuilt rootfs:
 
-2. Change the inittab to start a shell instead of the login:
+   $ wget http://ftp.linux.org.uk/pub/linux/arm/fedora/rootfs/rootfs-f12.tar.bz2
+   $ tar xjf rootfs-f12.tar.bz2
+   $ sudo chmod -R 777 rootfs-f12/
 
-   $ cat ./install_root/etc/inittab
-   ttyS0::restart:/sbin/init
-   ::sysinit:/etc/init.sh
-   ttyS0::respawn:/bin/sh
+2. Make /etc/inittab drop you to single user mode by default:
 
-3. Make a default wifi interface come up:
+   id:1:initdefault:
 
-   $ echo "iw phy phy0 interface add wlan0 type __ap" >> ./install_root/etc/inittab
+3. Copy files from the install_root tarball delivered by marvell:
+
+   $ cp -r /path/to/install_root/lib/firmware/mwl8k/ ./rootfs-f12/lib/firmware/
+
+4. Make a default wifi interface come up:
+
+   $ echo "iw phy phy0 interface add wlan0 type __ap" >> ./rootfs-f12/etc/rc.local
+   $ ln -s ../rc.local ./rootfs-f12/etc/rc1.d/S50local
+
+5. At this point, you should go build the kernel, install the headers, boot the
+   device, and come back here.  See the "Building the Kernel" section below.
+
+6. After you successuflly build the kernel (see below), boot the system and use
+   yum to install some packages.  You'll have to connect lan1 or some other
+   ethernet port to the Internet for this step.  Note that we can't yum install
+   everything because of some broken upstream dependencies.  So we have to
+   manually fetch some RPMs.
+
+   $ yum update
+   $ yum install iw make ntp libnl-devel keyutils-libs-devel libcom_err-devel \
+     libselinux-devel krb5-libs
+   $ rpm -Uvh http://ftp.linux.org.uk/pub/linux/arm/fedora/pub/fedora/linux/releases/12/Everything/arm/os/Packages/krb5-devel-1.7-8.fc12.bs.1.armv5tel.rpm
+   $ yum install openssl-devel
+
+7. Build hostapd:
+
+   On your dev host:
+   $ cd /path/to/rootfs-f12/root
+   $ wget http://hostap.epitest.fi/releases/hostapd-0.7.3.tar.gz
+   $ tar xzf hostapd-0.7.3.tar.gz
+   $ cp ../../hostapd.config ./hostapd-0.7.3/hostapd/.config
+
+   Now build it on the device.  That's right.  Native arm build.
+   $ cd /root/hostapd-0.7.3/hostapd
+   $ ntpdate ntp.ubuntu.com
+   $ make
+   $ make install
 
 Building the Kernel
 ===================
@@ -74,6 +107,12 @@ Building the Kernel
    $ cp ../config_mwl8k ./.config
    $ make uImage
    $ cp arch/arm/boot/uImage $TFTPROOT
+   $ make modules
+   $ make modules_install
+
+4. If this is the first time you built the kernel, install the headers
+   $ export INSTALL_HDR_PATH=$ROOTDIR
+   $ make headers_install
 
 Setup the Target
 ================
@@ -87,7 +126,7 @@ setenv serverip 192.168.6.2
 setenv x_bootargs console='ttyS0,115200 mtdparts=spi0.0:512k(uboot),512k@512k(psm),3m@1m(kernel),12m@4m(rootfs)'
 setenv x_bootcmd 'protect off g0xf8000000 +1; $(x_bootcmd_kernel); setenv bootargs $(x_bootargs) $(x_bootargs_root); bootm 0x6400000'
 setenv x_bootcmd_kernel tftp 0x6400000 /srv/tftp/uImage
-setenv x_bootargs_root root=/dev/nfs rw nfsroot=192.168.6.2:/path/to/nfs/install_root ip=dhcp
+setenv x_bootargs_root root=/dev/nfs rw nfsroot=192.168.6.2:/path/to/nfs/rootfs_f12 ip=dhcp
 setenv bootcmd $(x_bootcmd)
 saveenv
 
@@ -101,12 +140,6 @@ saveenv
 
 Other Notes
 ===========
-
--- Need to grab a file from the device real quick?  Use the built-in http server:
-
-   Device $ httpd -p 8080 -h /
-
-   Dev Host $ wget 192.168.6.1:8080/path/to/file
 
 -- openocd kinda works.  I use the olimex/USB adapter and I pretend the mwl8k
    is a sheeva plug.  This is what my openocd.cfg looks like:
