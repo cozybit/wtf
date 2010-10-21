@@ -112,6 +112,10 @@ class LinuxNode(NodeBase):
         self.driver = driver
         self.iface = iface
         NodeBase.__init__(self, comm)
+        # who knows what was running on this machine before.  Be sure to kill
+        # anything that might get in our way.
+        self.comm.send_cmd("killall hostapd; killall wpa_supplicant",
+                           verbosity=0)
 
     def init(self):
         if self.driver:
