@@ -31,7 +31,17 @@ class LinuxSTA(node.LinuxNode, STABase):
     wireless hardware controlled by the specified driver.
     """
     def scan(self):
+        # first perform the scan.  Try a few times because the device still may
+        # be coming up.
         o = self._cmd_or_die("iwlist " + self.iface + " scan")
+        count = 10
+        while count != 0 and \
+                  o[0].endswith("Interface doesn't support scanning : Device or resource busy"):
+            o = self._cmd_or_die("iwlist " + self.iface + " scan")
+            count = count - 1
+        if count == 0:
+            return []
+
         # the first line is "<interface>     scan completed".  Skip it.
         results = "".join(o[1:]).split(" "*10 + "Cell ")
         ret = []
