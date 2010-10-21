@@ -56,7 +56,7 @@ Fedora provides an arm build.  Handy.
 
 4. Make a default wifi interface come up:
 
-   $ echo "iw phy phy0 interface add wlan0 type __ap" >> ./rootfs-f12/etc/rc.local
+   $ echo "iw phy phy0 interface add wlan1 type __ap" >> ./rootfs-f12/etc/rc.local
    $ ln -s ../rc.local ./rootfs-f12/etc/rc1.d/S50local
 
 5. At this point, you should go build the kernel, install the headers, boot the
@@ -70,7 +70,7 @@ Fedora provides an arm build.  Handy.
 
    $ yum update
    $ yum install iw make ntp libnl-devel keyutils-libs-devel libcom_err-devel \
-     libselinux-devel krb5-libs
+     libselinux-devel krb5-libs wireless-tools wpa_supplicant
    $ rpm -Uvh http://ftp.linux.org.uk/pub/linux/arm/fedora/pub/fedora/linux/releases/12/Everything/arm/os/Packages/krb5-devel-1.7-8.fc12.bs.1.armv5tel.rpm
    $ yum install openssl-devel
 
@@ -87,6 +87,11 @@ Fedora provides an arm build.  Handy.
    $ ntpdate ntp.ubuntu.com
    $ make
    $ make install
+
+8. Eliminate persistent net udev rules, which kinda get in the way:
+
+   $ rm ./etc/udev/rules.d/70-persistent-net.rules
+   $ rm ./lib/udev/rules.d/75-persistent-net-generator.rules
 
 Building the Kernel
 ===================
