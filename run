@@ -2,6 +2,7 @@
 
 import os, sys
 import nose
+import wtfconfig
 
 # detect whether the caller supplied a list of tests, or whether we should use
 # the suites in the wtfconfig file.  To do this, we hijack nose's option
@@ -12,23 +13,33 @@ plugins = nose.plugins.manager.DefaultPluginManager()
 c = nose.config.Config(env=os.environ, files=cfg_files, plugins=plugins)
 (opts, tests) = c._parseArgs(sys.argv, cfg_files)
 
-if tests == []:
-	# no tests specified on command line.
-	try:
-		from wtfconfig import suites
-	except ImportError:
-		print """
-		Please specify which test suites to run either in the 'suites' list in your
-		wtfconfig.py, or explicitly on the command line.
-		"""
-		raise
-	test_dir = os.path.join(os.path.dirname(__file__), "tests")
-	for s in suites:
-		suite_file = os.path.join(test_dir, s + ".py")
-		if not os.path.isfile(suite_file):
-			print "No such test suite " + suite_file
-			sys.exit(1)
-		sys.argv.append(suite_file)
+try:
+	from wtfconfig import configs
+except ImportError:
+	print """
+	Please specify a wtf.config test configuration in your wtfconfig.py
+	"""
+	raise
 
 # run the tests
-nose.run()
+for c in wtfconfig.configs:
+	args = []
+	if tests == []:
+		# no tests specified on command line.
+		test_dir = os.path.join(os.path.dirname(__file__), "tests")
+		for s in c.suites:
+			suite_file = os.path.join(test_dir, s + ".py")
+			if not os.path.isfile(suite_file):
+				print "No such test suite " + suite_file
+				sys.exit(1)
+			args.append(suite_file)
+
+	c.setUp()
+	print "======================================================================"
+	print "Running " + c.name
+	print "======================================================================"
+	wtfconfig.nodes = c.nodes
+	wtfconfig.ap = c.aps[0]
+	wtfconfig.sta = c.stas[0]
+	nose.run(argv=sys.argv + args)
+	c.tearDown()
