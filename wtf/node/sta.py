@@ -33,7 +33,7 @@ class LinuxSTA(node.LinuxNode, STABase):
     def scan(self):
         # first perform the scan.  Try a few times because the device still may
         # be coming up.
-        o = self._cmd_or_die("iwlist " + self.iface + " scan")
+        o = self._cmd_or_die("iwlist " + self.iface + " scan", verbosity=0)
         count = 10
         while count != 0 and \
                   o[0].endswith("Interface doesn't support scanning : Device or resource busy"):
@@ -65,7 +65,7 @@ class LinuxSTA(node.LinuxNode, STABase):
         for i in range(1, 10):
             (r, o) = self.comm.send_cmd("iwconfig " + self.iface, verbosity=0)
             if r != 0:
-                raise ActionFailureError("iwconfig failed with code %d" % r)
+                raise wtf.node.ActionFailureError("iwconfig failed with code %d" % r)
 
             if o[0].split("ESSID:")[1].strip() == '"' + ssid + '"' and \
                o[1].split("Access Point: ")[1].split(" ")[0].strip() != "Not-Associated":
@@ -97,7 +97,7 @@ ctrl_interface_group=root
         for i in range(1, 20):
             (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
             if r != 0:
-                raise ActionFailureError("wpa_cli failed (err=%d)" % r)
+                raise wtf.node.ActionFailureError("wpa_cli failed (err=%d)" % r)
 
             state = [re.match(r'wpa_state=.*', i) for i in o]
             state = [f for f in state if f != None]
