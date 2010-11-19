@@ -33,11 +33,11 @@ class LinuxSTA(node.LinuxNode, STABase):
     def scan(self):
         # first perform the scan.  Try a few times because the device still may
         # be coming up.
-        o = self._cmd_or_die("iwlist " + self.iface + " scan", verbosity=0)
+        (r, o) = self.comm.send_cmd("iwlist " + self.iface + " scan", verbosity=2)
         count = 10
         while count != 0 and \
                   o[0].endswith("Interface doesn't support scanning : Device or resource busy"):
-            o = self._cmd_or_die("iwlist " + self.iface + " scan")
+            (r, o) = self.comm.send_cmd("iwlist " + self.iface + " scan")
             count = count - 1
         if count == 0:
             return []
