@@ -131,7 +131,7 @@ class pxssh (spawn):
         # connecting to a heavily loaded machine I have.
         # If latency is worse than these values then this will fail.
         self.sendline()
-        time.sleep(0.5)
+        time.sleep(2)
         self.read_nonblocking(size=1000,timeout=1)
         self.sendline()
         time.sleep(0.5)
