@@ -19,8 +19,9 @@ These instructions were developed using Ubuntu 10.04:
    tftp root directory happens to be /srv/tftp.  Make sure the permissions are
    sufficiently liberal.
 
-3. Set up an nfs server somewhere.  I use my own development machine for this
-   too.  I export my
+3. Set up an nfs server to share the target's root somewhere.  
+   I use my own development machine for this too. 
+   Don't forget to add the option no_root_squash to your /etc/exports line.
 
 4. Ensure you have the u-boot utility "mkimage" available in your path
    somewhere.
@@ -28,7 +29,7 @@ These instructions were developed using Ubuntu 10.04:
 5. Set up your environment:
 
    $ export PATH=$PATH:/path/to/CodeSourcery/Sourcery_G++_Lite/bin
-   $ export CROSS_COMPILE=arm-uclinuxeabi-
+   $ export CROSS_COMPILE=arm-none-eabi-
    $ export ARCH=arm
    $ export TFTPROOT=/srv/tftp/
    $ export ROOTDIR=/path/to/your/nfs/roots/rootfs-f12
@@ -46,27 +47,33 @@ Fedora provides an arm build.  Handy.
    $ tar xjf rootfs-f12.tar.bz2
    $ sudo chmod -R 777 rootfs-f12/
 
-2. Make /etc/inittab drop you to single user mode by default:
+2. Make rootfs-f12/etc/inittab drop you to single user mode by default:
 
    id:1:initdefault:
 
-3. Copy files from the install_root tarball delivered by marvell:
+3. Enable Magic SysRq key support (BREAK on serial), so we can recover remotely.
+    
+   $ echo "echo 1 > /proc/sys/kernel/sysrq" >> $ROOTDIR/etc/rc.d/rc.local
+   $ ln -s /etc/rc.d/rc.local /etc/rc1.d/S50local
 
-   $ cp -r /path/to/install_root/lib/firmware/mwl8k/ ./rootfs-f12/lib/firmware/
+4. Get firmware files from linux-firmware and copy to device root:
 
-4. Make a default wifi interface come up:
-
-   $ echo "iw phy phy0 interface add wlan1 type __ap" >> ./rootfs-f12/etc/rc.local
-   $ ln -s ../rc.local ./rootfs-f12/etc/rc1.d/S50local
+    $ git clone git://git.kernel.org/pub/scm/linux/kernel/git/dwmw2/linux-firmware.git
+    $ cd linux-firmare
+    $ git am $WTFDIR/platform/mwl8k/patches/0001-linux-firmware-add-firmware-files-for-Marvell-8366.patch 
+    $ cp -R mwl8k/ $ROOTDIR/lib/firmware/
 
 5. At this point, you should go build the kernel, install the headers, boot the
    device, and come back here.  See the "Building the Kernel" section below.
 
-6. After you successuflly build the kernel (see below), boot the system and use
+6. After you successfully build the kernel (see below), boot the system and use
    yum to install some packages.  You'll have to connect lan1 or some other
    ethernet port to the Internet for this step.  Note that we can't yum install
    everything because of some broken upstream dependencies.  So we have to
    manually fetch some RPMs.
+
+   set the date to this century or all hell breaks loose:
+   $ ntpdate ntp.ubuntu.com
 
    $ yum update
    $ yum install iw make ntp libnl-devel keyutils-libs-devel libcom_err-devel \
@@ -80,18 +87,17 @@ Fedora provides an arm build.  Handy.
    $ cd /path/to/rootfs-f12/root
    $ wget http://hostap.epitest.fi/releases/hostapd-0.7.3.tar.gz
    $ tar xzf hostapd-0.7.3.tar.gz
-   $ cp ../../hostapd.config ./hostapd-0.7.3/hostapd/.config
+   $ cp $WTFDIR/platform/wml8k/hostapd.config ./hostapd-0.7.3/hostapd/.config
 
    Now build it on the device.  That's right.  Native arm build.
    $ cd /root/hostapd-0.7.3/hostapd
-   $ ntpdate ntp.ubuntu.com
    $ make
    $ make install
 
 8. Eliminate persistent net udev rules, which kinda get in the way:
 
-   $ rm ./etc/udev/rules.d/70-persistent-net.rules
-   $ rm ./lib/udev/rules.d/75-persistent-net-generator.rules
+   $ rm /etc/udev/rules.d/70-persistent-net.rules
+   $ rm /lib/udev/rules.d/75-persistent-net-generator.rules
 
 Building the Kernel
 ===================
@@ -103,13 +109,13 @@ Building the Kernel
    $ git clone git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git
    $ cd wireless-testing
 
-2. Patch the source:
+2. Apply patches
 
-   $ git am ../patches/000*
+    $ git am patches/0001-NFS-patch-needed-to-allow-nfs-booting-of-the-box.patch
 
 3. Configure, build, and deploy the kernel:
 
-   $ cp ../config_mwl8k ./.config
+   $ cp $WTFDIR/platform/mwl8k/config_mwl8k ./.config
    $ make uImage
    $ cp arch/arm/boot/uImage $TFTPROOT
    $ make modules
@@ -126,12 +132,12 @@ I connect the WAN port of the mwl8k to my dev machine via a crossover cable,
 and I get a console on the serial port.  I set up my u-boot environment like
 this for network booting (based on Marvell uboot.txt and altered for my env.):
 
-setenv ipaddr 192.168.6.1
-setenv serverip 192.168.6.2
+setenv ipaddr $TARGET_DEVICE_IP
+setenv serverip $TFTP_HOST_IP
 setenv x_bootargs console='ttyS0,115200 mtdparts=spi0.0:512k(uboot),512k@512k(psm),3m@1m(kernel),12m@4m(rootfs)'
-setenv x_bootcmd 'protect off g0xf8000000 +1; $(x_bootcmd_kernel); setenv bootargs $(x_bootargs) $(x_bootargs_root); bootm 0x6400000'
+setenv x_bootcmd 'protect off 0xf8000000 +1; $(x_bootcmd_kernel); setenv bootargs $(x_bootargs) $(x_bootargs_root); bootm 0x6400000'
 setenv x_bootcmd_kernel tftp 0x6400000 /srv/tftp/uImage
-setenv x_bootargs_root root=/dev/nfs rw nfsroot=192.168.6.2:/path/to/nfs/rootfs_f12 ip=dhcp
+setenv x_bootargs_root root=/dev/nfs rw nfsroot=$(serverip):/path/to/nfs/rootfs_f12 ip=dhcp
 setenv bootcmd $(x_bootcmd)
 saveenv
 
@@ -140,7 +146,10 @@ can eliminate that!
 
 If you ever want to change back to booting from flash:
 
-setenv bootcmd 'fsload 0x6400000 uImage;setenv bootargs $(y_bootargs) $(y_bootargs_root) ip=$(ipaddr):$(serverip)$(bootargs_end); bootm 0x6400000;'
+setenv y_bootargs console='ttyS0,115200 mtdparts=spi0.0:1m(uboot),8m@1m(rootfs),7m@9m(data)'
+setenv y_bootargs_root root=/dev/mtdblock1 rw rootfstype=jffs2
+setenv y_bootcmd 'fsload 0x6400000 uImage;setenv bootargs $(y_bootargs) $(y_bootargs_root) ip=$(ipaddr):$(serverip)$(bootargs_end); bootm 0x6400000'
+setenv bootcmd $(y_bootcmd)
 saveenv
 
 Other Notes
