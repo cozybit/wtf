@@ -98,8 +98,11 @@ own_ip_addr=127.0.0.1
         config += "ssid=" + self.config.ssid + "\n"
         config += "channel=%d\n" % self.config.channel
         config += "interface=" + self.iface + "\n"
-        if self.config.security == SECURITY_WPA:
-            config += "wpa=1"
+        if self.config.security == SECURITY_WPA or SECURITY_WPA2:
+            if self.config.security == SECURITY_WPA: 
+                config += "wpa=1\n"
+            if self.config.security == SECURITY_WPA2:
+                config += "wpa=2\n"
             if self.config.auth == AUTH_PSK:
                 config += "wpa_key_mgmt=WPA-PSK\n"
                 config += 'wpa_passphrase="' + self.config.password + '"\n'
