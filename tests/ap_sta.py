@@ -46,8 +46,6 @@ class TestAPSTA(unittest.TestCase):
         self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
                     "Failed to ping AP at 192.168.99.1")
 
-    # this test will fail when the STA is significantly slower
-    # than the AP due to a race condition in the initial key exchange.
     def test_wpapsk_associate(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",
                                           security=AP.SECURITY_WPA,
@@ -73,11 +71,10 @@ class TestAPSTA(unittest.TestCase):
         wtfconfig.ap.start()
         wtfconfig.ap.set_ip("192.168.99.1")
 
-        time.sleep(5)
         wtfconfig.sta.start()
         self.failIf(wtfconfig.sta.assoc(wtfconfig.ap.config),
                     "Failed to associate with AP")
         wtfconfig.sta.set_ip("192.168.99.2")
-        sef.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
+        self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
                 "Failed to ping AP at 192.168.99.1")
 

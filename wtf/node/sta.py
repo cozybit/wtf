@@ -80,7 +80,7 @@ ctrl_interface_group=root
 
     def _configure_supplicant(self, apconfig):
         config = self.base_config
-        if apconfig.security == node.ap.SECURITY_WPA:
+        if apconfig.security != None:
             config += "network={\n"
             config += '    ssid="' + apconfig.ssid + '"\n'
             if apconfig.auth == node.ap.AUTH_PSK:
