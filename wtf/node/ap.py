@@ -103,12 +103,15 @@ own_ip_addr=127.0.0.1
                 config += "wpa=1\n"
             elif self.config.security == SECURITY_WPA2:
                 config += "wpa=2\n"
+        if self.config.auth != None:
             if self.config.auth == AUTH_PSK:
                 config += "wpa_key_mgmt=WPA-PSK\n"
                 config += 'wpa_passphrase="' + self.config.password + '"\n'
-
+        if self.config.encrypt != None:
             if self.config.encrypt == ENCRYPT_TKIP:
                 config += "wpa_pairwise=TKIP\n"
+            elif self.config.encrypt == ENCRYPT_CCMP:
+                config += "wpa_pairwise=CCMP\n"
 
         self._cmd_or_die("echo -e \"" + config + "\"> /tmp/hostapd.conf",
                          verbosity=0)
