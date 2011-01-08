@@ -30,6 +30,16 @@ class LinuxSTA(node.LinuxNode, STABase):
     Represent a typical linux STA with iwconfig, ifconfig, etc.  It should have
     wireless hardware controlled by the specified driver.
     """
+
+    def stop(self):
+        node.LinuxNode.stop(self)
+        self.comm.send_cmd("killall wpa_supplicant")
+
+    def start(self):
+        node.LinuxNode.stop(self)
+        self._cmd_or_die("iw " + self.iface + " set type station")
+        node.LinuxNode.start(self)
+
     def scan(self):
         # first perform the scan.  Try a few times because the device still may
         # be coming up.
@@ -61,9 +71,9 @@ class LinuxSTA(node.LinuxNode, STABase):
         return ret
 
     def _open_assoc(self, ssid):
-        self._cmd_or_die("iwconfig " + self.iface + " essid " + ssid)
-        for i in range(1, 10):
-            (r, o) = self.comm.send_cmd("iwconfig " + self.iface, verbosity=0)
+        self._cmd_or_die("iw " + self.iface + " connect " + ssid)
+        for i in range(1, 30):
+            (r, o) = self.comm.send_cmd("iwconfig " + self.iface, verbosity=2)
             if r != 0:
                 raise wtf.node.ActionFailureError("iwconfig failed with code %d" % r)
 
@@ -94,7 +104,7 @@ ctrl_interface_group=root
     def _secure_assoc(self):
         cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c/tmp/sup.conf"
         self._cmd_or_die(cmd)
-        for i in range(1, 20):
+        for i in range(1, 40):
             (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
             if r != 0:
                 raise wtf.node.ActionFailureError("wpa_cli failed (err=%d)" % r)

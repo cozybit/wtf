@@ -16,22 +16,7 @@ sta_ssh.name = "STA"
 sta_ssh.verbosity = 2
 sta = wtf.node.sta.LinuxSTA(sta_ssh, "wlan0")
 
-# Override the setup method to change the name of the node.  Also, change the
-# interface type to be __ap so hostapd will work.
-class apConfig(wtf.config):
-    def setUp(self):
-        self.aps[0].comm.send_cmd("killall hostapd; killall wpa_supplicant",
-                                  verbosity=0)
-        self.aps[0].comm.send_cmd("ifconfig wlan0 down; iw wlan0 set type __ap",
-                                  verbosity=0)
-        self.aps[0].comm.name = "mwl8k-AP"
-
-    def tearDown(self):
-        # Be sure to tear down the AP in our setup in case somebody wants to
-        # run another test
-        self.aps[0].comm.send_cmd("killall hostapd", verbosity=0)
-
-mwl8k_as_ap = apConfig(["ap_sta"], aps=[mwl8k_ap], stas=[sta],
+mwl8k_as_ap = wtf.config(["ap_sta"], aps=[mwl8k_ap], stas=[sta],
                        name="mwl8k as AP")
 
 # now make a configuration for the STA case.
@@ -42,21 +27,9 @@ ap_ssh.name = "AP"
 ap_ssh.verbosity = 2
 ap = wtf.node.ap.Hostapd(ap_ssh, "wlan0")
 
-class staConfig(wtf.config):
-    def setUp(self):
-        self.stas[0].comm.send_cmd("killall hostapd; killall wpa_supplicant",
-                                   verbosity=0)
-        self.stas[0].comm.send_cmd("ifconfig wlan0 up; iw wlan0 set type station",
-                                   verbosity=0)
-        self.stas[0].comm.name = "mwl8k-STA"
-
-    def tearDown(self):
-        self.stas[0].comm.send_cmd("killall wpa_supplicant; ifconfig wlan0 down",
-                                   verbosity=0)
-
-mwl8k_as_sta = staConfig(["ap_sta"], aps=[ap], stas=[mwl8k_sta],
+mwl8k_as_sta = wtf.config(["ap_sta"], aps=[ap], stas=[mwl8k_sta],
                          name="mwl8k as STA")
 
 # tell wtf about our configs
-#configs = [mwl8k_as_ap, mwl8k_as_sta] # reboots mwl8k!
-configs = [mwl8k_as_sta, mwl8k_as_ap]
+configs = [mwl8k_as_ap, mwl8k_as_sta]  # also reboots mwl8k..
+#configs = [mwl8k_as_sta, mwl8k_as_ap] # reboots mwl8k once hostapd closes

@@ -59,14 +59,17 @@ class Hostapd(node.LinuxNode, APBase):
         self.config = None
 
     def start(self):
-        if self.initialized != True:
-            raise UninitializedError()
+        # iface must be down before we can set type
+        node.LinuxNode.stop(self)
+        self._cmd_or_die("iw " + self.iface + " set type __ap")
+        node.LinuxNode.start(self)
         if not self.config:
             raise node.InsufficientConfigurationError()
         self._configure()
         self._cmd_or_die("hostapd -B /tmp/hostapd.conf")
 
     def stop(self):
+        node.LinuxNode.stop(self)
         self.comm.send_cmd("killall hostapd")
         self.comm.send_cmd("iw dev mon." + self.iface + " del")
         self.comm.send_cmd("rm -f /var/run/hostapd/" + self.iface)
