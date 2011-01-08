@@ -13,6 +13,10 @@ def setUp(self):
         n.shutdown()
         n.init()
 
+def tearDown(self):
+    for n in wtfconfig.nodes:
+        n.stop()
+
 class TestAPSTA(unittest.TestCase):
 
     def setUp(self):
