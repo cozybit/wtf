@@ -7,6 +7,9 @@ import wtf.node.ap as AP
 import unittest
 import time
 
+AP_IP = "192.168.99.1"
+STA_IP = "192.168.99.2"
+
 def setUp(self):
     # start with all of the nodes initialized by idle
     for n in wtfconfig.nodes:
@@ -23,6 +26,24 @@ class TestAPSTA(unittest.TestCase):
         # start with all of the nodes stopped
         for n in wtfconfig.nodes:
             n.stop()
+        # set IP addrs, stack doesn't care if iface goes up or down
+        wtfconfig.ap.set_ip(AP_IP)
+        wtfconfig.sta.set_ip(STA_IP)
+
+    def startNodes(self):
+        for n in wtfconfig.nodes:
+            n.start()
+
+    def pingTest(self):
+        self.failIf(wtfconfig.sta.ping(AP_IP) != 0,
+                    "Failed to ping AP at %s" % AP_IP)
+
+    def assocTest(self):
+        self.failIf(wtfconfig.sta.assoc(wtfconfig.ap.config),
+                    "Failed to associate with AP")
+
+    def throughput(self):
+        pass
 
     def test_scan(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-scantest", channel=11)
@@ -40,15 +61,10 @@ class TestAPSTA(unittest.TestCase):
 
     def test_open_associate(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-assoctest", channel=6)
-        wtfconfig.ap.start()
-        wtfconfig.ap.set_ip("192.168.99.1")
 
-        wtfconfig.sta.start()
-        self.failIf(wtfconfig.sta.assoc(wtfconfig.ap.config),
-                    "Failed to associate with AP")
-        wtfconfig.sta.set_ip("192.168.99.2")
-        self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
-                    "Failed to ping AP at 192.168.99.1")
+        self.startNodes()
+        self.assocTest()
+        self.pingTest()
 
     def test_wpa_psk_tkip_assoc(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",
@@ -56,15 +72,9 @@ class TestAPSTA(unittest.TestCase):
                                           auth=AP.AUTH_PSK,
                                           password="thisisasecret",
                                           encrypt=AP.ENCRYPT_TKIP)
-        wtfconfig.ap.start()
-        wtfconfig.ap.set_ip("192.168.99.1")
-
-        wtfconfig.sta.start()
-        self.failIf(wtfconfig.sta.assoc(wtfconfig.ap.config),
-                    "Failed to associate with AP")
-        wtfconfig.sta.set_ip("192.168.99.2")
-        self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
-                    "Failed to ping AP at 192.168.99.1")
+        self.startNodes()
+        self.assocTest()
+        self.pingTest()
 
     def test_wpa2_psk_tkip_assoc(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",
@@ -72,15 +82,9 @@ class TestAPSTA(unittest.TestCase):
                                             auth=AP.AUTH_PSK,
                                             password="thisisasecret",
                                             encrypt=AP.ENCRYPT_TKIP)
-        wtfconfig.ap.start()
-        wtfconfig.ap.set_ip("192.168.99.1")
-
-        wtfconfig.sta.start()
-        self.failIf(wtfconfig.sta.assoc(wtfconfig.ap.config),
-                    "Failed to associate with AP")
-        wtfconfig.sta.set_ip("192.168.99.2")
-        self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
-                "Failed to ping AP at 192.168.99.1")
+        self.startNodes()
+        self.assocTest()
+        self.pingTest()
 
     def test_wpa_psk_ccmp_assoc(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",
@@ -88,15 +92,9 @@ class TestAPSTA(unittest.TestCase):
                                           auth=AP.AUTH_PSK,
                                           password="thisisasecret",
                                           encrypt=AP.ENCRYPT_CCMP)
-        wtfconfig.ap.start()
-        wtfconfig.ap.set_ip("192.168.99.1")
-
-        wtfconfig.sta.start()
-        self.failIf(wtfconfig.sta.assoc(wtfconfig.ap.config),
-                    "Failed to associate with AP")
-        wtfconfig.sta.set_ip("192.168.99.2")
-        self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
-                    "Failed to ping AP at 192.168.99.1")
+        self.startNodes()
+        self.assocTest()
+        self.pingTest()
 
     def test_wpa2_psk_ccmp_assoc(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",
@@ -104,12 +102,7 @@ class TestAPSTA(unittest.TestCase):
                                             auth=AP.AUTH_PSK,
                                             password="thisisasecret",
                                             encrypt=AP.ENCRYPT_CCMP)
-        wtfconfig.ap.start()
-        wtfconfig.ap.set_ip("192.168.99.1")
+        self.startNodes()
+        self.assocTest()
+        self.pingTest()
 
-        wtfconfig.sta.start()
-        self.failIf(wtfconfig.sta.assoc(wtfconfig.ap.config),
-                    "Failed to associate with AP")
-        wtfconfig.sta.set_ip("192.168.99.2")
-        self.failIf(wtfconfig.sta.ping("192.168.99.1") != 0,
-                "Failed to ping AP at 192.168.99.1")
