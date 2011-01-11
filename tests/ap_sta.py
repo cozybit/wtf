@@ -43,7 +43,10 @@ class TestAPSTA(unittest.TestCase):
                     "Failed to associate with AP")
 
     def throughput(self):
-        pass
+        wtfconfig.ap.perf()
+        results = wtfconfig.sta.perf(AP_IP)
+        wtfconfig.ap.killperf()
+        print results
 
     def test_scan(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-scantest", channel=11)
@@ -64,6 +67,7 @@ class TestAPSTA(unittest.TestCase):
 
         self.startNodes()
         self.assocTest()
+        self.throughput()
         self.pingTest()
 
     def test_wpa_psk_tkip_assoc(self):

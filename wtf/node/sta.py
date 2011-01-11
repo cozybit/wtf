@@ -40,6 +40,11 @@ class LinuxSTA(node.LinuxNode, STABase):
         self._cmd_or_die("iw " + self.iface + " set type station")
         node.LinuxNode.start(self)
 
+    def perf(self, host):
+        # start throughput test client, in this case iperf, just dump output for now
+        (r, o) = self.comm.send_cmd("iperf -c " + host, verbosity=2)
+        return o
+
     def scan(self):
         # first perform the scan.  Try a few times because the device still may
         # be coming up.
