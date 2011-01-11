@@ -75,7 +75,7 @@ class Hostapd(node.LinuxNode, APBase):
         self.comm.send_cmd("rm -f /var/run/hostapd/" + self.iface)
 
     def perf(self):
-        (r, o) = self.comm.send_cmd("iperf -s &", verbosity=2)
+        (r, o) = self.comm.send_cmd("iperf -s > /dev/null &", verbosity=2)
         return o
 
     def killperf(self):

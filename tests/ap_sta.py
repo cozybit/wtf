@@ -46,7 +46,6 @@ class TestAPSTA(unittest.TestCase):
         wtfconfig.ap.perf()
         results = wtfconfig.sta.perf(AP_IP)
         wtfconfig.ap.killperf()
-        print results
 
     def test_scan(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-scantest", channel=11)
