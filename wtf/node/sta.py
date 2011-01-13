@@ -42,7 +42,12 @@ class LinuxSTA(node.LinuxNode, STABase):
 
     def perf(self, host):
         # start throughput test client, in this case iperf, just dump output for now
-        (r, o) = self.comm.send_cmd("iperf -c " + host, verbosity=2)
+        (r, o) = self.comm.send_cmd("iperf -c " + host + " -t 5", verbosity=2)
+        return o
+
+    def stress(self, host):
+        # do our worst
+        (r, o) = self.comm.send_cmd("iperf -c " + host + " -d -P 10", verbosity=2)
         return o
 
     def scan(self):

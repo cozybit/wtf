@@ -47,6 +47,12 @@ class TestAPSTA(unittest.TestCase):
         results = wtfconfig.sta.perf(AP_IP)
         wtfconfig.ap.killperf()
 
+    def stressTest(self):
+        wtfconfig.ap.perf()
+        results = wtfconfig.sta.stress(AP_IP)
+        wtfconfig.ap.killperf()
+        self.pingTest()
+
     def test_scan(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-scantest", channel=11)
         wtfconfig.ap.start()
@@ -66,8 +72,9 @@ class TestAPSTA(unittest.TestCase):
 
         self.startNodes()
         self.assocTest()
-        self.throughput()
         self.pingTest()
+        self.throughput()
+        self.stressTest()
 
     def test_wpa_psk_tkip_assoc(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",
