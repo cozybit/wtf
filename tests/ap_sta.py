@@ -74,7 +74,7 @@ class TestAPSTA(unittest.TestCase):
         self.assocTest()
         self.pingTest()
         self.throughput()
-        self.stressTest()
+        #self.stressTest()
 
     def test_wpa_psk_tkip_assoc(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",
