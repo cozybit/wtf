@@ -54,7 +54,7 @@ Fedora provides an arm build.  Handy.
 3. Enable Magic SysRq key support (BREAK on serial), so we can recover remotely.
     
    $ echo "echo 1 > /proc/sys/kernel/sysrq" >> $ROOTDIR/etc/rc.d/rc.local
-   $ ln -s /etc/rc.d/rc.local /etc/rc1.d/S50local
+   $ ln -s $ROOTDIR/etc/rc.d/rc.local $ROOTDIR/etc/rc1.d/S50local
 
 4. Get firmware files from linux-firmware and copy to device root:
 
@@ -98,6 +98,10 @@ Fedora provides an arm build.  Handy.
 
    $ rm /etc/udev/rules.d/70-persistent-net.rules
    $ rm /lib/udev/rules.d/75-persistent-net-generator.rules
+
+9. Set regulatory domain to US on boot:
+
+   $ echo "iw reg set US" >> $ROOTDR/etc/rc.d/rc.local
 
 Building the Kernel
 ===================
