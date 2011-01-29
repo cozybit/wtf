@@ -7,6 +7,27 @@ all of my work from the location of this README.  So any reference to files,
 patches, etc. are usually with respect to this directory if not otherwise
 mentioned.
 
+Marvell Firmware API Versioning Algorithm
+=========================================
+
+Anytime a discussion about whether to increment the firmware API version (the
+'-Vn' tag on the firmware image file), simply refer to this pseudocode to save
+some time:
+
+switch (fw_change):
+	case (breaks_existing_functionality)
+		increment_version = true;
+		break
+	case (is_bugfix)
+		increment_version = false;
+		break
+	case (new_feature)
+		if (driver using new feature w/ old fw w/ same API fails gracefully)
+			increment_version = false;
+		else
+			increment_version = true;
+		break
+
 Development Machine Setup
 =========================
 

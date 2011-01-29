@@ -81,7 +81,12 @@ class LinuxSTA(node.LinuxNode, STABase):
         return ret
 
     def _open_assoc(self, ssid):
-        self._cmd_or_die("iw " + self.iface + " connect " + ssid)
+        (r, o) = self.comm.send_cmd("iw " + self.iface + " connect " + ssid)
+        if r == 142:    # error code -114
+                # operation already in progress, means we're already connected
+                # or not ready, try again
+                time.sleep(0.5)
+                self._cmd_or_die("iw " + self.iface + " connect " + ssid)
         for i in range(1, 30):
             (r, o) = self.comm.send_cmd("iwconfig " + self.iface, verbosity=2)
             if r != 0:
@@ -114,10 +119,10 @@ ctrl_interface_group=root
     def _secure_assoc(self):
         cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c/tmp/sup.conf"
         self._cmd_or_die(cmd)
-        for i in range(1, 40):
+        for i in range(1, 50):
             (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
             if r != 0:
-                raise wtf.node.ActionFailureError("wpa_cli failed (err=%d)" % r)
+                raise node.ActionFailureError("wpa_cli failed (err=%d)" % r)
 
             state = [re.match(r'wpa_state=.*', i) for i in o]
             state = [f for f in state if f != None]
