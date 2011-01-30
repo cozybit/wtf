@@ -82,19 +82,25 @@ class LinuxSTA(node.LinuxNode, STABase):
 
     def _open_assoc(self, ssid):
         (r, o) = self.comm.send_cmd("iw " + self.iface + " connect " + ssid)
-        if r == 142:    # error code -114
-                # operation already in progress, means we're already connected
-                # or not ready, try again
-                time.sleep(0.5)
-                self._cmd_or_die("iw " + self.iface + " connect " + ssid)
+        if r != 0 and r == 142:    # error code -114
+            # operation already in progress, means we're already connected
+            # or not ready, try again
+            time.sleep(0.5)
+            self._cmd_or_die("iw " + self.iface + " connect " + ssid)
+        elif r !=0:
+            # something else went wrong
+            raise wtf.node.ActionFailureError("iw failed with code %d" % r)
         for i in range(1, 30):
-            (r, o) = self.comm.send_cmd("iwconfig " + self.iface, verbosity=2)
+            (r, o) = self.comm.send_cmd("iw " + self.iface + " link", verbosity=2)
             if r != 0:
-                raise wtf.node.ActionFailureError("iwconfig failed with code %d" % r)
+                raise wtf.node.ActionFailureError("iw failed with code %d" % r)
 
-            if o[0].split("ESSID:")[1].strip() == '"' + ssid + '"' and \
-               o[1].split("Access Point: ")[1].split(" ")[0].strip() != "Not-Associated":
-                return 0
+            if o[0] == "Not connected.":
+                pass
+            elif o[0].split()[0] == "Connected" and \
+                 o[1].split()[1] == ssid:
+                     return 0
+
             time.sleep(0.5)
         return -1
 
