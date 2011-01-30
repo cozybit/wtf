@@ -36,9 +36,10 @@ class APConfig():
     familiar ones are the SSID and the channel.
     """
 
-    def __init__(self, ssid, channel=6, security=None, auth=None,
+    def __init__(self, ssid, channel=11, band='g', security=None, auth=None,
                  password=None, encrypt=None):
         self.ssid = ssid
+        self.band = band
         self.channel = channel
         self.security = security
         self.auth = auth
@@ -75,12 +76,14 @@ class Hostapd(node.LinuxNode, APBase):
         self.comm.send_cmd("rm -f /var/run/hostapd/" + self.iface)
 
     def perf(self):
-        (r, o) = self.comm.send_cmd("iperf -s -D > /dev/null", verbosity=2)
+        (r, o) = self.comm.send_cmd("iperf -s -u -D > /dev/null", verbosity=2)
         return o
 
     def killperf(self):
         (r, o) = self.comm.send_cmd("killall -9 iperf", verbosity=2)
 
+# some of this stuff, like channel, ht_capab, and hw_mode are target-specific,
+# use 'iw <dev> list' to parse capabilities?
     base_config = """
 driver=nl80211
 logger_syslog=-1
@@ -90,7 +93,6 @@ logger_stdout_level=0
 dump_file=/tmp/hostapd.dump
 ctrl_interface=/var/run/hostapd
 ctrl_interface_group=0
-hw_mode=g
 beacon_int=100
 dtim_period=2
 max_num_sta=255
@@ -103,9 +105,11 @@ eapol_key_index_workaround=0
 eap_server=0
 own_ip_addr=127.0.0.1
 """
+
     def _configure(self):
         config = self.base_config
         config += "ssid=" + self.config.ssid + "\n"
+        config += "hw_mode=%c\n" % self.config.band
         config += "channel=%d\n" % self.config.channel
         config += "interface=" + self.iface + "\n"
         if self.config.security != None:
@@ -122,6 +126,37 @@ own_ip_addr=127.0.0.1
                 config += "wpa_pairwise=TKIP\n"
             elif self.config.encrypt == ENCRYPT_CCMP:
                 config += "wpa_pairwise=CCMP\n"
+        # can we enable 11n?
+        if self.config.security == None or \
+            (self.config.security == SECURITY_WPA2 and \
+            self.config.encrypt == ENCRYPT_CCMP):
+                config += "ieee80211n=1\n"
+                # these sensible defaults should work for most cards, instead of checking for valid
+                # channel, band, and HT40+/- combination, we let hostapd take care of it.
+                config += "ht_capab=[HT40-]\n"
+                # is this really needed? linux-wireless wiki says so in an underhanded manner (http://wireless.kernel.org/en/users/Documentation/hostapd)
+                # check the 11n standard. Enabled for now. 
+                config += """wmm_enabled=1
+wmm_ac_bk_cwmin=4
+wmm_ac_bk_cwmax=10
+wmm_ac_bk_aifs=7
+wmm_ac_bk_txop_limit=0
+wmm_ac_bk_acm=0
+wmm_ac_be_aifs=3
+wmm_ac_be_cwmin=4
+wmm_ac_be_cwmax=10
+wmm_ac_be_txop_limit=0
+wmm_ac_be_acm=0
+wmm_ac_vi_aifs=2
+wmm_ac_vi_cwmin=3
+wmm_ac_vi_cwmax=4
+wmm_ac_vi_txop_limit=94
+wmm_ac_vi_acm=0
+wmm_ac_vo_aifs=2
+wmm_ac_vo_cwmin=2
+wmm_ac_vo_cwmax=3
+wmm_ac_vo_txop_limit=47
+wmm_ac_vo_acm=0"""
 
         self._cmd_or_die("echo -e \"" + config + "\"> /tmp/hostapd.conf",
                          verbosity=0)

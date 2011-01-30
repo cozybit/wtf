@@ -35,7 +35,7 @@ class TestAPSTA(unittest.TestCase):
             n.start()
 
     def pingTest(self):
-        self.failIf(wtfconfig.sta.ping(AP_IP) != 0,
+        self.failIf(wtfconfig.sta.ping(AP_IP, timeout=4) != 0,
                     "Failed to ping AP at %s" % AP_IP)
 
     def assocTest(self):
@@ -57,12 +57,16 @@ class TestAPSTA(unittest.TestCase):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-scantest", channel=11)
         wtfconfig.ap.start()
         wtfconfig.sta.start()
-        results = wtfconfig.sta.scan()
+        # try a few times since not all BSSs are found each scan
         found = None
-        for r in results:
-            if r.ssid == "wtf-scantest":
-                found = r
-                break
+        for i in range(3): 
+            results = wtfconfig.sta.scan()
+            for r in results:
+                if r.ssid == "wtf-scantest":
+                    found = r
+                    break;
+            if found != None:
+                break;
 
         self.failIf(found == None, "Failed to find ssid wtf-scantest")
         self.failIf(r.channel != 11, "Expected wtf-scantest on channel 11")
@@ -71,6 +75,8 @@ class TestAPSTA(unittest.TestCase):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-assoctest", channel=6)
 
         self.startNodes()
+        # give slow AP plenty of time to start
+        time.sleep(5)
         self.assocTest()
         self.pingTest()
         self.throughput()

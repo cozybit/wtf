@@ -42,7 +42,7 @@ class LinuxSTA(node.LinuxNode, STABase):
 
     def perf(self, host):
         # start throughput test client, in this case iperf, just dump output for now
-        (r, o) = self.comm.send_cmd("iperf -c " + host + " -t 5", verbosity=2)
+        (r, o) = self.comm.send_cmd("iperf -c " + host + " -i 1 -u -b 200M -t 5", verbosity=2)
         return o
 
     def stress(self, host):
@@ -77,12 +77,12 @@ class LinuxSTA(node.LinuxNode, STABase):
                     channel = int(f.split("Channel:")[1])
                 if re.match(".*ESSID:.*", f):
                     ssid = f.split("ESSID:")[1].replace('"','')
-            ret.append(node.ap.APConfig(ssid, channel))
+            ret.append(node.ap.APConfig(ssid=ssid, channel=channel))
         return ret
 
     def _open_assoc(self, ssid):
         (r, o) = self.comm.send_cmd("iw " + self.iface + " connect " + ssid)
-        if r != 0 and r == 142:    # error code -114
+        if r == 142:    # error code -114
             # operation already in progress, means we're already connected
             # or not ready, try again
             time.sleep(0.5)
@@ -91,6 +91,7 @@ class LinuxSTA(node.LinuxNode, STABase):
             # something else went wrong
             raise wtf.node.ActionFailureError("iw failed with code %d" % r)
         for i in range(1, 30):
+            time.sleep(0.5)
             (r, o) = self.comm.send_cmd("iw " + self.iface + " link", verbosity=2)
             if r != 0:
                 raise wtf.node.ActionFailureError("iw failed with code %d" % r)
@@ -101,7 +102,6 @@ class LinuxSTA(node.LinuxNode, STABase):
                  o[1].split()[1] == ssid:
                      return 0
 
-            time.sleep(0.5)
         return -1
 
     base_config = """
