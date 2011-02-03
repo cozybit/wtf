@@ -35,7 +35,7 @@ class TestAPSTA(unittest.TestCase):
             n.start()
 
     def pingTest(self):
-        self.failIf(wtfconfig.sta.ping(AP_IP, timeout=4) != 0,
+        self.failIf(wtfconfig.sta.ping(AP_IP, timeout=5) != 0,
                     "Failed to ping AP at %s" % AP_IP)
 
     def assocTest(self):

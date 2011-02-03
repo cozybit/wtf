@@ -80,6 +80,17 @@ class LinuxSTA(node.LinuxNode, STABase):
             ret.append(node.ap.APConfig(ssid=ssid, channel=channel))
         return ret
 
+    def assoc(self, apconfig):
+        if not apconfig.security:
+            self._open_assoc(apconfig.ssid)
+        else:
+            self._configure_supplicant(apconfig)
+            self._secure_assoc()
+        r = self._check_assoc(apconfig.ssid)
+        if r == 0 and apconfig.security:
+            return self._check_auth()
+        return r
+
     def _open_assoc(self, ssid):
         (r, o) = self.comm.send_cmd("iw " + self.iface + " connect " + ssid)
         if r == 142:    # error code -114
@@ -90,7 +101,13 @@ class LinuxSTA(node.LinuxNode, STABase):
         elif r !=0:
             # something else went wrong
             raise wtf.node.ActionFailureError("iw failed with code %d" % r)
-        for i in range(1, 30):
+
+    def _secure_assoc(self):
+        cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c/tmp/sup.conf"
+        self._cmd_or_die(cmd)
+
+    def _check_assoc(self, ssid):
+        for i in range(1, 50):
             time.sleep(0.5)
             (r, o) = self.comm.send_cmd("iw " + self.iface + " link", verbosity=2)
             if r != 0:
@@ -101,8 +118,23 @@ class LinuxSTA(node.LinuxNode, STABase):
             elif o[0].split()[0] == "Connected" and \
                  o[1].split()[1] == ssid:
                      return 0
-
+        # not connected
         return -1
+
+    def _check_auth(self):
+        for i in range(1, 20):
+            (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
+            if r != 0:
+                raise node.ActionFailureError("wpa_cli failed (err=%d)" % r)
+
+            state = [re.match(r'wpa_state=.*', i) for i in o]
+            state = [f for f in state if f != None]
+            if state[0].group(0) == "wpa_state=COMPLETED":
+                return 0
+            time.sleep(0.5)
+        # not authenticated
+        return -1
+
 
     base_config = """
 ctrl_interface=/var/run/wpa_supplicant
@@ -122,23 +154,4 @@ ctrl_interface_group=root
         self._cmd_or_die("echo -e '" + config + "'> /tmp/sup.conf",
                          verbosity=0)
 
-    def _secure_assoc(self):
-        cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c/tmp/sup.conf"
-        self._cmd_or_die(cmd)
-        for i in range(1, 50):
-            (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
-            if r != 0:
-                raise node.ActionFailureError("wpa_cli failed (err=%d)" % r)
 
-            state = [re.match(r'wpa_state=.*', i) for i in o]
-            state = [f for f in state if f != None]
-            if state[0].group(0) == "wpa_state=COMPLETED":
-                return 0
-            time.sleep(0.5)
-        return -1
-
-    def assoc(self, apconfig):
-        if not apconfig.security:
-            return self._open_assoc(apconfig.ssid)
-        self._configure_supplicant(apconfig)
-        return self._secure_assoc()
