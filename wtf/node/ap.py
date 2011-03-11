@@ -101,8 +101,6 @@ fragm_threshold=2346
 macaddr_acl=0
 auth_algs=3
 ignore_broadcast_ssid=0
-eapol_key_index_workaround=0
-eap_server=0
 own_ip_addr=127.0.0.1
 """
 

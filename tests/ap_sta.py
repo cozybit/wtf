@@ -75,12 +75,9 @@ class TestAPSTA(unittest.TestCase):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-assoctest", channel=6)
 
         self.startNodes()
-        # give slow AP plenty of time to start
-        time.sleep(5)
         self.assocTest()
         self.pingTest()
         self.throughput()
-        #self.stressTest()
 
     def test_wpa_psk_tkip_assoc(self):
         wtfconfig.ap.config = AP.APConfig(ssid="wtf-wpatest",

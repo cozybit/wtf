@@ -81,14 +81,16 @@ class LinuxSTA(node.LinuxNode, STABase):
         return ret
 
     def assoc(self, apconfig):
-        if not apconfig.security:
-            self._open_assoc(apconfig.ssid)
-        else:
+        r = 0
+        if apconfig.security:
             self._configure_supplicant(apconfig)
             self._secure_assoc()
-        r = self._check_assoc(apconfig.ssid)
-        if r == 0 and apconfig.security:
-            return self._check_auth()
+            r = self._check_auth()
+        else:
+            self._open_assoc(apconfig.ssid)
+
+        if r == 0:
+            return self._check_assoc(apconfig.ssid)
         return r
 
     def _open_assoc(self, ssid):
@@ -107,7 +109,7 @@ class LinuxSTA(node.LinuxNode, STABase):
         self._cmd_or_die(cmd)
 
     def _check_assoc(self, ssid):
-        for i in range(1, 50):
+        for i in range(1, 30):
             time.sleep(0.5)
             (r, o) = self.comm.send_cmd("iw " + self.iface + " link", verbosity=2)
             if r != 0:
@@ -122,7 +124,7 @@ class LinuxSTA(node.LinuxNode, STABase):
         return -1
 
     def _check_auth(self):
-        for i in range(1, 20):
+        for i in range(1, 40):
             (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
             if r != 0:
                 raise node.ActionFailureError("wpa_cli failed (err=%d)" % r)
