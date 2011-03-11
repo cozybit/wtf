@@ -15,6 +15,10 @@ Anytime a discussion about whether to increment the firmware API version (the
 some time:
 
 switch (fw_change):
+	case (adds_fields_to_GET_HW_SPEC_cmd)
+		# NOTE! fields MUST be added to the end of the CMD resp.
+		increment_version = true;
+		break;
 	case (breaks_existing_functionality)
 		increment_version = true;
 		break
@@ -123,6 +127,9 @@ Fedora provides an arm build.  Handy.
 9. Set regulatory domain to US on boot:
 
    $ echo "iw reg set US" >> $ROOTDR/etc/rc.d/rc.local
+
+10. Make /tmp a tmpfs by adding this line to $ROOTDIR/etc/fstab
+tmpfs                   /tmp                    tmpfs   defaults        0 0
 
 Building the Kernel
 ===================
