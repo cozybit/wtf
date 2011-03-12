@@ -108,10 +108,13 @@ class LinuxNode(NodeBase):
     """
     A linux network node
     """
-    def __init__(self, comm, iface, driver=None):
+    def __init__(self, comm, iface, driver=None, path=None):
         self.driver = driver
         self.iface = iface
         NodeBase.__init__(self, comm)
+        if path != None:
+            self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
+
         # who knows what was running on this machine before.  Be sure to kill
         # anything that might get in our way.
         self.comm.send_cmd("killall hostapd; killall wpa_supplicant",
