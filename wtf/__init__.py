@@ -1,12 +1,23 @@
+import wtf.node.ap as ap
+import wtf.node.sta as sta
+
 class config():
-    def __init__(self, suites, aps=[], stas=[], name="<unamed config>"):
+    def __init__(self, suite=None, nodes=[], name="<unamed config>"):
         """
         A wtf config is a list of suites to run and the nodes to run them on.
         """
-        self.suites = suites
-        self.aps = aps
-        self.stas = stas
-        self.nodes = aps + stas
+        self.suite = suite
+        self.nodes = nodes
+
+        # populate node lists used by tests.
+        self.aps = []
+        self.stas = []
+        for n in nodes:
+            if isinstance(n, ap.APBase):
+                self.aps.append(n)
+            elif isinstance(n, sta.STABase):
+                self.stas.append(n)
+
         self.name = name
 
     def setUp(self):

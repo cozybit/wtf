@@ -5,7 +5,8 @@ The basic test suite just makes sure that any configured nodes can be
 initialized and shutdown repeatedly without hanging, crashing, etc.
 """
 
-import wtfconfig
+import wtf
+wtfconfig = wtf.conf
 
 class TestBasic():
 

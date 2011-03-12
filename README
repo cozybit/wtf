@@ -84,28 +84,29 @@ them from your dev machine.
 2. Identify which test suite(s) you will be running.
 
 Each test suite is in its own file in the tests directory.  Snoop around there
-and decide which test suites you want to run.  If you don't see a test suite
+and decide which test suite you want to run.  If you don't see a test suite
 that matches what you are trying to test, you can write a new one.
 
 3. Create a wtfconfig.py file.
 
 This file should be in the directory from which you will run the test suite.
 You're best bet is to base it on a sample wtfconfig.py file in one of the
-platforms directory.  The important details are these:
+platforms directory.  If you don't want to call your wtfconfig.py file by that
+name, you can call it something else and tell wtf the name with the -c
+argument.  The important details are these:
 
--- set the variable "configs" to be a list of the configurations that you want
-   wtf to run.  You may have only one item in this list.
+-- set the variable "wtf.conf" to be the configuration that you want wtf to
+   run.
 
--- each element of configs is simply any class that extends wtf.config.  Each
-   config is constructed with a list of test suites to run, various lists of
-   nodes (e.g., a list of aps, a list of stas, etc.), and a name.  You must
-   ensure that your configuration has all of the nodes that will be required by
-   all of the test suites that you specify.  For example, the ap_sta test
-   requires one ap and one sta.
+-- wtf.conf simply extends wtf.config.  It is constructed with an optional test
+   suite to run, various lists of nodes (e.g., a list of aps, a list of stas,
+   etc.), and a name.  You must ensure that your configuration has all of the
+   nodes that will be required by the test suite that you specify.  For
+   example, the ap_sta test suite requires one ap and one sta.
 
    Note that if you have some specific set up or tear down steps, you can add
    these by overriding the config's setUp and tearDown functions.  These will
-   be run before the test suites.
+   be run before the test suite.
 
 -- each node that you add to a config must be created using a supported node.
    Some existing nodes include ap.Hostapd, and sta.LinuxSTA.
@@ -117,19 +118,19 @@ platforms directory.  The important details are these:
 
 4. Run wtf
 
-   ./run
+   ./wtf.py
 
    Wanna see the actual names of the tests that are being run?  Then:
 
-   ./run -v
+   ./wtf.py -v
 
    Wanna see all the commands and stdio flying around?  Then:
 
-   ./run -v -s
+   ./wtf.py -v -s
 
    Wanna just run a single test?  Then:
 
-   ./run -v -s ./tests/ap_sta.py:TestAPSTA.test_open_associate
+   ./wtf.py -v -s ./tests/ap_sta.py:TestAPSTA.test_open_associate
 
 Other Notes
 ===========
@@ -149,19 +150,10 @@ TODO
 
 -- The wtf stuff is not laid out very nicely.  Some stuff is in the __init__.py
    files, the comm stuff probably doesn't really need to be so far removed from
-   the node stuff, etc.  This needs to be cleaned up so it's easier to read.  I
-   might even make sense just to put the whole mess into a wtf/node.py,
+   the node stuff, etc.  This needs to be cleaned up so it's easier to read.
+   It might even make sense just to put the whole mess into a wtf/node.py,
    wtf/comm.py, etc.
 
--- It would be nice if the top level launch script was called wtf.  Maybe it
-   makes sense to put the wtf python code in src/ and add it to the
-   PYTHON_PATH.
+-- Allow config file to specify multiple test suites.
 
--- We should have a way to specify which configuration to run from the command
-   line.  For example, if my wtfconfig has 3 test configurations, and a
-   particular test in a particular configuration fails, you'd want to run that
-   single test under that configuration.  If you just specify the test, it gets
-   run 3 times; once under each configuration.
-
--- We need a throughput test for the sta/ap tests
-
+-- Allow config file and command line to specify multiple configurations.
