@@ -1,5 +1,6 @@
 import wtf.node.ap as ap
 import wtf.node.sta as sta
+import wtf.node.p2p as p2p
 
 class config():
     def __init__(self, suite=None, nodes=[], name="<unamed config>"):
@@ -12,11 +13,14 @@ class config():
         # populate node lists used by tests.
         self.aps = []
         self.stas = []
+        self.p2ps = []
         for n in nodes:
             if isinstance(n, ap.APBase):
                 self.aps.append(n)
             elif isinstance(n, sta.STABase):
                 self.stas.append(n)
+            elif isinstance(n, p2p.P2PBase):
+                self.p2ps.append(n)
 
         self.name = name
 
