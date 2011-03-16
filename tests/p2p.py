@@ -6,29 +6,56 @@ def setUp(self):
         n.shutdown()
         n.init()
 
-def tearDown(self):
-    for n in wtfconfig.nodes:
-        n.stop()
-
 class TestP2P(unittest.TestCase):
 
     def setUp(self):
         for n in wtfconfig.nodes:
             n.stop()
 
-    def test_find(self):
+    # Helper routines
+    def expect_find(self, n0, n1):
+        # expect that n1 shows up in n0's list of peers
+        count = 10
+        while count != 0:
+            peers = n0.peers()
+            for p in peers:
+                if p.mac == n1.mac and \
+                       p.name == n1.name:
+                    return
+            count = count - 1
+            time.sleep(1)
+        self.failIf(1, "%s failed to find %s" % (n0.name, n1.name))
+
+    # Actual tests start here
+    def test_find_peer(self):
         wtfconfig.p2ps[0].start()
         wtfconfig.p2ps[1].start()
         wtfconfig.p2ps[0].find_start()
         wtfconfig.p2ps[1].find_start()
-        count = 10
-        while count != 0:
-            peers = wtfconfig.p2ps[0].peers()
-            for p in peers:
-                if p.mac == wtfconfig.p2ps[1].mac and \
-                       p.name == wtfconfig.p2ps[1].name:
-                    return
-            count = count - 1
-            time.sleep(1)
-        self.failIf(1, "%s failed to find %s" % (wtfconfig.p2ps[0].name,
-                                                 wtfconfig.p2ps[1].name))
+        self.expect_find(wtfconfig.p2ps[0], wtfconfig.p2ps[1])
+
+    def test_simple_pbc_connect(self):
+        go = wtfconfig.p2ps[0]
+        client = wtfconfig.p2ps[1]
+        go.start(auto_go=True)
+        client.start(client_only=True)
+        client.find_start()
+        # does client see GO?
+        self.expect_find(client, go)
+        client.find_stop()
+        # can client connect to GO?
+        ret = client.connect_start(go)
+        self.failIf(ret != 0, "%s failed to initiate connection from %s" % \
+                    (client.name, go.name))
+        ret = go.pbc_push()
+        self.failIf(ret != 0, "Failed to push button on GO %s" % go.name)
+        ret = client.connect_finish(go)
+        self.failIf(ret != 0, "Failed to connect to %s" % go.name)
+        go.set_ip("192.168.88.1")
+        client.set_ip("192.168.88.2")
+        self.failIf(client.ping("192.168.88.1", timeout=5) != 0,
+                    "client failed to ping GO")
+        # Finally, perform a traffic test
+        go.perf()
+        client.perf("192.168.88.1")
+        go.killperf()
