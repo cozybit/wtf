@@ -15,12 +15,14 @@ class config():
         self.stas = []
         self.p2ps = []
         for n in nodes:
-            if isinstance(n, ap.APBase):
+            if isinstance(n, p2p.P2PBase):
+                # We check p2p before the other types because a p2p node might
+                # extend an sta or an ap.
+                self.p2ps.append(n)
+            elif isinstance(n, ap.APBase):
                 self.aps.append(n)
             elif isinstance(n, sta.STABase):
                 self.stas.append(n)
-            elif isinstance(n, p2p.P2PBase):
-                self.p2ps.append(n)
 
         self.name = name
 
