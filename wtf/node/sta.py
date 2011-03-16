@@ -40,11 +40,6 @@ class LinuxSTA(node.LinuxNode, STABase):
         self._cmd_or_die("iw " + self.iface + " set type station")
         node.LinuxNode.start(self)
 
-    def perf(self, host):
-        # start throughput test client, in this case iperf, just dump output for now
-        (r, o) = self.comm.send_cmd("iperf -c " + host + " -i 1 -u -b 200M -t 5", verbosity=2)
-        return o
-
     def stress(self, host):
         # do our worst
         (r, o) = self.comm.send_cmd("iperf -c " + host + " -d -P 10", verbosity=2)
@@ -123,9 +118,9 @@ class LinuxSTA(node.LinuxNode, STABase):
         # not connected
         return -1
 
-    def _check_auth(self):
-        for i in range(1, 40):
-            (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=0)
+    def _check_auth(self, verbosity=0):
+        for i in range(1, 60):
+            (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=verbosity)
             if r != 0:
                 raise node.ActionFailureError("wpa_cli failed (err=%d)" % r)
 

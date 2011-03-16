@@ -146,3 +146,13 @@ class LinuxNode(NodeBase):
     def ping(self, host, timeout=2, count=1):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host)[0]
+
+    def perf(self, client=None):
+        if client == None:
+            # we're the server
+            self._cmd_or_die("iperf -s -u -D > /dev/null")
+        else:
+            self.comm.send_cmd("iperf -c " + client + " -i 1 -u -b 200M -t 5", verbosity=2)
+
+    def killperf(self):
+        self.comm.send_cmd("killall -9 iperf")

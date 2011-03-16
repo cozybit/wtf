@@ -75,13 +75,6 @@ class Hostapd(node.LinuxNode, APBase):
         self.comm.send_cmd("iw dev mon." + self.iface + " del")
         self.comm.send_cmd("rm -f /var/run/hostapd/" + self.iface)
 
-    def perf(self):
-        (r, o) = self.comm.send_cmd("iperf -s -u -D > /dev/null", verbosity=2)
-        return o
-
-    def killperf(self):
-        (r, o) = self.comm.send_cmd("killall -9 iperf", verbosity=2)
-
 # some of this stuff, like channel, ht_capab, and hw_mode are target-specific,
 # use 'iw <dev> list' to parse capabilities?
     base_config = """
