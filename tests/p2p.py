@@ -59,3 +59,33 @@ class TestP2P(unittest.TestCase):
         go.perf()
         client.perf("192.168.88.1")
         go.killperf()
+
+    def test_go_initiates_pbc(self):
+        go = wtfconfig.p2ps[0]
+        go.intent = 15
+        client = wtfconfig.p2ps[1]
+        go.start()
+        client.start()
+        client.find_start()
+        go.find_start()
+        # do they find eachother?
+        self.expect_find(client, go)
+        client.find_stop()
+        self.expect_find(go, client)
+        go.find_stop()
+
+        # can GO connect to client?
+        ret = go.connect_start(client)
+        self.failIf(ret != 0, "%s failed to initiate connection to %s" % \
+                    (go.name, client.name))
+        ret = client.connect_start(go)
+        self.failIf(ret != 0, "%s failed to initiate connection to %s" % \
+                    (client.name, go.name))
+        ret = go.connect_finish(client)
+        self.failIf(ret != 0, "Failed to connect to %s" % client.name)
+        ret = client.connect_finish(client)
+        self.failIf(ret != 0, "Failed to connect to %s" % go.name)
+        go.set_ip("192.168.88.1")
+        client.set_ip("192.168.88.2")
+        self.failIf(client.ping("192.168.88.1", timeout=5) != 0,
+                    "client failed to ping GO")
