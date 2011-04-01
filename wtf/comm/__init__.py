@@ -126,3 +126,23 @@ class SSH(CommBase):
             print "Failed to find return code in:"
             print self.session.before
         return -1
+
+class MvdroidSerial(Serial):
+    """
+    communicate with an mvdroid device via a serial port
+
+    The mvdroid serial console has some nuances that require special setup.
+    For example, many of the utilities that wft needs are available in
+    non-standard places.  Also, the console printks are pretty loud and must be
+    silenced.
+    """
+    def __init__(self, port="/dev/ttyUSB0", baudrate=115200, prompt="# "):
+        Serial.__init__(self, port, baudrate, prompt)
+        self.send_cmd("busybox sh", verbosity=2)
+        self.send_cmd("echo 0 > /proc/sys/kernel/printk")
+        self.send_cmd("export PATH=/marvell/tel:$PATH")
+        self.send_cmd("cd /marvell/tel/")
+        self.send_cmd("mount -o remount,rw /dev/block/mtdblock11 /marvell")
+        busybox_cmds = [ "ifconfig", "rm", "mkdir", "killall", "grep", "rmdir" ];
+        for c in busybox_cmds:
+            self.send_cmd("ln -s busybox " + c)

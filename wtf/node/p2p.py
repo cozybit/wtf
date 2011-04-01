@@ -163,3 +163,57 @@ device_type=1-0050F204-1
     def connect_finish(self, peer):
         self.comm.send_cmd("echo Waiting for WPS to finish. This may take a while.")
         return node.sta.LinuxSTA._check_auth(self)
+
+class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
+    """
+    mvdroid p2p node uses wfdd and wfd_cli for p2p negotiation and
+    wpa_supplicant to establish a link.
+    """
+
+    # This is the hard-coded location where wfdd will write the wpa_supplicant
+    # config file after becoming a wfd client.
+    wpa_conf="/data/wfd/wpas_wfd.conf"
+
+    def __init__(self, comm, iface="wfd0"):
+        P2PBase.__init__(self, comm)
+        node.LinuxNode.__init__(self, comm, iface, driver=None)
+        self.name = comm.name.replace(" ", "-")
+
+    def init(self):
+        self.comm.send_cmd("killall wfdd")
+
+        # Ensure the driver is loaded and the interface is available
+        [r, o] = self.comm.send_cmd("lsmod | grep sd8xxx")
+        if r != 0:
+            self._cmd_or_die("insmod /system/lib/modules/mlan.ko")
+            self._cmd_or_die("insmod /system/lib/modules/sd8787.ko")
+        self._cmd_or_die("rfkill unblock wifi")
+        r = 1
+        count = 20
+        while r != 0 and count > 0:
+            [r, o] = self.comm.send_cmd("ls /sys/class/net/ | grep " + \
+                                        self.iface)
+            count = count - 1
+            time.sleep(0.5)
+        if r != 0:
+            raise node.ActionFailureError("Interface " + self.iface + \
+                                          " never appeared")
+        (r, self.mac) = self.comm.send_cmd("cat /sys/class/net/" + self.iface +
+                                           "/address")
+        self.mac = self.mac[0]
+        node.LinuxNode.init(self)
+
+        # Make sure various directories and files exist or are cleaned up as
+        # necessary
+        self.comm.send_cmd("mkdir -p /data/wfd; mkdir -p /var/run;")
+        self.comm.send_cmd("rm -f " + self.wpa_conf)
+
+    def shutdown(self):
+        self.comm.send_cmd("killall wpa_supplicant")
+        self.comm.send_cmd("rm -f /var/run/wpa_supplicant/" + self.iface)
+        node.LinuxNode.stop(self)
+        self.comm.send_cmd("rfkill block wifi")
+        self.comm.send_cmd("rmmod sd8xxx")
+        self.comm.send_cmd("rmmod mlan")
+        self.comm.send_cmd("rm -f /tmp/wfd.conf")
+        node.LinuxNode.shutdown(self)
