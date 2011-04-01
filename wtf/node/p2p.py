@@ -209,11 +209,175 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.comm.send_cmd("rm -f " + self.wpa_conf)
 
     def shutdown(self):
-        self.comm.send_cmd("killall wpa_supplicant")
-        self.comm.send_cmd("rm -f /var/run/wpa_supplicant/" + self.iface)
-        node.LinuxNode.stop(self)
+        self.stop()
         self.comm.send_cmd("rfkill block wifi")
         self.comm.send_cmd("rmmod sd8xxx")
         self.comm.send_cmd("rmmod mlan")
         self.comm.send_cmd("rm -f /tmp/wfd.conf")
         node.LinuxNode.shutdown(self)
+
+    # This is the configuration template for wfdd.  Note that it cannot contain
+    # the comment (#) character or tab character because these will confuse the
+    # comm!
+    base_config = '''
+wfd_config={
+Capability={
+DeviceCapability=1
+GroupCapability=0
+}
+GroupOwnerIntent={
+Intent=$INTENT
+}
+Channel={
+CountryString=\\"US\\"
+RegulatoryClass=81
+ChannelNumber=6
+}
+InfrastructureManageabilityInfo={
+Manageability=0
+}
+ChannelList={
+CountryString=\\"US\\"
+Regulatory_Class_1=81
+NumofChannels_1=3
+ChanList_1=1,6,11
+}
+NoticeOfAbsence={
+NoA_Index=0
+OppPS=1
+CTWindow=10
+NoA_descriptor={
+CountType_1=255
+Duration_1=51200
+Interval_1=102400
+StartTime_1=0
+}
+}
+DeviceInfo={
+DeviceAddress=$MY_MAC
+PrimaryDeviceTypeCategory=1
+PrimaryDeviceTypeOUI=0x00,0x50,0xF2,0x04
+PrimaryDeviceTypeSubCategory=1
+SecondaryDeviceCount=2
+SecondaryDeviceType={
+    SecondaryDeviceTypeCategory_1=6
+    SecondaryDeviceTypeOUI_1=0x00,0x50,0xF2,0x04
+    SecondaryDeviceTypeSubCategory_1=1
+    SecondaryDeviceTypeCategory_2=4
+    SecondaryDeviceTypeOUI_2=0x00,0x50,0xF2,0x04
+    SecondaryDeviceTypeSubCategory_2=1
+}
+DeviceName=$NAME
+WPSConfigMethods=0x84
+}
+GroupId={
+GroupAddr=$MY_MAC
+GroupSsId=\\"WFD_SSID\\"
+}
+GroupBSSId={
+GroupBssId=$MY_MAC
+}
+DeviceId={
+WFD_MAC=$MY_MAC
+}
+Interface={
+InterfaceAddress=$MY_MAC
+InterfaceAddressCount=2
+InterfaceAddressList=$MY_MAC,00:50:43:78:47:42
+}
+ConfigurationTimeout={
+GroupConfigurationTimeout=100
+ClientConfigurationTimeout=150
+}
+ExtendedListenTime={
+AvailabilityPeriod=1000
+AvailabilityInterval=1500
+}
+IntendedIntfAddress={
+GroupInterfaceAddress=$MY_MAC
+}
+OperatingChannel={
+CountryString=\\"US\\"
+OpRegulatoryClass=81
+OpChannelNumber=6
+}
+
+WPSIE={
+WPSVersion=0x10
+WPSSetupState=0x1
+WPSRequestType=0x0
+WPSResponseType=0x0
+WPSSpecConfigMethods=0x0084
+WPSUUID=0x12,0x34,0x56,0x78,0x12,0x34,0x56,0x78,0x12,0x34,0x56,0x78,0x12,0x34,0x56,0x78
+WPSPrimaryDeviceType=0x01,0x00,0x50,0xF2,0x04,0x01,0x3C,0x10
+WPSRFBand=0x01
+WPSAssociationState=0x00
+WPSConfigurationError=0x00
+WPSDevicePassword=0x00
+WPSDeviceName=$NAME
+WPSManufacturer=\\"Marvell\\"
+WPSModelName=\\"88W8787\\"
+WPSModelNumber=0x01,0x02,0x03,0x04
+WPSSerialNumber=0x01,0x02,0x03,0x11
+}
+}
+
+wfd_param_config={
+MinDiscoveryInterval=1
+MaxDiscoveryInterval=3
+EnableScan=1
+DeviceState=4
+}
+
+'''
+    def _configure(self):
+        config = self.base_config.replace('$INTENT', str(self.intent))
+        config = config.replace('$NAME', self.name)
+        config = config.replace('$MY_MAC', self.mac)
+        self._cmd_or_die("echo -e \"" + config + "\"> /tmp/wfd.conf",
+                             verbosity=0)
+
+    def start(self, auto_go=False, client_only=False):
+        self._configure()
+
+        # TODO: wfdd want's to know the pin at launch time.  But in practice,
+        # there are a number of ways that a pin can be configured.  And many of
+        # them happen at runtime.  For now, we just pass a default value for
+        # the pin.  Eventually, we will have a proper async UI to set it (e.g.,
+        # at connect time)
+        self.pin = "12345670"
+        cmd = "wfdd -c /system/bin/wfd_init.conf -p " + self.pin
+        cmd = cmd + " -i " + self.iface
+        cmd = cmd + " -d /tmp/wfd.conf -l /tmp/wfd.log -B"
+        self._cmd_or_die(cmd)
+        if auto_go and client_only:
+            raise UnsupportedConfigurationError("Can't be an auto GO and a client only!")
+        if auto_go:
+            self._cmd_or_die("wpa_cli p2p_group_add")
+        self.auto_go = auto_go
+        self.client_only = client_only
+
+    def stop(self):
+        node.LinuxNode.stop(self)
+        self.comm.send_cmd("killall wpa_supplicant")
+        self.comm.send_cmd("killall wfdd")
+        self.comm.send_cmd("rm -f /var/run/wpa_supplicant/" + self.iface)
+
+    def find_start(self):
+        # wfdd automatically launches in the find phase.  So nothing to do
+        # here.
+        pass
+
+    def find_stop(self):
+        pass
+
+    def peers(self):
+        [ret, raw_peers] = self.comm.send_cmd("wfd_cli list")
+        peers = []
+        for p in raw_peers:
+            # raw_peer format is like: "PEER NODEA 00:22:58:00:8a:c8"
+            name = p.split(" ")[1]
+            mac = p.split(" ")[2]
+            peers.append(Peer(mac, name))
+        return peers
+
