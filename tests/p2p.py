@@ -33,6 +33,7 @@ class TestP2P(unittest.TestCase):
         wtfconfig.p2ps[0].find_start()
         wtfconfig.p2ps[1].find_start()
         self.expect_find(wtfconfig.p2ps[0], wtfconfig.p2ps[1])
+        self.expect_find(wtfconfig.p2ps[1], wtfconfig.p2ps[0])
 
     def test_simple_pbc_connect(self):
         go = wtfconfig.p2ps[0]
