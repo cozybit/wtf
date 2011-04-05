@@ -172,8 +172,8 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
 
     # This is the hard-coded location where wfdd will write the wpa_supplicant
     # config file after becoming a wfd client.
-    wpa_conf="/data/wfd/wpas_wfd.conf"
-
+    wpa_conf = "/data/wfd/wpas_wfd.conf"
+    wpa_socks = "/tmp/supsocks"
     def __init__(self, comm, iface="wfd0"):
         P2PBase.__init__(self, comm)
         node.LinuxNode.__init__(self, comm, iface, driver=None)
@@ -207,6 +207,8 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         # necessary
         self.comm.send_cmd("mkdir -p /data/wfd; mkdir -p /var/run;")
         self.comm.send_cmd("rm -f " + self.wpa_conf)
+        self.comm.send_cmd("mkdir -p " + self.wpa_socks)
+        self.comm.send_cmd("chmod 777 " + self.wpa_socks)
 
     def shutdown(self):
         self.stop()
@@ -339,15 +341,7 @@ DeviceState=4
 
     def start(self, auto_go=False, client_only=False):
         self._configure()
-
-        # TODO: wfdd want's to know the pin at launch time.  But in practice,
-        # there are a number of ways that a pin can be configured.  And many of
-        # them happen at runtime.  For now, we just pass a default value for
-        # the pin.  Eventually, we will have a proper async UI to set it (e.g.,
-        # at connect time)
-        self.pin = "12345670"
-        cmd = "wfdd -c /system/bin/wfd_init.conf -p " + self.pin
-        cmd = cmd + " -i " + self.iface
+        cmd = "wfdd -c /system/bin/wfd_init.conf -i " + self.iface
         cmd = cmd + " -d /tmp/wfd.conf -l /tmp/wfd.log -B"
         self._cmd_or_die(cmd)
         if auto_go and client_only:
@@ -381,3 +375,43 @@ DeviceState=4
             peers.append(Peer(mac, name))
         return peers
 
+    def connect_start(self, peer, method=WPS_METHOD_PBC):
+        if method == WPS_METHOD_PBC:
+            self._cmd_or_die("wfd_cli pin 00000000")
+        else:
+            raise UnimplementedError("Unimplemented WPS method")
+        cmd = "wfd_cli connect " + peer.name
+        [ret, o] = self.comm.send_cmd(cmd)
+        return ret
+
+    def pbc_push(self):
+        pass
+
+    def connect_finish(self, peer):
+        self.comm.send_cmd("echo Waiting for GO/WPS/WPA to complete...")
+        for i in range(1, 60):
+            (r, o) = self.comm.send_cmd("wfd_cli status")
+            if r != 0:
+                raise node.ActionFailureError("wfd_cli failed (err=%d)" % r)
+            o = o[0]
+            if o == "ENROLLED" or o == "GO":
+                break
+            time.sleep(0.5)
+
+        if o != "ENROLLED" and o != "GO":
+            raise node.ActionFailureError("GO/WPS failed" % r)
+
+        if o == "GO":
+            return
+
+        for i in range(1, 20):
+            (r, o) = self.comm.send_cmd("test -f " + self.wpa_conf)
+            if r == 0:
+                self._cmd_or_die("chmod 777 " + self.wpa_conf)
+                break
+            time.sleep(0.5)
+        if r != 0:
+            raise node.ActionFailureError("WPS finished but " + \
+                                          self.wpa_conf + " was not created.")
+        node.sta.LinuxSTA._secure_assoc(self, self.wpa_conf, self.wpa_socks)
+        return node.sta.LinuxSTA._check_auth(self, sock_dir=self.wpa_socks)
