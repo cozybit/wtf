@@ -99,8 +99,10 @@ class LinuxSTA(node.LinuxNode, STABase):
             # something else went wrong
             raise wtf.node.ActionFailureError("iw failed with code %d" % r)
 
-    def _secure_assoc(self):
-        cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c/tmp/sup.conf"
+    def _secure_assoc(self, config="/tmp/sup.conf", sock_dir=None):
+        cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c" + config
+        if sock_dir:
+            cmd = cmd + " -C" + sock_dir
         self._cmd_or_die(cmd)
 
     def _check_assoc(self, ssid):
@@ -118,9 +120,13 @@ class LinuxSTA(node.LinuxNode, STABase):
         # not connected
         return -1
 
-    def _check_auth(self, verbosity=0):
+    def _check_auth(self, sock_dir=None, verbosity=0):
+        if sock_dir:
+            cmd = "wpa_cli -p " + sock_dir + " status"
+        else:
+            cmd = "wpa_cli status"
         for i in range(1, 60):
-            (r, o) = self.comm.send_cmd("wpa_cli status", verbosity=verbosity)
+            (r, o) = self.comm.send_cmd(cmd, verbosity=verbosity)
             if r != 0:
                 raise node.ActionFailureError("wpa_cli failed (err=%d)" % r)
 
