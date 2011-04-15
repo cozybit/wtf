@@ -197,14 +197,13 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
     # config file after becoming a wfd client.
     wpa_conf = "/data/wfd/wpas_wfd.conf"
     wpa_socks = "/tmp/supsocks"
-    def __init__(self, comm, iface="wfd0"):
+    def __init__(self, comm, iface="wfd0", force_driver_reload=False):
         P2PBase.__init__(self, comm)
         node.LinuxNode.__init__(self, comm, iface, driver=None)
         self.name = comm.name.replace(" ", "-")
+        self.force_driver_reload = force_driver_reload
 
-    def init(self):
-        self.comm.send_cmd("killall wfdd")
-
+    def load_drivers(self):
         # Ensure the driver is loaded and the interface is available
         [r, o] = self.comm.send_cmd("lsmod | grep sd8xxx")
         if r != 0:
@@ -221,6 +220,15 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         if r != 0:
             raise node.ActionFailureError("Interface " + self.iface + \
                                           " never appeared")
+
+    def unload_drivers(self):
+        self.comm.send_cmd("rfkill block wifi")
+        self.comm.send_cmd("rmmod sd8xxx")
+        self.comm.send_cmd("rmmod mlan")
+
+    def init(self):
+        self.comm.send_cmd("killall wfdd")
+        self.load_drivers()
         (r, self.mac) = self.comm.send_cmd("cat /sys/class/net/" + self.iface +
                                            "/address")
         self.mac = self.mac[0]
@@ -233,11 +241,14 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.comm.send_cmd("mkdir -p " + self.wpa_socks)
         self.comm.send_cmd("chmod 777 " + self.wpa_socks)
 
+    def stop(self):
+        if self.force_driver_reload:
+            self.unload_drivers()
+        node.sta.LinuxStaNode.stop(self)
+
     def shutdown(self):
         self.stop()
-        self.comm.send_cmd("rfkill block wifi")
-        self.comm.send_cmd("rmmod sd8xxx")
-        self.comm.send_cmd("rmmod mlan")
+        self.unload_drivers()
         self.comm.send_cmd("rm -f /tmp/wfd.conf")
         node.LinuxNode.shutdown(self)
 
@@ -363,6 +374,9 @@ DeviceState=4
                              verbosity=0)
 
     def start(self, auto_go=False, client_only=False):
+        if self.force_driver_reload:
+            self.load_drivers()
+
         self._configure()
         cmd = "wfdd -c /system/bin/wfd_init.conf -i " + self.iface
         cmd = cmd + " -d /tmp/wfd.conf -l /tmp/wfd.log -B"
