@@ -1,3 +1,6 @@
+# Copyright cozybit, Inc 2010-2011
+# All rights reserved
+
 import wtf.node.ap as ap
 import wtf.node.sta as sta
 import wtf.node.p2p as p2p

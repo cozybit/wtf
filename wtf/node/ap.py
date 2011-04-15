@@ -1,3 +1,6 @@
+# Copyright cozybit, Inc 2010-2011
+# All rights reserved
+
 import wtf.node as node
 
 class APBase(node.NodeBase):

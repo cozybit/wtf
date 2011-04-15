@@ -1,3 +1,6 @@
+# Copyright cozybit, Inc 2010-2011
+# All rights reserved
+
 import wtf, time, unittest
 wtfconfig = wtf.conf
 

@@ -1,3 +1,6 @@
+# Copyright cozybit, Inc 2010-2011
+# All rights reserved
+
 class UninitializedError(Exception):
     """
     Exception raised when routines are called prior to initialization.

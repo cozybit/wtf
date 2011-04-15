@@ -1,3 +1,6 @@
+# Copyright cozybit, Inc 2010-2011
+# All rights reserved
+
 """
 Test init/teardown and start/stop behavior for each configured node
 
