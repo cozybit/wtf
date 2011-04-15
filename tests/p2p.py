@@ -71,17 +71,15 @@ class TestP2P(unittest.TestCase):
         go.find_start()
         # do they find eachother?
         self.expect_find(client, go)
-        client.find_stop()
         self.expect_find(go, client)
-        go.find_stop()
 
         # can GO connect to client?
+        ret = client.connect_allow(go)
+        self.failIf(ret != 0, "%s failed to allow connection to %s" % \
+                    (client.name, go.name))
         ret = go.connect_start(client)
         self.failIf(ret != 0, "%s failed to initiate connection to %s" % \
                     (go.name, client.name))
-        ret = client.connect_start(go)
-        self.failIf(ret != 0, "%s failed to initiate connection to %s" % \
-                    (client.name, go.name))
         ret = go.connect_finish(client)
         self.failIf(ret != 0, "Failed to connect to %s" % client.name)
         ret = client.connect_finish(client)

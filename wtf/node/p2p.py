@@ -42,6 +42,16 @@ class P2PBase(node.NodeBase):
         """
         pass
 
+    def connect_allow(self, peer, method=WPS_METHOD_PBC):
+        """
+        Allow negotiation with the specified peer
+
+        return 0 on success and non-zero for failure.  This function can be
+        called instead of connect_start if the p2p node is to expect connection
+        attempts from the specified peer.
+        """
+        pass
+
     def pbc_push(self):
         """
         Push the PBC button.
@@ -106,7 +116,7 @@ device_type=1-0050F204-1
         node.LinuxNode.start(self)
         self._configure()
         self._cmd_or_die("wpa_supplicant -Dnl80211 -c /tmp/p2p.conf -i " +
-                         self.iface + " -dd > /tmp/p2p.log  2>&1 &")
+                         self.iface + " -B")
         time.sleep(1)
         if auto_go and client_only:
             raise UnsupportedConfigurationError("Can't be an auto GO and a client only!")
@@ -154,6 +164,16 @@ device_type=1-0050F204-1
             cmd += " join"
         [ret, o] = self.comm.send_cmd(cmd)
         return ret
+
+    def connect_allow(self, peer, method=WPS_METHOD_PBC):
+        cmd = "wpa_cli -i " + self.iface + " p2p_connect " + peer.mac
+        if method == WPS_METHOD_PBC:
+            cmd += " pbc"
+        else:
+            raise UnimplementedError("Unimplemented WPS method")
+        cmd += " auth"
+        self._cmd_or_die(cmd)
+        return 0
 
     def pbc_push(self):
         [ret, o] = self.comm.send_cmd("wpa_cli -i " + self.iface + \
@@ -383,6 +403,13 @@ DeviceState=4
         cmd = "wfd_cli connect " + peer.name
         [ret, o] = self.comm.send_cmd(cmd)
         return ret
+
+    def connect_allow(self, peer, method=WPS_METHOD_PBC):
+        if method == WPS_METHOD_PBC:
+            self._cmd_or_die("wfd_cli pin 00000000")
+        else:
+            raise UnimplementedError("Unimplemented WPS method")
+        return 0
 
     def pbc_push(self):
         pass
