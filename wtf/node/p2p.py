@@ -443,7 +443,7 @@ DeviceState=4
             time.sleep(0.5)
 
         if o != "ENROLLED" and o != "GO":
-            raise node.ActionFailureError("GO/WPS failed" % r)
+            raise node.ActionFailureError("GO/WPS failed")
 
         if o == "GO":
             return
