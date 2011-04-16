@@ -25,7 +25,7 @@ p2 = wtf.node.p2p.Wpap2p(p2_comm, "wlan0", path="/root")
 # you would not want to reload the drivers for each wifi-direct use case.  So
 # this is a bug in mvdroid.  Once it's fixed, we can stop using
 # force_driver_reload=True.
-#p2 = wtf.node.p2p.Mvdroid(p3_comm, force_driver_reload=True)
+#p2 = wtf.node.p2p.Mvdroid(p2_comm, force_driver_reload=True)
 
 wtf.conf = wtf.config("p2p", nodes=[p1, p2], name="wpa supplicant p2p")
 
