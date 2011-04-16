@@ -244,7 +244,7 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
     def stop(self):
         if self.force_driver_reload:
             self.unload_drivers()
-        node.sta.LinuxStaNode.stop(self)
+        node.sta.LinuxSTA.stop(self)
 
     def shutdown(self):
         self.stop()
@@ -387,12 +387,6 @@ DeviceState=4
             self._cmd_or_die("wpa_cli p2p_group_add")
         self.auto_go = auto_go
         self.client_only = client_only
-
-    def stop(self):
-        node.LinuxNode.stop(self)
-        self.comm.send_cmd("killall wpa_supplicant")
-        self.comm.send_cmd("killall wfdd")
-        self.comm.send_cmd("rm -f /var/run/wpa_supplicant/" + self.iface)
 
     def find_start(self):
         # wfdd automatically launches in the find phase.  So nothing to do
