@@ -419,7 +419,7 @@ DeviceState=4
 
     def find_stop(self):
         cmd = "mwu_cli module=wifidirect cmd=stop_find"
-        self._status_cmd_or_die(cmd)
+        self.comm.send_cmd(cmd)
 
     def peers(self):
         [ret, raw_peers] = self.comm.send_cmd("wfd_cli list")

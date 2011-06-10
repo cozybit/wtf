@@ -36,6 +36,21 @@ class TestMvdroid(unittest.TestCase):
             time.sleep(1)
         self.failIf(1, "%s failed to find %s" % (n0.name, n1.name))
 
+    def expect_connect(self, node1, node2):
+        ret = node1.connect_start(node2)
+        self.failIf(ret != 0, "%s failed to initiate connection with %s" % \
+                    (node1.name, node2.name))
+        ret = node2.connect_finish(node1)
+        self.failIf(ret != 0, node2.name + " failed to finish connection")
+        ret = node1.connect_finish(node2)
+        self.failIf(ret != 0, node1.name + " failed to finish connection")
+
+        node1.set_ip("192.168.88.1")
+        node2.set_ip("192.168.88.2")
+        self.failIf(node1.ping("192.168.88.1", timeout=5) != 0,
+                    "%s failed to ping %s" % (node1.name, node2.name))
+
+
     # Actual tests start here
     def test_find_peer(self):
         wtfconfig.p2ps[0].start()
@@ -53,19 +68,18 @@ class TestMvdroid(unittest.TestCase):
         node1.find_start()
         node2.find_start()
 
-        ret = node1.connect_start(node2)
-        self.failIf(ret != 0, "%s failed to initiate connection with %s" % \
-                    (node1.name, node2.name))
-        ret = node2.connect_finish(node1)
-        self.failIf(ret != 0, node2.name + " failed to finish connection")
-        ret = node1.connect_finish(node2)
-        self.failIf(ret != 0, node1.name + " failed to finish connection")
+        self.expect_connect(node1, node2)
 
-        node1.set_ip("192.168.88.1")
-        node2.set_ip("192.168.88.2")
-        self.failIf(node1.ping("192.168.88.1", timeout=5) != 0,
-                    "%s failed to ping %s" % (node1.name, node2.name))
         # Finally, perform a traffic test
         node1.perf()
         node2.perf("192.168.88.1")
         node1.killperf()
+
+    def test_only_initiator_starts_find(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+        node1.start()
+        node2.start()
+        node1.find_start()
+        self.expect_find(node1, node2)
+        self.expect_connect(node1, node2)
