@@ -373,10 +373,10 @@ DeviceState=4
         self._cmd_or_die("echo -e \"" + config + "\"> /tmp/wfd.conf",
                              verbosity=0)
 
-    def _status_cmd_or_die(self, cmd):
+    def _status_cmd(self, cmd):
         [ret, resp] = self.comm.send_cmd(cmd)
         if ret != 0:
-            raise node.ActionFailureError("cmd failed: " + cmd)
+            return ret
         kvs = resp[0].split(" ")
         if len(kvs) < 1:
             raise node.ActionFailureError("failed to find kvs in response: " + resp[0])
@@ -384,11 +384,14 @@ DeviceState=4
             k = kv.split("=")[0]
             v = kv.split("=")[1]
             if k == "status" and v == "0":
-                return;
+                return 0;
             elif k == "status" and v != "0":
-                raise node.ActionFailureError("bad status: " + v)
+                return int(v);
 
-        raise node.ActionFailureError("failed to find status in resp: " + resp[0])
+    def _status_cmd_or_die(self, cmd):
+        ret = self._status_cmd(cmd)
+        if ret != 0:
+            raise node.ActionFailureError("bad status: " + v)
 
     def start(self, auto_go=False, client_only=False):
         if self.force_driver_reload:
@@ -429,9 +432,8 @@ DeviceState=4
         return peers
 
     def connect_start(self, peer, method=WPS_METHOD_PBC):
-        cmd = "wfd_cli connect " + peer.name
-        [ret, o] = self.comm.send_cmd(cmd)
-        return ret
+        cmd = "mwu_cli module=wifidirect cmd=negotiate_group device_id=" + peer.mac
+        return self._status_cmd(cmd)
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
         if method == WPS_METHOD_PBC:
