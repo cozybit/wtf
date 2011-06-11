@@ -442,6 +442,17 @@ DeviceState=4
             raise UnimplementedError("Unimplemented WPS method")
         return 0
 
+    def connect_start(self, peer, method=WPS_METHOD_PBC):
+        cmd = "mwu_cli module=wifidirect cmd=negotiate_group device_id=" + peer.mac
+        return self._status_cmd(cmd)
+
+    def pdreq(self, peer, method=WPS_METHOD_PBC):
+        if method != WPS_METHOD_PBC:
+            raise node.ActionFailureError("only pbc supported")
+        cmd = "mwu_cli module=wifidirect cmd=pd_req device_id=" + peer.mac
+        cmd += "methods=0080"
+        return self._status_cmd(cmd)
+
     def pbc_push(self):
         pass
 

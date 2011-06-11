@@ -83,3 +83,19 @@ class TestMvdroid(unittest.TestCase):
         node1.find_start()
         self.expect_find(node1, node2)
         self.expect_connect(node1, node2)
+
+    def test_pdreq(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+        node1.start()
+        node2.start()
+        node1.find_start()
+        node2.find_start()
+        self.expect_find(node1, node2)
+        self.expect_find(node2, node1)
+        ret = node1.pdreq(node2)
+        self.failIf(ret != 0,
+                    "%s failed to send pd req to %s" % (node1.name, node2.name))
+        # We'd like to test whether or not we actually got the pd req on the
+        # other side.  But currently we don't have a way to get events into
+        # this framework.  So we just let this go.
