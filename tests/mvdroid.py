@@ -79,7 +79,6 @@ class TestMvdroid(unittest.TestCase):
         node1 = wtfconfig.p2ps[0]
         node2 = wtfconfig.p2ps[1]
         node1.start()
-        node2.start()
         node1.find_start()
         self.expect_find(node1, node2)
         self.expect_connect(node1, node2)

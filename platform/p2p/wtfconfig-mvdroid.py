@@ -20,4 +20,4 @@ p2 = wtf.node.p2p.Mvdroid(p2_comm, force_driver_reload=True)
 # this is a bug in mvdroid.  Once it's fixed, we can stop using
 # force_driver_reload=True.
 
-wtf.conf = wtf.config("p2p", nodes=[p1, p2], name="mvdroid p2p tests")
+wtf.conf = wtf.config("mvdroid", nodes=[p1, p2], name="mvdroid p2p tests")
