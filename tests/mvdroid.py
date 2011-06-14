@@ -50,6 +50,35 @@ class TestMvdroid(unittest.TestCase):
         self.failIf(node1.ping("192.168.88.1", timeout=5) != 0,
                     "%s failed to ping %s" % (node1.name, node2.name))
 
+    def expect_pdreq(self, src, dest, method, expected_method):
+        # Sometimes, we send a PDREQ but it gets dropped.  So send a few
+        expected = ["module=wifidirect", "event=pd_req",
+                    "device_id=%s" % src.mac.upper(),
+                    "methods=%04X" % expected_method]
+        dest.clear_events()
+        src.clear_events()
+        for i in range(1, 4):
+            ret = src.pdreq(dest, method)
+            self.failIf(ret != 0,
+                        "%s failed to send pd req to %s" % \
+                        (src.name, dest.name))
+
+            # Other events (e.g, peer_found), may be in the queue.  So try a
+            # few times to get the desired event.
+            for i in range(1, 4):
+                e = dest.get_next_event(timeout=1)
+                if e == expected:
+                    break;
+
+        self.failIf(e != expected, "%s failed to rx pdreq" % (dest.name))
+
+    def expect_find_eachother(self, node1, node2):
+        node1.start()
+        node2.start()
+        node1.find_start()
+        node2.find_start()
+        self.expect_find(node1, node2)
+        self.expect_find(node2, node1)
 
     # Actual tests start here
     def test_find_peer(self):
@@ -83,18 +112,16 @@ class TestMvdroid(unittest.TestCase):
         self.expect_find(node1, node2)
         self.expect_connect(node1, node2)
 
-    def test_pdreq(self):
+    def test_pdreq_success(self):
         node1 = wtfconfig.p2ps[0]
         node2 = wtfconfig.p2ps[1]
-        node1.start()
-        node2.start()
-        node1.find_start()
-        node2.find_start()
-        self.expect_find(node1, node2)
-        self.expect_find(node2, node1)
-        ret = node1.pdreq(node2)
-        self.failIf(ret != 0,
-                    "%s failed to send pd req to %s" % (node1.name, node2.name))
-        # We'd like to test whether or not we actually got the pd req on the
-        # other side.  But currently we don't have a way to get events into
-        # this framework.  So we just let this go.
+        self.expect_find_eachother(node1, node2)
+        self.expect_pdreq(node1, node2, method=p2p.WPS_METHOD_PBC,
+                          expected_method=p2p.WPS_METHOD_PBC)
+
+    def test_pdreq_fail(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+        self.expect_find_eachother(node1, node2)
+        self.expect_pdreq(node1, node2, method=p2p.WPS_METHOD_LABEL,
+                          expected_method=p2p.WPS_METHOD_NONE)

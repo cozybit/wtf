@@ -4,8 +4,11 @@
 import wtf.node as node
 import time
 
-WPS_METHOD_PBC = 1
-WPS_METHOD_PIN = 2
+WPS_METHOD_NONE = 0x0000
+WPS_METHOD_PBC = 0x0080
+WPS_METHOD_DISPLAY = 0x0008
+WPS_METHOD_KEYPAD = 0x0100
+WPS_METHOD_LABEL = 0x0004
 
 class P2PBase(node.NodeBase):
     """
@@ -208,7 +211,7 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         [r, o] = self.comm.send_cmd("lsmod | grep sd8xxx")
         if r != 0:
             self._cmd_or_die("insmod /system/lib/modules/mlan.ko")
-            self._cmd_or_die("insmod /system/lib/modules/sd8787.ko")
+            self._cmd_or_die("insmod /system/lib/modules/sd8787.ko drv_mode=5")
         self._cmd_or_die("rfkill unblock wifi")
         r = 1
         count = 20
@@ -393,7 +396,10 @@ DeviceState=4
         if ret != 0:
             raise node.ActionFailureError("bad status: " + v)
 
-    def start(self, auto_go=False, client_only=False):
+    def start(self, auto_go=False, client_only=False, config_methods=WPS_METHOD_PBC):
+        # NOTE: supported config_methods currently buried in the default config
+        # values for mwu.  We will eventually be able to change it with the
+        # init command.  But for now we ignore it.
         if self.force_driver_reload:
             self.load_drivers()
 
@@ -447,10 +453,8 @@ DeviceState=4
         return self._status_cmd(cmd)
 
     def pdreq(self, peer, method=WPS_METHOD_PBC):
-        if method != WPS_METHOD_PBC:
-            raise node.ActionFailureError("only pbc supported")
         cmd = "mwu_cli module=wifidirect cmd=pd_req device_id=" + peer.mac
-        cmd += "methods=0080"
+        cmd += " methods=%04X" % method
         return self._status_cmd(cmd)
 
     def pbc_push(self):
@@ -484,3 +488,17 @@ DeviceState=4
                                           self.wpa_conf + " was not created.")
         node.sta.LinuxSTA._secure_assoc(self, self.wpa_conf, self.wpa_socks)
         return node.sta.LinuxSTA._check_auth(self, sock_dir=self.wpa_socks)
+
+    def get_next_event(self, timeout=2):
+        # check for event every half second
+        for i in range(1, timeout*2):
+            (r, o) = self.comm.send_cmd("mwu_cli module=mwu cmd=get_next_event")
+            if r != 0:
+                raise node.ActionFailureError("Failed to get next event")
+            if r == 0 and o != "":
+                return o
+            time.sleep(0.5)
+        raise node.ActionFailureError("Timed out waiting for event")
+
+    def clear_events(self, timeout=2):
+        self._cmd_or_die("mwu_cli module=mwu cmd=clear_events")
