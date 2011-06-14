@@ -245,6 +245,7 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.comm.send_cmd("chmod 777 " + self.wpa_socks)
 
     def stop(self):
+        self.comm.send_cmd("killall mwu")
         if self.force_driver_reload:
             self.unload_drivers()
         node.sta.LinuxSTA.stop(self)
