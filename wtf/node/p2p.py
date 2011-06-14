@@ -404,7 +404,7 @@ DeviceState=4
             self.load_drivers()
 
         self._configure()
-        cmd = "mwu -c /system/bin/wfd_init.conf -p 12345670 -i " + self.iface
+        cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface
         cmd = cmd + " -d /system/etc/wifidirect_defaults.conf -l /tmp/wfd.log -B"
         self._cmd_or_die(cmd)
         if auto_go and client_only:
