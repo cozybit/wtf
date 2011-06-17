@@ -237,6 +237,12 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.mac = self.mac[0]
         node.LinuxNode.init(self)
 
+        cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface
+        cmd = cmd + " -d /system/etc/wifidirect_defaults.conf -l /tmp/wfd.log -B"
+        self._cmd_or_die(cmd)
+
+        time.sleep(0.1) # let mwu launch
+
         # Make sure various directories and files exist or are cleaned up as
         # necessary
         self.comm.send_cmd("mkdir -p /data/wfd; mkdir -p /var/run;")
@@ -245,8 +251,10 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.comm.send_cmd("chmod 777 " + self.wpa_socks)
 
     def stop(self):
-        self.comm.send_cmd("killall mwu")
+        cmd = "mwu_cli module=wifidirect cmd=deinit"
+        self._cmd_or_die(cmd)
         if self.force_driver_reload:
+            self.comm.send_cmd("killall mwu")
             self.unload_drivers()
         node.sta.LinuxSTA.stop(self)
 
@@ -398,24 +406,16 @@ DeviceState=4
             raise node.ActionFailureError("bad status: " + v)
 
     def start(self, auto_go=False, client_only=False, config_methods=WPS_METHOD_PBC):
+        if auto_go and client_only:
+            raise UnsupportedConfigurationError("Can't be an auto GO and a client only!")
+
         # NOTE: supported config_methods currently buried in the default config
         # values for mwu.  We will eventually be able to change it with the
         # init command.  But for now we ignore it.
         if self.force_driver_reload:
             self.load_drivers()
+            self.init()
 
-        self._configure()
-        cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface
-        cmd = cmd + " -d /system/etc/wifidirect_defaults.conf -l /tmp/wfd.log -B"
-        self._cmd_or_die(cmd)
-        if auto_go and client_only:
-            raise UnsupportedConfigurationError("Can't be an auto GO and a client only!")
-        if auto_go:
-            self._cmd_or_die("wpa_cli p2p_group_add")
-        self.auto_go = auto_go
-        self.client_only = client_only
-
-        time.sleep(0.1) # let mwu launch
         cmd = "mwu_cli module=wifidirect cmd=init name=" + self.name + \
               " intent=%d" % self.intent
         self._status_cmd_or_die(cmd)
