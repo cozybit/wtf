@@ -51,13 +51,14 @@ class TestMvdroid(unittest.TestCase):
                     "%s failed to ping %s" % (node1.name, node2.name))
 
     def expect_pdreq(self, src, dest, method, expected_method):
-        # Sometimes, we send a PDREQ but it gets dropped.  So send a few
+        # Sometimes, we send a PDREQ but the target node is off channel in the
+        # find phase.  So send a few.
         expected = ["module=wifidirect", "event=pd_req",
                     "device_id=%s" % src.mac.upper(),
                     "methods=%04X" % expected_method]
         dest.clear_events()
         src.clear_events()
-        for i in range(1, 4):
+        for i in range(1, 8):
             ret = src.pdreq(dest, method)
             self.failIf(ret != 0,
                         "%s failed to send pd req to %s" % \
@@ -68,7 +69,7 @@ class TestMvdroid(unittest.TestCase):
             for i in range(1, 4):
                 e = dest.get_next_event(timeout=1)
                 if e == expected:
-                    break;
+                    return;
 
         self.failIf(e != expected, "%s failed to rx pdreq" % (dest.name))
 
