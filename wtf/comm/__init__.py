@@ -76,7 +76,11 @@ class Serial(CommBase):
     def _send_cmd(self, command):
         self.ffd.send("%s\n" % command)
         r = self.ffd.expect_exact([self.prompt, fdpexpect.TIMEOUT])
-        output = self.ffd.before.split("\r\n")[1:-1]
+        # Sometimes a long command line will be wrapped by pyserial.  This
+        # causes problems where the tail end of the command line gets garbled
+        # into the response.
+        output = self.ffd.before.replace("\r\r\n", "")
+        output = output.split("\r\n")[1:-1]
         if r == 1:
             return ""
         return output
