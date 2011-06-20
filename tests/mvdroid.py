@@ -12,7 +12,7 @@ def setUp(self):
         if not isinstance(n, p2p.Mvdroid):
             raise Exception("mvdroid tests only support mvdroid nodes")
 
-    for n in wtfconfig.nodes:
+    for n in wtfconfig.p2ps:
         n.shutdown()
         n.init()
 
@@ -97,6 +97,8 @@ class TestMvdroid(unittest.TestCase):
         node2.start()
         node1.find_start()
         node2.find_start()
+        self.expect_find(node1, node2)
+        self.expect_find(node2, node1)
 
         self.expect_connect(node1, node2)
 
