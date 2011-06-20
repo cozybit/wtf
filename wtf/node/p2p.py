@@ -259,10 +259,9 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         node.sta.LinuxSTA.stop(self)
 
     def shutdown(self):
-        self.stop()
+        self.comm.send_cmd("killall mwu")
         self.unload_drivers()
         self.comm.send_cmd("rm -f /tmp/wfd.conf")
-        node.LinuxNode.shutdown(self)
 
     # This is the configuration template for mwu.  Note that it cannot contain
     # the comment (#) character or tab character because these will confuse the
@@ -403,7 +402,7 @@ DeviceState=4
     def _status_cmd_or_die(self, cmd):
         ret = self._status_cmd(cmd)
         if ret != 0:
-            raise node.ActionFailureError("bad status: " + v)
+            raise node.ActionFailureError("bad status: " + str(ret))
 
     def start(self, auto_go=False, client_only=False, config_methods=WPS_METHOD_PBC):
         if auto_go and client_only:
@@ -487,8 +486,33 @@ DeviceState=4
         if r != 0:
             raise node.ActionFailureError("WPS finished but " + \
                                           self.wpa_conf + " was not created.")
-        node.sta.LinuxSTA._secure_assoc(self, self.wpa_conf, self.wpa_socks)
-        return node.sta.LinuxSTA._check_auth(self, sock_dir=self.wpa_socks)
+
+        for i in range (1, 4):
+            expected = "module=wifidirect event=neg_result status=0"
+            event = self.get_next_event()
+            eventstr =  " ".join(event)
+            if eventstr.startswith(expected):
+                break
+
+        if not eventstr.startswith(expected):
+            raise node.ActionFailureError("Failed to get negotiation result")
+
+        # Now apply the psk
+        ssid = event[5].split("=")[1]
+        psk = event[6].split("=")[1]
+
+        cmd = "mwu_cli module=mwpamod cmd=sta_connect"
+        cmd += " ssid=" + ssid + " key=" + psk
+        self._status_cmd_or_die(cmd)
+        for i in range (1, 4):
+            expected = "module=mwpamod event=sta_connect status=0"
+            eventstr =  " ".join(self.get_next_event())
+            if eventstr.startswith(expected):
+                break
+
+        if not eventstr.startswith(expected):
+            raise node.ActionFailureError("Failed to associate")
+        return 0
 
     def get_next_event(self, timeout=2):
         # check for event every half second
