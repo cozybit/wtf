@@ -251,7 +251,7 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.comm.send_cmd("chmod 777 " + self.wpa_socks)
 
     def stop(self):
-        cmd = "mwu_cli module=wifidirect cmd=deinit"
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=deinit"
         self._cmd_or_die(cmd)
         if self.force_driver_reload:
             self.comm.send_cmd("killall mwu")
@@ -415,16 +415,17 @@ DeviceState=4
             self.load_drivers()
             self.init()
 
-        cmd = "mwu_cli module=wifidirect cmd=init name=" + self.name + \
-              " intent=%d" % self.intent
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+              " cmd=init name=" + self.name + " intent=%d" % self.intent
         self._status_cmd_or_die(cmd)
 
     def find_start(self):
-        cmd = "mwu_cli module=wifidirect cmd=start_find"
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+              " cmd=start_find"
         self._status_cmd_or_die(cmd)
 
     def find_stop(self):
-        cmd = "mwu_cli module=wifidirect cmd=stop_find"
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=stop_find"
         self.comm.send_cmd(cmd)
 
     def peers(self):
@@ -438,7 +439,8 @@ DeviceState=4
         return peers
 
     def connect_start(self, peer, method=WPS_METHOD_PBC):
-        cmd = "mwu_cli module=wifidirect cmd=negotiate_group device_id=" + peer.mac
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+              " cmd=negotiate_group device_id=" + peer.mac
         return self._status_cmd(cmd)
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
@@ -448,12 +450,9 @@ DeviceState=4
             raise UnimplementedError("Unimplemented WPS method")
         return 0
 
-    def connect_start(self, peer, method=WPS_METHOD_PBC):
-        cmd = "mwu_cli module=wifidirect cmd=negotiate_group device_id=" + peer.mac
-        return self._status_cmd(cmd)
-
     def pdreq(self, peer, method=WPS_METHOD_PBC):
-        cmd = "mwu_cli module=wifidirect cmd=pd_req device_id=" + peer.mac
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+              " cmd=pd_req device_id=" + peer.mac
         cmd += " methods=%04X" % method
         return self._status_cmd(cmd)
 
@@ -488,7 +487,8 @@ DeviceState=4
                                           self.wpa_conf + " was not created.")
 
         for i in range (1, 4):
-            expected = "module=wifidirect event=neg_result status=0"
+            expected = "module=wifidirect iface=" + self.iface + \
+                       " event=neg_result status=0"
             event = self.get_next_event()
             eventstr =  " ".join(event)
             if eventstr.startswith(expected):
@@ -498,8 +498,8 @@ DeviceState=4
             raise node.ActionFailureError("Failed to get negotiation result")
 
         # Now apply the psk
-        ssid = event[5].split("=")[1]
-        psk = event[6].split("=")[1]
+        ssid = event[6].split("=")[1]
+        psk = event[7].split("=")[1]
 
         cmd = "mwu_cli module=mwpamod cmd=sta_connect"
         cmd += " ssid=" + ssid + " key=" + psk

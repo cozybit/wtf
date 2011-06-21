@@ -53,8 +53,8 @@ class TestMvdroid(unittest.TestCase):
     def expect_pdreq(self, src, dest, method, expected_method):
         # Sometimes, we send a PDREQ but the target node is off channel in the
         # find phase.  So send a few.
-        expected = ["module=wifidirect", "event=pd_req",
-                    "device_id=%s" % src.mac.upper(),
+        expected = ["module=wifidirect", "iface=" + dest.iface,
+                    "event=pd_req", "device_id=%s" % src.mac.upper(),
                     "methods=%04X" % expected_method]
         dest.clear_events()
         src.clear_events()
