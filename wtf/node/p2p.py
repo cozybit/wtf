@@ -461,43 +461,27 @@ DeviceState=4
 
     def connect_finish(self, peer):
         self.comm.send_cmd("echo Waiting for GO/WPS/WPA to complete...")
-        for i in range(1, 60):
-            (r, o) = self.comm.send_cmd("wfd_cli status")
-            if r != 0:
-                raise node.ActionFailureError("wfd_cli failed (err=%d)" % r)
-            o = o[0]
-            if o == "ENROLLED" or o == "GO":
-                break
-            time.sleep(0.5)
 
-        if o != "ENROLLED" and o != "GO":
-            raise node.ActionFailureError("GO/WPS failed")
-
-        if o == "GO":
-            return 0
-
-        for i in range(1, 20):
-            (r, o) = self.comm.send_cmd("test -f " + self.wpa_conf)
-            if r == 0:
-                self._cmd_or_die("chmod 777 " + self.wpa_conf)
-                break
-            time.sleep(0.5)
-        if r != 0:
-            raise node.ActionFailureError("WPS finished but " + \
-                                          self.wpa_conf + " was not created.")
-
-        for i in range (1, 4):
+        for i in range (1, 30):
             expected = "module=wifidirect iface=" + self.iface + \
-                       " event=neg_result status=0"
+                       " event=neg_result status=0 device_id=" + \
+                       peer.mac.upper()
             event = self.get_next_event()
             eventstr =  " ".join(event)
             if eventstr.startswith(expected):
                 break
 
         if not eventstr.startswith(expected):
-            raise node.ActionFailureError("Failed to get negotiation result")
+            return -1
 
-        # Now apply the psk
+        is_go = False
+        if event[5].split("=")[1] == "true":
+            is_go = True
+
+        if is_go:
+            return 0
+
+        # We're the client.  So do WPA with the psk
         ssid = event[6].split("=")[1]
         psk = event[7].split("=")[1]
 
@@ -511,19 +495,19 @@ DeviceState=4
                 break
 
         if not eventstr.startswith(expected):
-            raise node.ActionFailureError("Failed to associate")
+            return -1
         return 0
 
     def get_next_event(self, timeout=2):
         # check for event every half second
-        for i in range(1, timeout*2):
+        for i in range(0, timeout*2):
             (r, o) = self.comm.send_cmd("mwu_cli module=mwu cmd=get_next_event")
             if r != 0:
                 raise node.ActionFailureError("Failed to get next event")
-            if r == 0 and o != "":
+            if r == 0 and o != []:
                 return o
             time.sleep(0.5)
-        raise node.ActionFailureError("Timed out waiting for event")
+        return o
 
     def clear_events(self, timeout=2):
         self._cmd_or_die("mwu_cli module=mwu cmd=clear_events")
