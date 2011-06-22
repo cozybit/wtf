@@ -438,10 +438,30 @@ DeviceState=4
             peers.append(Peer(mac, name))
         return peers
 
-    def connect_start(self, peer, method=WPS_METHOD_PBC):
+    def go_neg_start(self, peer, method=WPS_METHOD_PBC):
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
               " cmd=negotiate_group device_id=" + peer.mac
         return self._status_cmd(cmd)
+
+    def go_neg_finish(self, peer):
+        for i in range (1, 30):
+            expected = "module=wifidirect iface=" + self.iface + \
+                       " event=neg_result status=0 device_id=" + \
+                       peer.mac.upper()
+            event = self.get_next_event()
+            eventstr =  " ".join(event)
+            if eventstr.startswith(expected):
+                break
+
+        if not eventstr.startswith(expected):
+            return -1
+
+        self.is_go = False
+        if event[5].split("=")[1] == "true":
+            self.is_go = True
+        self.ssid = event[6].split("=")[1]
+        self.key = event[7].split("=")[1]
+        return 0
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
         if method == WPS_METHOD_PBC:
@@ -459,34 +479,15 @@ DeviceState=4
     def pbc_push(self):
         pass
 
-    def connect_finish(self, peer):
-        self.comm.send_cmd("echo Waiting for GO/WPS/WPA to complete...")
+    def registrar_start(self):
+        return 0
 
-        for i in range (1, 30):
-            expected = "module=wifidirect iface=" + self.iface + \
-                       " event=neg_result status=0 device_id=" + \
-                       peer.mac.upper()
-            event = self.get_next_event()
-            eventstr =  " ".join(event)
-            if eventstr.startswith(expected):
-                break
+    def do_enrollee(self, registrar):
+        return 0
 
-        if not eventstr.startswith(expected):
-            return -1
-
-        is_go = False
-        if event[5].split("=")[1] == "true":
-            is_go = True
-
-        if is_go:
-            return 0
-
-        # We're the client.  So do WPA with the psk
-        ssid = event[6].split("=")[1]
-        psk = event[7].split("=")[1]
-
+    def do_wpa(self, ssid, key):
         cmd = "mwu_cli module=mwpamod cmd=sta_connect"
-        cmd += " ssid=" + ssid + " key=" + psk
+        cmd += " ssid=" + ssid + " key=" + key
         self._status_cmd_or_die(cmd)
         for i in range (1, 4):
             expected = "module=mwpamod event=sta_connect status=0"
