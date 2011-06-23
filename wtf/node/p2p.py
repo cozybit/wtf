@@ -253,6 +253,10 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
     def stop(self):
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=deinit"
         self._cmd_or_die(cmd)
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=registrar_deinit"
+        self._cmd_or_die(cmd)
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=enrollee_deinit"
+        self._cmd_or_die(cmd)
         if self.force_driver_reload:
             self.comm.send_cmd("killall mwu")
             self.unload_drivers()
@@ -388,16 +392,19 @@ DeviceState=4
         [ret, resp] = self.comm.send_cmd(cmd)
         if ret != 0:
             return ret
-        kvs = resp[0].split(" ")
-        if len(kvs) < 1:
-            raise node.ActionFailureError("failed to find kvs in response: " + resp[0])
-        for kv in kvs:
-            k = kv.split("=")[0]
-            v = kv.split("=")[1]
-            if k == "status" and v == "0":
-                return 0;
-            elif k == "status" and v != "0":
-                return int(v);
+        try:
+            kvs = resp[0].split(" ")
+            if len(kvs) < 1:
+                raise node.ActionFailureError("failed to find kvs in response: " + resp[0])
+            for kv in kvs:
+                k = kv.split("=")[0]
+                v = kv.split("=")[1]
+                if k == "status" and v == "0":
+                    return 0;
+                elif k == "status" and v != "0":
+                    return int(v);
+        except IndexError:
+            raise node.ActionFailureError("failed to find kvs in: " + " ".join(resp))
 
     def _status_cmd_or_die(self, cmd):
         ret = self._status_cmd(cmd)
@@ -480,6 +487,18 @@ DeviceState=4
         pass
 
     def registrar_start(self):
+        # we're the GO.  Launch a registrar
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd += " cmd=registrar_init device_name=" + self.name
+        cmd += " model_name=wtftester model_number=12345"
+        cmd += " methods=%04X" % WPS_METHOD_PBC
+        cmd += " ssid=" + self.ssid
+        cmd += " auth=0020 encrypt=0008" # This means wps2psk with AES
+        cmd += " key=" + self.key
+        self._status_cmd_or_die(cmd)
+        self._status_cmd_or_die("mwu_cli module=mwpsmod iface=" +
+                                self.iface + \
+                                " cmd=registrar_start")
         return 0
 
     def do_enrollee(self, registrar):

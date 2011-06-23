@@ -43,11 +43,12 @@ class TestMvdroid(unittest.TestCase):
         ret = node1.go_neg_finish(node2)
         self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
                     (node1.name, node2.name))
+        ret = node1.registrar_start()
+        self.failIf(ret != 0, node1.name + " failed to start registrar")
+
         ret = node2.go_neg_finish(node1)
         self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
                     (node2.name, node1.name))
-        ret = node1.registrar_start()
-        self.failIf(ret != 0, node1.name + " failed to start registrar")
         ret = node2.do_enrollee(node1)
         self.failIf(ret != 0, node2.name + " failed to enroll")
         ret = node2.do_wpa(node2.ssid, node2.key)
