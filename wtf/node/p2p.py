@@ -410,6 +410,7 @@ DeviceState=4
         ret = self._status_cmd(cmd)
         if ret != 0:
             raise node.ActionFailureError("bad status: " + str(ret))
+        return ret
 
     def start(self, auto_go=False, client_only=False, config_methods=WPS_METHOD_PBC):
         if auto_go and client_only:
@@ -424,12 +425,12 @@ DeviceState=4
 
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
               " cmd=init name=" + self.name + " intent=%d" % self.intent
-        self._status_cmd_or_die(cmd)
+        return self._status_cmd_or_die(cmd)
 
     def find_start(self):
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
               " cmd=start_find"
-        self._status_cmd_or_die(cmd)
+        return self._status_cmd_or_die(cmd)
 
     def find_stop(self):
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=stop_find"
@@ -466,8 +467,8 @@ DeviceState=4
         self.is_go = False
         if event[5].split("=")[1] == "true":
             self.is_go = True
-        self.ssid = event[6].split("=")[1]
-        self.key = event[7].split("=")[1]
+            self.ssid = event[6].split("=")[1]
+            self.key = event[7].split("=")[1]
         return 0
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
@@ -486,7 +487,7 @@ DeviceState=4
     def pbc_push(self):
         pass
 
-    def registrar_start(self):
+    def registrar_start(self, pin=None):
         # we're the GO.  Launch a registrar
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface
         cmd += " cmd=registrar_init device_name=" + self.name
@@ -495,19 +496,57 @@ DeviceState=4
         cmd += " ssid=" + self.ssid
         cmd += " auth=0020 encrypt=0008" # This means wps2psk with AES
         cmd += " key=" + self.key
-        self._status_cmd_or_die(cmd)
-        self._status_cmd_or_die("mwu_cli module=mwpsmod iface=" +
-                                self.iface + \
-                                " cmd=registrar_start")
-        return 0
+        ret = self._status_cmd_or_die(cmd)
+        if ret != 0:
+            return ret
+        ret = self._status_cmd_or_die("mwu_cli module=mwpsmod iface=" +
+                                      self.iface + \
+                                      " cmd=registrar_start")
+        if ret != 0:
+            return ret
+
+        if pin == None:
+            return 0
+
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd += " cmd=registrar_set_pin pin=" + pin
+        return self._status_cmd_or_die(cmd)
 
     def do_enrollee(self, registrar):
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd += " cmd=enrollee_init device_name=" + self.name
+        cmd += " model_name=wtftester model_number=12345"
+        cmd += " methods=%04X" % WPS_METHOD_PBC
+        ret = self._status_cmd_or_die(cmd)
+        if ret != 0:
+            return ret
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd += " cmd=enrollee_start"
+        cmd += " mac=" + registrar.mac
+        cmd += " pin="
+        ret = self._status_cmd_or_die(cmd)
+        if ret != 0:
+            return ret
+
+        for i in range (1, 4):
+            expected = "module=mwpsmod iface=" + self.iface + \
+                       " event=enrollee_done status=0"
+            event = self.get_next_event()
+            eventstr =  " ".join(event)
+            if eventstr.startswith(expected):
+                break
+        if not eventstr.startswith(expected):
+            return -1
+        self.ssid = event[4].split("=")[1]
+        self.key = event[7].split("=")[1]
         return 0
 
     def do_wpa(self, ssid, key):
         cmd = "mwu_cli module=mwpamod cmd=sta_connect"
         cmd += " ssid=" + ssid + " key=" + key
-        self._status_cmd_or_die(cmd)
+        ret = self._status_cmd_or_die(cmd)
+        if ret != 0:
+            return ret
         for i in range (1, 4):
             expected = "module=mwpamod event=sta_connect status=0"
             eventstr =  " ".join(self.get_next_event())
