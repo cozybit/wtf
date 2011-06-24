@@ -528,7 +528,7 @@ DeviceState=4
         if ret != 0:
             return ret
 
-        for i in range (1, 4):
+        for i in range (1, 8):
             expected = "module=mwpsmod iface=" + self.iface + \
                        " event=enrollee_done status=0"
             event = self.get_next_event()
