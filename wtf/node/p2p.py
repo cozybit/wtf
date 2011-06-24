@@ -192,8 +192,7 @@ device_type=1-0050F204-1
 
 class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
     """
-    mvdroid p2p node uses mwu and wfd_cli for p2p negotiation and
-    wpa_supplicant to establish a link.
+    mvdroid p2p node uses mwu and mwu_cli for p2p negotiation, wps, and wpa
     """
 
     # This is the hard-coded location where mwu will write the wpa_supplicant
@@ -234,7 +233,7 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.load_drivers()
         (r, self.mac) = self.comm.send_cmd("cat /sys/class/net/" + self.iface +
                                            "/address")
-        self.mac = self.mac[0]
+        self.mac = self.mac[0].upper()
         node.LinuxNode.init(self)
 
         cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface
@@ -437,13 +436,18 @@ DeviceState=4
         self.comm.send_cmd(cmd)
 
     def peers(self):
-        [ret, raw_peers] = self.comm.send_cmd("wfd_cli list")
+        [ret, raw_peers] = self.comm.send_cmd("mwu_cli module=wifidirect iface=" + \
+                                              self.iface + " cmd=dump_peers")
         peers = []
-        for p in raw_peers:
-            # raw_peer format is like: "PEER NODEA 00:22:58:00:8a:c8"
-            name = p.split(" ")[1]
-            mac = p.split(" ")[2]
+        index = 0
+        while index < len(raw_peers):
+            if not raw_peers[index].startswith("device_id="):
+                index = index + 1
+                continue
+            mac = raw_peers[index].split("=")[1]
+            name = raw_peers[index + 1].split("=")[1]
             peers.append(Peer(mac, name))
+            index = index + 2
         return peers
 
     def go_neg_start(self, peer, method=WPS_METHOD_PBC):
@@ -475,10 +479,6 @@ DeviceState=4
         return 0
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
-        if method == WPS_METHOD_PBC:
-            self._cmd_or_die("wfd_cli pin 00000000")
-        else:
-            raise UnimplementedError("Unimplemented WPS method")
         return 0
 
     def pdreq(self, peer, method=WPS_METHOD_PBC):
