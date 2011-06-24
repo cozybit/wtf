@@ -454,8 +454,7 @@ DeviceState=4
     def go_neg_finish(self, peer):
         for i in range (1, 30):
             expected = "module=wifidirect iface=" + self.iface + \
-                       " event=neg_result status=0 device_id=" + \
-                       peer.mac.upper()
+                       " event=neg_result"
             event = self.get_next_event()
             eventstr =  " ".join(event)
             if eventstr.startswith(expected):
@@ -463,6 +462,10 @@ DeviceState=4
 
         if not eventstr.startswith(expected):
             return -1
+
+        status = int(event[3].split("=")[1])
+        if status != 0:
+            return status
 
         self.is_go = False
         if event[5].split("=")[1] == "true":
