@@ -252,11 +252,13 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.comm.send_cmd("chmod 777 " + self.wpa_socks)
 
     def stop(self):
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=deinit"
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=sta_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=registrar_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=enrollee_deinit"
+        self._cmd_or_die(cmd)
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=deinit"
         self._cmd_or_die(cmd)
         if self.force_driver_reload:
             self.comm.send_cmd("killall mwu")
@@ -535,7 +537,7 @@ DeviceState=4
         if ret != 0:
             return ret
 
-        for i in range (1, 8):
+        for i in range (1, 20):
             expected = "module=mwpsmod iface=" + self.iface + \
                        " event=enrollee_done status=0"
             event = self.get_next_event()
@@ -549,9 +551,14 @@ DeviceState=4
         return 0
 
     def do_wpa(self, ssid, key):
-        cmd = "mwu_cli module=mwpamod cmd=sta_connect"
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface
+        cmd += " cmd=sta_init"
+        ret = self._status_cmd(cmd)
+        if ret != 0:
+            return ret
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=sta_connect"
         cmd += " ssid=" + ssid + " key=" + key
-        ret = self._status_cmd_or_die(cmd)
+        ret = self._status_cmd(cmd)
         if ret != 0:
             return ret
         for i in range (1, 4):
