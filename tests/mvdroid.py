@@ -131,7 +131,20 @@ class TestMvdroid(unittest.TestCase):
         node2.perf("192.168.88.1")
         node1.killperf()
 
-    def xxtest_xxconnect_as_go_then_as_client(self):
+    def test_initiator_loses_go_neg(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+
+        node1.intent = 3
+        node1.start()
+        node2.start()
+        node1.find_start()
+        node2.find_start()
+        self.expect_find(node1, node2)
+        self.expect_find(node2, node1)
+        self.expect_connect(node1, node2)
+
+    def test_connect_as_go_then_as_client(self):
         node1 = wtfconfig.p2ps[0]
         node2 = wtfconfig.p2ps[1]
 
