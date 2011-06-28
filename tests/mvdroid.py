@@ -32,7 +32,7 @@ class TestMvdroid(unittest.TestCase):
             for p in peers:
                 if p.mac == n1.mac and \
                        p.name == n1.name:
-                    return
+                    return p
             count = count - 1
             time.sleep(1)
         self.failIf(1, "%s failed to find %s" % (n0.name, n1.name))
@@ -58,13 +58,17 @@ class TestMvdroid(unittest.TestCase):
 
         # After everybody is done with go negotiation, start the enrollee.
         if not node2.is_go:
-            ret = node2.do_enrollee(node1)
+            # Perform the connection using the data in the found peers, not the
+            # data in the configured peer.  This is more realistic.
+            p = self.expect_find(node2, node1)
+            ret = node2.do_enrollee(p.intended_mac)
             self.failIf(ret != 0, node2.name + " failed to enroll")
             ret = node2.do_wpa(node2.ssid, node2.key)
             self.failIf(ret != 0, node2.name + " failed to associate")
 
         else:
-            ret = node1.do_enrollee(node2)
+            p = self.expect_find(node1, node2)
+            ret = node1.do_enrollee(p.intended_mac)
             self.failIf(ret != 0, node1.name + " failed to enroll")
             ret = node1.do_wpa(node1.ssid, node1.key)
             self.failIf(ret != 0, node1.name + " failed to associate")
@@ -123,7 +127,6 @@ class TestMvdroid(unittest.TestCase):
         node2.find_start()
         self.expect_find(node1, node2)
         self.expect_find(node2, node1)
-
         self.expect_connect(node1, node2)
 
         # Finally, perform a traffic test

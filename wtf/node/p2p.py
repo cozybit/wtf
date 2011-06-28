@@ -86,6 +86,7 @@ class Peer:
     """
     def __init__(self, mac, name):
         self.mac = mac
+        self.intended_mac = mac
         self.name = name
 
 class Wpap2p(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
@@ -234,6 +235,7 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         (r, self.mac) = self.comm.send_cmd("cat /sys/class/net/" + self.iface +
                                            "/address")
         self.mac = self.mac[0].upper()
+        self.intended_mac = self.mac
         node.LinuxNode.init(self)
 
         cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface
@@ -446,7 +448,9 @@ DeviceState=4
                 continue
             mac = raw_peers[index].split("=")[1]
             name = raw_peers[index + 1].split("=")[1]
-            peers.append(Peer(mac, name))
+            peer = Peer(mac, name)
+            peer.intended_mac = raw_peers[index + 5].split("=")[1]
+            peers.append(peer)
             index = index + 2
         return peers
 
@@ -525,7 +529,7 @@ DeviceState=4
             return ret
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface
         cmd += " cmd=enrollee_start"
-        cmd += " mac=" + registrar.mac
+        cmd += " mac=" + registrar
         cmd += " pin="
         ret = self._status_cmd_or_die(cmd)
         if ret != 0:
