@@ -46,15 +46,15 @@ class TestMvdroid(unittest.TestCase):
         self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
                     (node1.name, node2.name))
         if node1.is_go:
-            ret = node1.registrar_start()
-            self.failIf(ret != 0, node1.name + " failed to start registrar")
+            ret = node1.go_start()
+            self.failIf(ret != 0, node1.name + " failed to start GO services")
 
         ret = node2.go_neg_finish(node1)
         self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
                     (node2.name, node1.name))
         if node2.is_go:
-            ret = node2.registrar_start()
-            self.failIf(ret != 0, node2.name + " failed to start registrar")
+            ret = node2.go_start()
+            self.failIf(ret != 0, node2.name + " failed to start GO services")
 
         # After everybody is done with go negotiation, start the enrollee.
         if not node2.is_go:

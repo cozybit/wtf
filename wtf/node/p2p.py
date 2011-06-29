@@ -2,7 +2,7 @@
 # All rights reserved
 
 import wtf.node as node
-import time
+import time, random
 
 WPS_METHOD_NONE = 0x0000
 WPS_METHOD_PBC = 0x0080
@@ -252,17 +252,21 @@ class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
         self.comm.send_cmd("chmod 777 " + self.wpa_socks)
 
     def stop(self):
+        if self.force_driver_reload:
+            self.comm.send_cmd("killall mwu")
+            self.unload_drivers()
+            return
+
         cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=sta_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=registrar_deinit"
+        self._cmd_or_die(cmd)
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=ap_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=enrollee_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=deinit"
         self._cmd_or_die(cmd)
-        if self.force_driver_reload:
-            self.comm.send_cmd("killall mwu")
-            self.unload_drivers()
         node.sta.LinuxSTA.stop(self)
 
     def shutdown(self):
@@ -481,7 +485,6 @@ DeviceState=4
         if event[5].split("=")[1] == "true":
             self.is_go = True
             self.ssid = event[6].split("=")[1]
-            self.key = event[7].split("=")[1]
         return 0
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
@@ -520,6 +523,26 @@ DeviceState=4
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface
         cmd += " cmd=registrar_set_pin pin=" + pin
         return self._status_cmd_or_die(cmd)
+
+    def ap_start(self, ssid, key):
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface
+        cmd += " cmd=ap_init ssid=" + ssid
+        cmd += " key=" + key
+        ret = self._status_cmd(cmd)
+        if ret != 0:
+            return ret
+        ret = self._status_cmd_or_die("mwu_cli module=mwpamod iface=" +
+                                      self.iface + \
+                                      " cmd=ap_start")
+        return ret
+
+    def go_start(self):
+        # generate a random 32-letter passphrase
+        self.key = ''.join(random.choice("0123456789abcdef") for x in range(32))
+        ret = self.ap_start(self.ssid, self.key)
+        if ret != 0:
+            return ret
+        return self.registrar_start()
 
     def do_enrollee(self, registrar):
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface
