@@ -109,6 +109,18 @@ class TestMvdroid(unittest.TestCase):
         self.expect_find(node1, node2)
         self.expect_find(node2, node1)
 
+    def expect_wpa_connect(self, node1, node2, ssid, key):
+        ret = node1.ap_start(ssid, key)
+        self.failIf(ret != 0, node1.name + " failed to launch AP")
+
+        ret = node2.do_wpa(ssid, key)
+        self.failIf(ret != 0, node2.name + " failed to associate")
+
+        node1.set_ip("192.168.88.1")
+        node2.set_ip("192.168.88.2")
+        self.failIf(node1.ping("192.168.88.1", timeout=5) != 0,
+                    "%s failed to ping %s" % (node1.name, node2.name))
+
     # Actual tests start here
     def test_find_peer(self):
         wtfconfig.p2ps[0].start()
@@ -134,6 +146,29 @@ class TestMvdroid(unittest.TestCase):
         node2.perf("192.168.88.1")
         node1.killperf()
 
+    def xxtest_link_lost(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+        node1.start()
+        node2.start()
+        node1.find_start()
+        node2.find_start()
+        self.expect_find(node1, node2)
+        self.expect_find(node2, node1)
+        self.expect_connect(node1, node2)
+        node1.clear_events()
+        node2.stop()
+        expected = "module=mwpamod iface=" + node1.iface + \
+                   " event=link_lost"
+        for i in range(1, 3):
+            e = node1.get_next_event(timeout=5)
+            eventstr = " ".join(e)
+            if eventstr.startswith(expected):
+                return;
+
+        self.failIf(not eventstr.startswith(expected),
+                    "Failed to get link lost event")
+
     def test_initiator_loses_go_neg(self):
         node1 = wtfconfig.p2ps[0]
         node2 = wtfconfig.p2ps[1]
@@ -147,7 +182,25 @@ class TestMvdroid(unittest.TestCase):
         self.expect_find(node2, node1)
         self.expect_connect(node1, node2)
 
-    def test_connect_as_go_then_as_client(self):
+    def xxxtest_ap_and_sta(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+        node1.start()
+        node2.start()
+        self.expect_wpa_connect(node1, node2, "mvdroidfoobar", "1234567890")
+
+        tmp = node1.force_driver_reload
+        node1.force_driver_reload = False
+        node2.force_driver_reload = False
+        node1.stop()
+        node2.stop()
+        node1.start()
+        node2.start()
+        self.expect_wpa_connect(node1, node2, "mvdroidfooboo", "thisisasecret")
+        node1.force_driver_reload = tmp
+        node2.force_driver_reload = tmp
+
+    def xxxtest_connect_as_go_then_as_client(self):
         node1 = wtfconfig.p2ps[0]
         node2 = wtfconfig.p2ps[1]
 
@@ -159,6 +212,16 @@ class TestMvdroid(unittest.TestCase):
         self.expect_find(node1, node2)
         self.expect_find(node2, node1)
         self.expect_connect(node1, node2)
+
+        # Sigh.  This is our only test that does disconnect/reconnect.  We want
+        # it to really test this without reloading the driver.  So we dd this
+        # work-around here.  Once the init/deinit issues are resolved, we can
+        # eliminate this work-around and expect all of the tests to pass
+        # without having to reload and relaunch.
+        tmp = node1.force_driver_reload
+        node1.force_driver_reload = False
+        node2.force_driver_reload = False
+
         node1.stop()
         node2.stop()
 
@@ -167,6 +230,10 @@ class TestMvdroid(unittest.TestCase):
         node2.start()
         node1.find_start()
         node2.find_start()
+
+        node1.force_driver_reload = tmp
+        node2.force_driver_reload = tmp
+
         self.expect_find(node1, node2)
         self.expect_find(node2, node1)
         self.expect_connect(node1, node2)
