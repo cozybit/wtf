@@ -200,7 +200,7 @@ class TestMvdroid(unittest.TestCase):
         node1.force_driver_reload = tmp
         node2.force_driver_reload = tmp
 
-    def xxxtest_connect_as_go_then_as_client(self):
+    def test_connect_as_go_then_as_client(self):
         node1 = wtfconfig.p2ps[0]
         node2 = wtfconfig.p2ps[1]
 
