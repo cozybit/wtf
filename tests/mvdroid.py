@@ -34,7 +34,7 @@ class TestMvdroid(unittest.TestCase):
                        p.name == n1.name:
                     return p
             count = count - 1
-            time.sleep(1)
+            time.sleep(3)
         self.failIf(1, "%s failed to find %s" % (n0.name, n1.name))
 
     def expect_connect(self, node1, node2):
