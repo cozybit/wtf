@@ -39,6 +39,8 @@ class TestMvdroid(unittest.TestCase):
 
     def expect_connect(self, node1, node2):
         # Order of operations is a bit finicky here depending on who becomes GO.
+        node1.clear_events()
+        node2.clear_events()
         ret = node1.go_neg_start(node2)
         self.failIf(ret != 0, "%s failed to initiate go negotiation with %s" % \
                     (node1.name, node2.name))
@@ -238,7 +240,7 @@ class TestMvdroid(unittest.TestCase):
         self.expect_find(node2, node1)
         self.expect_connect(node1, node2)
 
-    def XXtest_only_initiator_starts_find(self):
+    def test_only_initiator_starts_find(self):
         node1 = wtfconfig.p2ps[0]
         node2 = wtfconfig.p2ps[1]
         node1.start()
@@ -260,3 +262,38 @@ class TestMvdroid(unittest.TestCase):
         self.expect_find_eachother(node1, node2)
         self.expect_pdreq(node1, node2, method=p2p.WPS_METHOD_LABEL,
                           expected_method=p2p.WPS_METHOD_NONE)
+
+    def test_rx_pdreq_in_idle_state(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+        node1.start()
+        node2.start()
+        node1.find_start()
+        self.expect_find(node1, node2)
+        self.expect_pdreq(node1, node2, method=p2p.WPS_METHOD_PBC,
+                          expected_method=p2p.WPS_METHOD_PBC)
+
+    def test_deauth_event_on_go(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+
+        node1.intent = 14
+        node1.start()
+        node2.start()
+        node1.find_start()
+        node2.find_start()
+        self.expect_find(node1, node2)
+        self.expect_find(node2, node1)
+        self.expect_connect(node1, node2)
+        node1.clear_events()
+        node2.stop()
+        expected = "module=mwpamod iface=" + node1.iface + \
+                   " event=ap_disconnect mac=" + node2.intended_mac
+        for i in range(1, 3):
+            e = node1.get_next_event(timeout=1)
+            eventstr = " ".join(e)
+            if eventstr.startswith(expected):
+                return;
+
+        self.failIf(not eventstr.startswith(expected),
+                    "Failed to get disconnect event")

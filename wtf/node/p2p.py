@@ -463,6 +463,7 @@ DeviceState=4
     def go_neg_start(self, peer, method=WPS_METHOD_PBC):
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
               " cmd=negotiate_group device_id=" + peer.mac
+        self.clear_events()
         return self._status_cmd(cmd)
 
     def go_neg_finish(self, peer):
@@ -552,6 +553,7 @@ DeviceState=4
         ret = self._status_cmd_or_die(cmd)
         if ret != 0:
             return ret
+        self.clear_events()
         cmd = "mwu_cli module=mwpsmod iface=" + self.iface
         cmd += " cmd=enrollee_start"
         cmd += " mac=" + registrar
@@ -579,6 +581,7 @@ DeviceState=4
         ret = self._status_cmd(cmd)
         if ret != 0:
             return ret
+        self.clear_events()
         cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=sta_connect"
         cmd += " ssid=" + ssid + " key=" + key
         ret = self._status_cmd(cmd)
