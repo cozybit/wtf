@@ -489,7 +489,10 @@ DeviceState=4
         return 0
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
-        return 0
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+              " cmd=allow device_id=" + peer.mac
+        cmd += " methods=%04X" % method
+        return self._status_cmd(cmd)
 
     def pdreq(self, peer, method=WPS_METHOD_PBC):
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + \

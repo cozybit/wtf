@@ -39,6 +39,10 @@ class TestMvdroid(unittest.TestCase):
 
     def expect_connect(self, node1, node2):
         # Order of operations is a bit finicky here depending on who becomes GO.
+        self.failIf(node1.connect_allow(node2) != 0,
+                    "%s failed to allow" % node1.name)
+        self.failIf(node2.connect_allow(node1) != 0,
+                    "%s failed to allow" % node2.name)
         node1.clear_events()
         node2.clear_events()
         ret = node1.go_neg_start(node2)
