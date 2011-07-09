@@ -463,6 +463,7 @@ DeviceState=4
     def go_neg_start(self, peer, method=WPS_METHOD_PBC):
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
               " cmd=negotiate_group device_id=" + peer.mac
+        cmd += " methods=%04X" % method
         self.clear_events()
         return self._status_cmd(cmd)
 

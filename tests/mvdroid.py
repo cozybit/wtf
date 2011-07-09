@@ -301,3 +301,32 @@ class TestMvdroid(unittest.TestCase):
 
         self.failIf(not eventstr.startswith(expected),
                     "Failed to get disconnect event")
+
+    def test_recipient_reinitiates_negotiation(self):
+        node1 = wtfconfig.p2ps[0]
+        node2 = wtfconfig.p2ps[1]
+        node1.start()
+        node2.start()
+        node1.find_start()
+        node2.find_start()
+        self.expect_find(node1, node2)
+        self.expect_find(node2, node1)
+        node1.clear_events()
+        node2.clear_events()
+
+        # This GO request should fail with status 1.  But we will never see
+        # that event because node1 will expect node2 to re-initiate within
+        # 120s IF we call his allow function.
+        ret = node1.go_neg_start(node2)
+        self.failIf(ret != 0, "%s failed to initiate go negotiation with %s" % \
+                    (node1.name, node2.name))
+        time.sleep(2)
+
+        self.failIf(node2.connect_allow(node1) != 0,
+                    "%s failed to allow" % node2.name)
+        ret = node1.go_neg_finish(node2)
+        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
+                    (node1.name, node2.name))
+        ret = node2.go_neg_finish(node1)
+        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
+                    (node2.name, node1.name))
