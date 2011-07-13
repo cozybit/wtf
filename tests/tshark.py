@@ -34,14 +34,16 @@ class dot11Packet():
             else:
                 raise Exception("Unsupported mgmt subtype %d" % self.subtype)
             for t in tagged:
-                ID = int(t.xpath("field[@name='wlan_mgt.tag.number']")[0].get("value"))
+                ID = int(t.xpath("field[@name='wlan_mgt.tag.number']")[0].get("value"), 16)
+                length = int(t.xpath("field[@name='wlan_mgt.tag.length']")[0].get("value"))
                 info = ""
-                for v in t.xpath("field"):
-                    name = v.get("name")
-                    if name == "wlan_mgt.tag.number" or name == "wlan_mgt.tag.length":
-                        continue
-                    s = v.get("value").encode("ascii", "ignore")
-                    info += binascii.unhexlify("".join(map(lambda x,y: x+y, s[0::2], s[1::2])))
+                if length != 0:
+                    for v in t.xpath("field"):
+                        name = v.get("name")
+                        if name == "wlan_mgt.tag.number" or name == "wlan_mgt.tag.length":
+                            continue
+                        s = v.get("value").encode("ascii", "ignore")
+                        info += binascii.unhexlify("".join(map(lambda x,y: x+y, s[0::2], s[1::2])))
                 self.pkt = self.pkt / Dot11Elt(ID=ID, info=info)
         else:
             raise Exception("Unsupported type %d" % self.type)
@@ -51,24 +53,43 @@ def tshark_xml_parser(txt):
 
     tree = etree.fromstring(txt)
     for packet in tree.xpath("packet"):
-        pkt = dot11Packet(packet).pkt
+        pkt = dot11Packet(packet)
         pkts.append(pkt)
     return pkts
 
 class TestTShark(unittest.TestCase):
 
     # write the specified packets to tshark and return his XML txt output
-    def do_tshark(self, pkts):
+    def do_tshark_xml(self, pkts):
         wrpcap("/tmp/tshark-test.pcap", pkts, 105)
         err, out = commands.getstatusoutput("tshark -Tpdml -n -r /tmp/tshark-test.pcap")
         if err != 0:
             self.failIf(True, "Failed to invoke tshark")
-        return tshark_xml_parser(out)
+        # Save the xml to a tml file for debugging
+        open("/tmp/tshark-test.xml", "w").writelines(out)
+        return out
+
+    def do_tshark(self, pkts):
+        return tshark_xml_parser(self.do_tshark_xml(pkts))
 
     def expectEquals(self, p1, p2):
         self.failIf(p1.command() != p2.command(),
                     "EXPECTED:\n" + p1.command().replace("/", "\n/") +
                     "\nBUT GOT:\n" + p2.command().replace("/", "\n/"))
+
+    def expectField(self, mc, name, showname, value):
+        field = mc.xpath("field[@name='" + name + "']")[0]
+        if (type(value) == int):
+            _value = int(field.get("value"), 16)
+        elif (type(value) == str):
+            _value = field.get("value")
+        else:
+            self.failIf(True, "Unsupported value type")
+        _showname = field.get("showname")
+        self.failIf(value != _value, "Expected " + name + "=" + str(value) \
+                    + " but got " + str(_value))
+        self.failIf(showname != _showname,
+                    "Expected " + showname + " but got " + str(_showname))
 
     def test_beacon(self):
         addr1s = "ff:ff:ff:ff:ff:ff"
@@ -81,4 +102,61 @@ class TestTShark(unittest.TestCase):
               / Dot11Elt(ID="DSset",info="\x03")\
               / Dot11Elt(ID="TIM",info="\x00\x01\x00\x00")
         pkts = self.do_tshark(pkt)
-        self.expectEquals(pkt, pkts[0])
+        self.expectEquals(pkt, pkts[0].pkt)
+
+    def test_mesh_config_ie(self):
+        addr1s = "ff:ff:ff:ff:ff:ff"
+        addr2s = "42:00:00:00:01:00"
+        addr3s = "42:00:00:00:02:00"
+        base_pkt = Dot11(addr1=addr1s,addr2=addr2s,addr3=addr3s)\
+                   / Dot11Beacon(cap=0) \
+                   / Dot11Elt(ID="SSID",info="")\
+                   / Dot11Elt(ID="Rates",info='\x82\x84\x0b\x16')\
+                   / Dot11Elt(ID="DSset",info="\x03")\
+                   / Dot11Elt(ID="TIM",info="\x00\x01\x00\x00") \
+                   / Dot11Elt(ID="MeshID",info="")
+
+        mc = binascii.unhexlify("01020304050607")
+        pkt = base_pkt / Dot11Elt(ID="MeshConfig",info=mc)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        path = "packet/proto[@name='wlan_mgt']/field[@name='wlan_mgt.tagged.all']" + \
+               "/field[@name='wlan_mgt.tag' and @showname='Tag: Mesh Configuration']"
+        mc = tree.xpath(path)[0]
+        self.expectField(mc, 'wlan_mgt.tag.number',
+                         "Tag Number: Mesh Configuration (113)", 113)
+        self.expectField(mc, 'wlan.mesh.config.ps_protocol',
+                         "Path Selection Protocol: 0x01", 1)
+        self.expectField(mc, 'wlan.mesh.config.ps_metric',
+                         "Path Selection Metric: 0x02", 2)
+        self.expectField(mc, 'wlan.mesh.config.cong_ctl',
+                         "Congestion Control: 0x03", 3)
+        self.expectField(mc, 'wlan.mesh.config.sync_method',
+                         "Synchronization Method: 0x04", 4)
+        self.expectField(mc, 'wlan.mesh.config.auth_protocol',
+                         "Authentication Protocol: 0x05", 5)
+        self.expectField(mc, 'wlan.mesh.config.formation_info',
+                         "Formation Info: 0x06", 6)
+        self.expectField(mc, 'wlan.mesh.config.cap',
+                         "Capability: 0x07", 7)
+
+    def test_mesh_id_ie(self):
+        addr1s = "ff:ff:ff:ff:ff:ff"
+        addr2s = "42:00:00:00:01:00"
+        addr3s = "42:00:00:00:02:00"
+        pkt = Dot11(addr1=addr1s,addr2=addr2s,addr3=addr3s)\
+              / Dot11Beacon(cap=0) \
+              / Dot11Elt(ID="SSID",info="")\
+              / Dot11Elt(ID="Rates",info='\x82\x84\x0b\x16')\
+              / Dot11Elt(ID="DSset",info="\x03")\
+              / Dot11Elt(ID="TIM",info="\x00\x01\x00\x00") \
+              / Dot11Elt(ID="MeshID",info="thisisatest")
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        meshid = tree.xpath("packet/proto[@name='wlan_mgt']")[0]
+        meshid = meshid.xpath("field[@name='wlan_mgt.tagged.all']")[0]
+        meshid = meshid.xpath("field[@name='wlan_mgt.tag' and @showname='Tag: Mesh ID: thisisatest']")[0]
+        self.expectField(meshid, "wlan_mgt.tag.number",
+                         "Tag Number: Mesh ID (114)", 114)
+        self.expectField(meshid, "wlan.mesh.id", "Mesh ID: thisisatest",
+                         binascii.hexlify("thisisatest"))
