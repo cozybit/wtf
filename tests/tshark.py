@@ -77,19 +77,45 @@ class TestTShark(unittest.TestCase):
                     "EXPECTED:\n" + p1.command().replace("/", "\n/") +
                     "\nBUT GOT:\n" + p2.command().replace("/", "\n/"))
 
-    def expectField(self, mc, name, showname, value):
-        field = mc.xpath("field[@name='" + name + "']")[0]
-        if (type(value) == int):
+    def expectField(self, f, name, showname=None, value=None):
+        field = f.xpath("field[@name='" + name + "']")
+        if len(field) == 0:
+            self.failIf(True, "No field named " + name)
+        field = field[0]
+
+        if (value == None):
+            _value = None
+        elif(type(value) == int):
             _value = int(field.get("value"), 16)
         elif (type(value) == str):
             _value = field.get("value")
         else:
             self.failIf(True, "Unsupported value type")
-        _showname = field.get("showname")
         self.failIf(value != _value, "Expected " + name + "=" + str(value) \
                     + " but got " + str(_value))
+
+        if (showname == None):
+            _showname = None
+        else:
+            _showname = field.get("showname")
         self.failIf(showname != _showname,
                     "Expected " + showname + " but got " + str(_showname))
+        return field
+
+    def expectFixed(self, tree, name, showname, value):
+        proto = name.split(".")[0]
+        fixed = tree.xpath("packet/proto[@name='" + proto + "']")[0]
+
+        # For some reason, action frames to not print as pretty as other mgt
+        # frames.
+        if showname != None and showname.startswith("Action"):
+            fixed = fixed.xpath("field[@show='Fixed parameters']")
+            if len(fixed) == 0:
+                self.failIf(True, "Failed to find fixed action fields")
+            fixed = fixed[0]
+        else:
+            fixed = self.expectField(fixed, proto + '.fixed.all')
+        return self.expectField(fixed, name, showname, value)
 
     def test_beacon(self):
         addr1s = "ff:ff:ff:ff:ff:ff"
@@ -160,3 +186,26 @@ class TestTShark(unittest.TestCase):
                          "Tag Number: Mesh ID (114)", 114)
         self.expectField(meshid, "wlan.mesh.id", "Mesh ID: thisisatest",
                          binascii.hexlify("thisisatest"))
+
+    def test_mesh_action_fixed_fields(self):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                    addr2="00:11:22:33:44:55",
+                    addr3="00:11:22:33:44:55") \
+              / Dot11Action(category="Mesh") \
+
+        pkt = base_pkt / Dot11Mesh(mesh_action="HWMP")
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0d', 0x0d)
+        self.expectField(action, "wlan_mgt.fixed.mesh_action",
+                         "Mesh Action code: HWMP Mesh Path Selection (0x01)", 0x01)
+
+        pkt = base_pkt / Dot11Mesh(mesh_action="TBTT Adjustment Response")
+        pkt = pkt / Dot11MeshTBTTAdjResp(status=0)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0d', 0x0d)
+        self.expectField(action, "wlan_mgt.fixed.mesh_action",
+                         "Mesh Action code: TBTT Adjustment Response (0x0a)", 0x0A)
+        self.expectField(action, "wlan_mgt.fixed.status_code",
+                         "Status code: Successful (0x0000)", 0)
