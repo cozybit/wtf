@@ -227,7 +227,36 @@ class Dot11Beacon(Packet):
     fields_desc = [ LELongField("timestamp", 0),
                     LEShortField("beacon_interval", 0x0064),
                     FlagsField("cap", 0, 16, capability_list) ]
-    
+
+class Dot11Action(Packet):
+    name = "802.11 Action"
+    fields_desc = [ ByteEnumField("category", 0, {0:"Spectrum Management",
+                                                  1:"QoS",
+                                                  2:"DLS",
+                                                  3:"Block Ack",
+                                                  13:"Mesh",
+                                                  14:"Multihop",
+                                                  15:"Self-protected",
+                                                  })]
+
+class Dot11Mesh(Packet):
+    name = "802.11 Mesh Action"
+    fields_desc = [ ByteEnumField("mesh_action", 0, {0:"Link Metric Report",
+                                                     1:"HWMP",
+                                                     2:"Gate Announcement",
+                                                     3:"Congestion Control",
+                                                     4:"MCCA Setup Request",
+                                                     5:"MCCA Setup Reply",
+                                                     6:"MCAA Advertisement Request",
+                                                     7:"MCAA Advertisement",
+                                                     8:"MCAA Teardown",
+                                                     9:"TBTT Adjustment Request",
+                                                     10:"TBTT Adjustment Response",
+                                                })]
+
+class Dot11MeshTBTTAdjResp(Packet):
+    name = "802.11 Mesh TBTT Adjustment Response"
+    fields_desc = [ LEShortField("status", 0) ]
 
 class Dot11Elt(Packet):
     name = "802.11 Information Element"
@@ -351,6 +380,9 @@ bind_layers( Dot11,         Dot11ATIM,       subtype=9, type=0)
 bind_layers( Dot11,         Dot11Disas,      subtype=10, type=0)
 bind_layers( Dot11,         Dot11Auth,       subtype=11, type=0)
 bind_layers( Dot11,         Dot11Deauth,     subtype=12, type=0)
+bind_layers( Dot11,         Dot11Action,     subtype=13, type=0)
+bind_layers( Dot11Action,   Dot11Mesh,              category=13)
+bind_layers( Dot11MeshTBTTAdjResp,   Dot11Mesh,     mesh_action=10)
 bind_layers( Dot11Beacon,     Dot11Elt,    )
 bind_layers( Dot11AssoReq,    Dot11Elt,    )
 bind_layers( Dot11AssoResp,   Dot11Elt,    )
