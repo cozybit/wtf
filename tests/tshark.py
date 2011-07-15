@@ -86,7 +86,15 @@ class TestTShark(unittest.TestCase):
         if (value == None):
             _value = None
         elif(type(value) == int):
-            _value = int(field.get("value"), 16)
+            if field.get("size") == "4":
+                # for 4-byte integers value is in BE format.  We need LE.
+                # Fortunately, in this case, the "show" member seems to be what
+                # we want.  This is not strictly correct.  So this code will
+                # probably break in the future:)
+                _value = int(field.get("show"), 16)
+            else:
+                # In the common case, value is what we want
+                _value = int(field.get("value"), 16)
         elif (type(value) == str):
             _value = field.get("value")
         else:
@@ -209,3 +217,47 @@ class TestTShark(unittest.TestCase):
                          "Mesh Action code: TBTT Adjustment Response (0x0a)", 0x0A)
         self.expectField(action, "wlan_mgt.fixed.status_code",
                          "Status code: Successful (0x0000)", 0)
+
+    def test_multihop_fixed_fields(self):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                    addr2="00:11:22:33:44:55",
+                    addr3="00:11:22:33:44:55") \
+              / Dot11Action(category="Multihop")
+        base_pkt = base_pkt / Dot11Multihop(multihop_action="Proxy Update")
+
+        # ...with no address extension
+        pkt = base_pkt / Dot11MeshControl(mesh_ttl=5, mesh_sequence_number=0x99)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0e', 0x0e)
+        self.expectField(action, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x00', 0x00)
+        self.expectField(action, 'wlan_mgt.fixed.mesh_ttl', 'Mesh TTL: 0x05', 0x05)
+        self.expectField(action, 'wlan_mgt.fixed.mesh_sequence',
+                         'Sequence Number: 0x00000099', 0x99)
+
+        # ...with one address extension
+        pkt = base_pkt / Dot11MeshControl(mesh_flags=1, mesh_ttl=5,
+                                          mesh_sequence_number=0x1111,
+                                          mesh_addr4="00:44:44:44:44:44")
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0e', 0x0e)
+        self.expectField(action, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x01', 0x01)
+        self.expectField(action, 'wlan_mgt.fixed.mesh_addr4',
+                         'Mesh Extended Address 4: 00:44:44:44:44:44 (00:44:44:44:44:44)',
+                         "004444444444")
+
+        # ...with two address extension
+        pkt = base_pkt / Dot11MeshControl(mesh_flags=2,
+                                          mesh_addr5="00:55:55:55:55:55",
+                                          mesh_addr6="00:66:66:66:66:66")
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0e', 0x0e)
+        self.expectField(action, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x02', 0x02)
+        self.expectField(action, 'wlan_mgt.fixed.mesh_addr5',
+                         'Mesh Extended Address 5: 00:55:55:55:55:55 (00:55:55:55:55:55)',
+                         "005555555555")
+        self.expectField(action, 'wlan_mgt.fixed.mesh_addr6',
+                         'Mesh Extended Address 6: 00:66:66:66:66:66 (00:66:66:66:66:66)',
+                         "006666666666")
