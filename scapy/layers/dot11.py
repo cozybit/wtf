@@ -51,7 +51,21 @@ class Dot11Addr4MACField(Dot11AddrMACField):
             if pkt.FCfield & 0x3 == 0x3: # To-DS and From-DS are set
                 return 1
         return 0
-    
+
+class Dot11MeshAddressExt4(Dot11AddrMACField):
+    def is_applicable(self, pkt):
+        if pkt.mesh_flags & 0x3 == 1:
+            return 1
+
+class Dot11MeshAddressExt5(Dot11AddrMACField):
+    def is_applicable(self, pkt):
+        if pkt.mesh_flags & 0x3 == 2:
+            return 1
+
+class Dot11MeshAddressExt6(Dot11AddrMACField):
+    def is_applicable(self, pkt):
+        if pkt.mesh_flags & 0x3 == 2:
+            return 1
 
 ### Layers
 
@@ -258,6 +272,24 @@ class Dot11MeshTBTTAdjResp(Packet):
     name = "802.11 Mesh TBTT Adjustment Response"
     fields_desc = [ LEShortField("status", 0) ]
 
+class Dot11Multihop(Packet):
+    name = "802.11 Multihop Action"
+    fields_desc = [ ByteEnumField("multihop_action", 0,
+                                  {0:"Proxy Update",
+                                   1:"Proxy Update Confirmation",
+                                   }),
+                    ]
+
+class Dot11MeshControl(Packet):
+    name = "802.11 Mesh Control Field"
+    fields_desc = [ ByteField("mesh_flags", 0),
+                    ByteField("mesh_ttl", 0),
+                    LEIntField("mesh_sequence_number", 0),
+                    Dot11MeshAddressExt4("mesh_addr4", ETHER_ANY),
+                    Dot11MeshAddressExt5("mesh_addr5", ETHER_ANY),
+                    Dot11MeshAddressExt6("mesh_addr6", ETHER_ANY),
+                    ]
+
 class Dot11Elt(Packet):
     name = "802.11 Information Element"
     fields_desc = [ ByteEnumField("ID", 0, {0:"SSID", 1:"Rates", 2: "FHset", 3:"DSset", 4:"CFset", 5:"TIM", 6:"IBSSset", 16:"challenge",
@@ -383,6 +415,8 @@ bind_layers( Dot11,         Dot11Deauth,     subtype=12, type=0)
 bind_layers( Dot11,         Dot11Action,     subtype=13, type=0)
 bind_layers( Dot11Action,   Dot11Mesh,              category=13)
 bind_layers( Dot11MeshTBTTAdjResp,   Dot11Mesh,     mesh_action=10)
+bind_layers( Dot11Action,   Dot11Multihop,          category=14)
+bind_layers( Dot11Multihop, Dot11MeshControl, )
 bind_layers( Dot11Beacon,     Dot11Elt,    )
 bind_layers( Dot11AssoReq,    Dot11Elt,    )
 bind_layers( Dot11AssoResp,   Dot11Elt,    )
