@@ -316,7 +316,7 @@ class Dot11MeshPeeringConfirm(Packet):
 class Dot11Elt(Packet):
     name = "802.11 Information Element"
     fields_desc = [ ByteEnumField("ID", 0, {0:"SSID", 1:"Rates", 2: "FHset", 3:"DSset", 4:"CFset", 5:"TIM", 6:"IBSSset", 16:"challenge",
-                                            42:"ERPinfo", 46:"QoS Capability", 47:"ERPinfo", 48:"RSNinfo", 50:"ESRates",113:"MeshConfig",114:"MeshID",221:"vendor",68:"reserved"}),
+                                            42:"ERPinfo", 46:"QoS Capability", 47:"ERPinfo", 48:"RSNinfo", 50:"ESRates",113:"MeshConfig",114:"MeshID",117:"MeshPeeringMgmt",221:"vendor",68:"reserved"}),
                     FieldLenField("len", None, "info", "B"),
                     StrLenField("info", "", length_from=lambda x:x.len) ]
     def mysummary(self):
@@ -452,7 +452,6 @@ bind_layers( Dot11ProbeReq,   Dot11Elt,    )
 bind_layers( Dot11ProbeResp,  Dot11Elt,    )
 bind_layers( Dot11Auth,       Dot11Elt,    )
 bind_layers( Dot11Elt,        Dot11Elt,    )
-
 
 conf.l2types.register(105, Dot11)
 conf.l2types.register_num2layer(801, Dot11)
