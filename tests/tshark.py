@@ -77,10 +77,18 @@ class TestTShark(unittest.TestCase):
                     "EXPECTED:\n" + p1.command().replace("/", "\n/") +
                     "\nBUT GOT:\n" + p2.command().replace("/", "\n/"))
 
-    def expectField(self, f, name, showname=None, value=None):
-        field = f.xpath("field[@name='" + name + "']")
-        if len(field) == 0:
-            self.failIf(True, "No field named " + name)
+    def expectField(self, f, name=None, showname=None, value=None):
+        if name == None and showname == None:
+            failIf(True,
+                   "Can't find a field unless you tell me the name and/or showname")
+        if name == None:
+            field = f.xpath("field[@showname='" + showname + "']")
+            if len(field) == 0:
+                self.failIf(True, "No field with showname " + showname)
+        else:
+            field = f.xpath("field[@name='" + name + "']")
+            if len(field) == 0:
+                self.failIf(True, "No field named " + name)
         field = field[0]
 
         if (value == None):
@@ -106,8 +114,10 @@ class TestTShark(unittest.TestCase):
             _showname = None
         else:
             _showname = field.get("showname")
+            if _showname == None:
+                self.failIf(True, "Failed to find showname " + showname)
         self.failIf(showname != _showname,
-                    "Expected " + showname + " but got " + str(_showname))
+                    "Expected " + repr(showname) + " but got " + repr(_showname))
         return field
 
     def expectFixed(self, tree, name, showname, value):
@@ -124,6 +134,16 @@ class TestTShark(unittest.TestCase):
         else:
             fixed = self.expectField(fixed, proto + '.fixed.all')
         return self.expectField(fixed, name, showname, value)
+
+    # For some reason, the top-level IE XML stanza in tshark's output does not
+    # contain the IE number.  So we depend only on the showname.
+    def expectTagged(self, tree, proto, showname):
+        tagged = tree.xpath("packet/proto[@name='" + proto + "']")
+        if len(tagged) == 0:
+            self.failIf(True, "Failed to find proto " + proto)
+        tagged = tagged[0]
+        tagged = self.expectField(tagged, proto + '.tagged.all')
+        return self.expectField(tagged, proto + '.tag', showname)
 
     def test_beacon(self):
         addr1s = "ff:ff:ff:ff:ff:ff"
@@ -288,3 +308,54 @@ class TestTShark(unittest.TestCase):
                          'Capabilities Information: 0x0000', 0x0)
         self.expectField(action, 'wlan_mgt.fixed.aid',
                          '..00 0000 0000 1001 = Association ID: 0x0009', 0x9)
+
+    def test_mesh_peering_mgt_close_ie(self):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                    addr2="00:11:22:33:44:55",
+                    addr3="00:11:22:33:44:55") \
+              / Dot11Action(category="Self-protected")
+        base_pkt = base_pkt / Dot11SelfProtected(selfprot_action="Mesh Peering Close")
+
+        # Try one with proto_id = 1, local link id = 0x99, reason = 77 (0x4d)
+        info = binascii.unhexlify("010099004d00")
+        pkt = base_pkt / Dot11Elt(ID="MeshPeeringMgmt", info=info)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0f', 0x0f)
+        self.expectField(action, 'wlan_mgt.fixed.selfprot_action',
+                         'Self-protected Action code: Mesh Peering Close (0x03)', 0x03)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Mesh Peering Management")
+        self.expectField(ie, 'wlan_mgt.tag.number', 'Tag Number: Mesh Peering Management (117)', 117)
+        self.expectField(ie, 'wlan.peering.proto',
+                         'Mesh Peering Protocol ID: Authenticated mesh peering exchange protocol (0x0001)',
+                         0x0100)
+        self.expectField(ie, 'wlan.peering.local_id', "Local Link ID: 0x0099", 0x9900)
+        self.expectField(ie, 'wlan_mgt.fixed.status_code',
+                         "Status code: Authentication is rejected because the offered finite cyclic group is not supported (0x004d)",
+                         0x4d00)
+
+        # ...now try the same thing with a 16B PMK ID on the end.
+        pmkid = "000102030405060708090a0b0c0d0e0f"
+        info += binascii.unhexlify(pmkid)
+        pkt = base_pkt / Dot11Elt(ID="MeshPeeringMgmt", info=info)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Mesh Peering Management")
+        self.expectField(ie, 'wlan_mgt.pmkid.akms', 'PMKID: ' + pmkid, pmkid)
+
+        # ...and now one with the optional peer link id before the status code.
+        info = binascii.unhexlify("0100990088004e00")
+        pkt = base_pkt / Dot11Elt(ID="MeshPeeringMgmt", info=info)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Mesh Peering Management")
+        self.expectField(ie, 'wlan.peering.peer_id', "Peer Link ID: 0x0088", 0x8800)
+
+        # ...and again with the pmk
+        pmkid = "000102030405060708090a0b0c0d0e0f"
+        info += binascii.unhexlify(pmkid)
+        pkt = base_pkt / Dot11Elt(ID="MeshPeeringMgmt", info=info)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Mesh Peering Management")
+        self.expectField(ie, 'wlan_mgt.pmkid.akms', 'PMKID: ' + pmkid, pmkid)
