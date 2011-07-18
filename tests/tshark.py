@@ -261,3 +261,30 @@ class TestTShark(unittest.TestCase):
         self.expectField(action, 'wlan_mgt.fixed.mesh_addr6',
                          'Mesh Extended Address 6: 00:66:66:66:66:66 (00:66:66:66:66:66)',
                          "006666666666")
+
+    def test_selfprot_fixed_fields(self):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                    addr2="00:11:22:33:44:55",
+                    addr3="00:11:22:33:44:55") \
+              / Dot11Action(category="Self-protected")
+        pkt = base_pkt / Dot11SelfProtected(selfprot_action="Mesh Peering Open")
+        pkt = pkt / Dot11MeshPeeringOpen(cap=0)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0f', 0x0f)
+        self.expectField(action, 'wlan_mgt.fixed.selfprot_action',
+                         'Self-protected Action code: Mesh Peering Open (0x01)', 0x01)
+        self.expectField(action, 'wlan_mgt.fixed.capabilities',
+                         'Capabilities Information: 0x0000', 0x0)
+
+        pkt = base_pkt / Dot11SelfProtected(selfprot_action="Mesh Peering Confirm")
+        pkt = pkt / Dot11MeshPeeringConfirm(cap=0, AID=9)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0f', 0x0f)
+        self.expectField(action, 'wlan_mgt.fixed.selfprot_action',
+                         'Self-protected Action code: Mesh Peering Confirm (0x02)', 0x02)
+        self.expectField(action, 'wlan_mgt.fixed.capabilities',
+                         'Capabilities Information: 0x0000', 0x0)
+        self.expectField(action, 'wlan_mgt.fixed.aid',
+                         '..00 0000 0000 1001 = Association ID: 0x0009', 0x9)
