@@ -290,6 +290,29 @@ class Dot11MeshControl(Packet):
                     Dot11MeshAddressExt6("mesh_addr6", ETHER_ANY),
                     ]
 
+class Dot11SelfProtected(Packet):
+    name = "802.11 Self-protected Action"
+    fields_desc = [ ByteEnumField("selfprot_action", 0, {0:"Reserved",
+                                                     1:"Mesh Peering Open",
+                                                     2:"Mesh Peering Confirm",
+                                                     3:"Mesh Peering Close",
+                                                     4:"Mesh Group Key Inform",
+                                                     5:"Mesh Group Key Ack",
+                                                })]
+
+class Dot11MeshPeeringOpen(Packet):
+    name = "802.11 Mesh Peering Open"
+    fields_desc = [
+        FlagsField("cap", 0, 16, capability_list),
+        ]
+
+class Dot11MeshPeeringConfirm(Packet):
+    name = "802.11 Mesh Peering Confirm"
+    fields_desc = [
+        FlagsField("cap", 0, 16, capability_list),
+        LEShortField("AID", 0)
+        ]
+
 class Dot11Elt(Packet):
     name = "802.11 Information Element"
     fields_desc = [ ByteEnumField("ID", 0, {0:"SSID", 1:"Rates", 2: "FHset", 3:"DSset", 4:"CFset", 5:"TIM", 6:"IBSSset", 16:"challenge",
@@ -417,6 +440,9 @@ bind_layers( Dot11Action,   Dot11Mesh,              category=13)
 bind_layers( Dot11MeshTBTTAdjResp,   Dot11Mesh,     mesh_action=10)
 bind_layers( Dot11Action,   Dot11Multihop,          category=14)
 bind_layers( Dot11Multihop, Dot11MeshControl, )
+bind_layers( Dot11Action,   Dot11SelfProtected,     category=15)
+bind_layers( Dot11SelfProtected, Dot11MeshPeeringOpen,)
+bind_layers( Dot11SelfProtected, Dot11MeshPeeringConfirm,)
 bind_layers( Dot11Beacon,     Dot11Elt,    )
 bind_layers( Dot11AssoReq,    Dot11Elt,    )
 bind_layers( Dot11AssoResp,   Dot11Elt,    )
