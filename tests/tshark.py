@@ -231,6 +231,34 @@ class TestTShark(unittest.TestCase):
                          binascii.hexlify(utils.mac2str(orig_sta)))
         self.expectField(ie, 'wlan.hwmp.orig_sn', 'HWMP Originator SN: %d' % orig_sn, htonl(orig_sn))
 
+    def do_hwmp_perr(self, ttl, targs=[]):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                         addr2="00:11:22:33:44:55",
+                         addr3="00:11:22:33:44:55") \
+                         / Dot11Action(category="Mesh")
+        base_pkt = base_pkt / Dot11Mesh(mesh_action="HWMP")
+
+        info = struct.pack("<BB", ttl, len(targs))
+        for t in targs:
+            if t["flags"] & (1<<6):
+                info += struct.pack("<B6sI6sH", t["flags"], utils.mac2str(t["addr"]), t["sn"], t["ext"], t["reason"])
+            else:
+                info += struct.pack("<B6sIH", t["flags"], utils.mac2str(t["addr"]), t["sn"], t["reason"])
+        pkt = base_pkt / Dot11Elt(ID="PERR", info=info)
+
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Path Error")
+        self.expectField(ie, 'wlan_mgt.tag.number', 'Tag Number: Path Error (132)', 132)
+        self.expectField(ie, 'wlan.hwmp.targ_count', 'HWMP Target Count: %d' % len(targs), len(targs))
+        for t in targs:
+            self.expectField(ie, 'wlan.hwmp.targ_flags', 'HWMP Per-Target Flags: 0x%02X' % t["flags"], t["flags"])
+            self.expectField(ie, 'wlan.hwmp.targ_sta',
+                             'Target STA Address: ' + t["addr"] + ' (' + t["addr"] + ')',
+                             binascii.hexlify(utils.mac2str(t["addr"])))
+            self.expectField(ie, 'wlan.hwmp.targ_sn', 'Target HWMP Sequence Number: %d' % t["sn"], htonl(t["sn"]))
+            self.expectField(ie, 'wlan_mgt.fixed.reason_code', None, htons(t["reason"]))
+
     def test_beacon(self):
         addr1s = "ff:ff:ff:ff:ff:ff"
         addr2s = "42:00:00:00:01:00"
@@ -481,3 +509,23 @@ class TestTShark(unittest.TestCase):
         self.do_hwmp_prep(flags=(1<<6), hopcount=30, ttl=19, targ_sta="00:99:88:88:88:88",
                           targ_sn=23, lifetime=987, metric=456, orig_sta="00:99:88:88:88:87",
                           orig_sn=9, targ_ext="00:44:44:44:44:44")
+
+    def test_hwmp_perr_ie(self):
+
+        self.do_hwmp_perr(ttl=99)
+
+        self.do_hwmp_perr(ttl=2,
+                          targs=[{"flags":0, "addr":"00:33:33:33:33:33", "sn":93, "reason":57}])
+
+        self.do_hwmp_perr(ttl=2,
+                          targs=[{"flags":(1<<6), "addr":"00:33:33:33:33:33", "sn":93, "reason":57, "ext":"00:11:33:55:77:99"}])
+
+        self.do_hwmp_perr(ttl=3,
+                          targs=[{"flags":0, "addr":"00:33:33:33:33:33", "sn":93, "reason":54},
+                                 {"flags":0, "addr":"00:33:33:33:33:38", "sn":45, "reason":55},
+                                 {"flags":0, "addr":"00:33:33:33:33:39", "sn":7, "reason":56}])
+
+        self.do_hwmp_perr(ttl=44,
+                          targs=[{"flags":0, "addr":"00:33:33:33:33:33", "sn":93, "reason":54},
+                                 {"flags":(1<<6), "addr":"00:33:33:33:33:38", "sn":45, "reason":55, "ext":"55:33:55:77:55:44"},
+                                 {"flags":0, "addr":"00:33:33:33:33:39", "sn":7, "reason":56}])
