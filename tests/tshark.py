@@ -114,7 +114,8 @@ class TestTShark(unittest.TestCase):
                 return field
 
         self.failIf(True, "No field with " + name + " had value " + str(value) \
-                    + " and showname " + repr(showname))
+                    + " and showname " + repr(showname) + ".\n" + "Candidates are\n" \
+                    + "\n".join(map(lambda f: "value: " + f.get("value") + " showname: " + f.get("showname"), fields)))
 
     def expectFixed(self, tree, name, showname, value):
         proto = name.split(".")[0]
@@ -188,6 +189,47 @@ class TestTShark(unittest.TestCase):
                              'Target STA Address: ' + t["addr"] + ' (' + t["addr"] + ')',
                              binascii.hexlify(utils.mac2str(t["addr"])))
             self.expectField(ie, 'wlan.hwmp.targ_sn', 'Target HWMP Sequence Number: %d' % t["sn"], htonl(t["sn"]))
+
+    def do_hwmp_prep(self, flags, hopcount, ttl, targ_sta, targ_sn,
+                     lifetime, metric, orig_sta, orig_sn, targ_ext=None):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                         addr2="00:11:22:33:44:55",
+                         addr3="00:11:22:33:44:55") \
+                         / Dot11Action(category="Mesh")
+        base_pkt = base_pkt / Dot11Mesh(mesh_action="HWMP")
+
+        if targ_ext == None:
+            info = struct.pack("<BBB6sIII6sI", flags, hopcount, ttl,
+                               utils.mac2str(targ_sta), targ_sn, lifetime,
+                               metric, utils.mac2str(orig_sta), orig_sn)
+        else:
+            info = struct.pack("<BBB6sI6sII6sI", flags, hopcount, ttl,
+                               utils.mac2str(targ_sta), targ_sn, utils.mac2str(targ_ext),
+                               lifetime, metric, utils.mac2str(orig_sta), orig_sn)
+
+        pkt = base_pkt / Dot11Elt(ID="PREP", info=info)
+
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Path Reply")
+        self.expectField(ie, 'wlan_mgt.tag.number', 'Tag Number: Path Reply (131)', 131)
+        self.expectField(ie, 'wlan.hwmp.flags', 'HWMP Flags: 0x%02X' % flags , flags)
+        self.expectField(ie, 'wlan.hwmp.hopcount', 'HWMP Hop Count: %d' % hopcount, hopcount)
+        self.expectField(ie, 'wlan.hwmp.ttl', 'HWMP TTL: %d' % ttl, ttl)
+        self.expectField(ie, 'wlan.hwmp.targ_sta',
+                         'Target STA Address: ' + targ_sta + ' (' + targ_sta + ')',
+                         binascii.hexlify(utils.mac2str(targ_sta)))
+        self.expectField(ie, 'wlan.hwmp.targ_sn', 'Target HWMP Sequence Number: %d' % targ_sn, htonl(targ_sn))
+        if targ_ext != None:
+            self.expectField(ie, 'wlan.hwmp.targ_ext',
+                             'Target External Address: ' + targ_ext + ' (' + targ_ext + ')',
+                             binascii.hexlify(utils.mac2str(targ_ext)))
+        self.expectField(ie, 'wlan.hwmp.lifetime', 'HWMP Lifetime: %d' % lifetime, htonl(lifetime))
+        self.expectField(ie, 'wlan.hwmp.metric', 'HWMP Metric: %d' % metric, htonl(metric))
+        self.expectField(ie, 'wlan.hwmp.orig_sta',
+                         'Originator STA Address: ' + orig_sta + ' (' + orig_sta + ')',
+                         binascii.hexlify(utils.mac2str(orig_sta)))
+        self.expectField(ie, 'wlan.hwmp.orig_sn', 'HWMP Originator SN: %d' % orig_sn, htonl(orig_sn))
 
     def test_beacon(self):
         addr1s = "ff:ff:ff:ff:ff:ff"
@@ -430,3 +472,12 @@ class TestTShark(unittest.TestCase):
                           targs=[{"flags":0, "addr":"00:33:33:33:33:33", "sn":93},
                                  {"flags":0, "addr":"00:33:33:33:33:38", "sn":45},
                                  {"flags":0, "addr":"00:33:33:33:33:39", "sn":7}])
+
+    def test_hwmp_prep_ie(self):
+
+        self.do_hwmp_prep(flags=0, hopcount=30, ttl=19, targ_sta="00:99:88:88:88:88",
+                          targ_sn=23, lifetime=987, metric=456, orig_sta="00:99:88:88:88:87",
+                          orig_sn=9)
+        self.do_hwmp_prep(flags=(1<<6), hopcount=30, ttl=19, targ_sta="00:99:88:88:88:88",
+                          targ_sn=23, lifetime=987, metric=456, orig_sta="00:99:88:88:88:87",
+                          orig_sn=9, targ_ext="00:44:44:44:44:44")
