@@ -6,9 +6,11 @@ import wtf
 import unittest
 wtfconfig = wtf.conf
 from scapy.layers.dot11 import *
+import scapy.utils as utils
 import commands
 from lxml import etree
 import binascii
+from socket import htonl, htons
 
 class dot11Packet():
     pkt = None;
@@ -82,43 +84,37 @@ class TestTShark(unittest.TestCase):
             failIf(True,
                    "Can't find a field unless you tell me the name and/or showname")
         if name == None:
-            field = f.xpath("field[@showname='" + showname + "']")
-            if len(field) == 0:
+            fields = f.xpath("field[@showname='" + showname + "']")
+            if len(fields) == 0:
                 self.failIf(True, "No field with showname " + showname)
         else:
-            field = f.xpath("field[@name='" + name + "']")
-            if len(field) == 0:
+            fields = f.xpath("field[@name='" + name + "']")
+            if len(fields) == 0:
                 self.failIf(True, "No field named " + name)
-        field = field[0]
 
-        if (value == None):
-            _value = None
-        elif(type(value) == int):
-            if field.get("size") == "4":
-                # for 4-byte integers value is in BE format.  We need LE.
-                # Fortunately, in this case, the "show" member seems to be what
-                # we want.  This is not strictly correct.  So this code will
-                # probably break in the future:)
-                _value = int(field.get("show"), 16)
-            else:
-                # In the common case, value is what we want
+        # There may be multiple matching fields.  Try them all.
+        for field in fields:
+            if (value == None):
+                _value = None
+            elif type(value) == int or type(value) == long:
                 _value = int(field.get("value"), 16)
-        elif (type(value) == str):
-            _value = field.get("value")
-        else:
-            self.failIf(True, "Unsupported value type")
-        self.failIf(value != _value, "Expected " + name + "=" + str(value) \
-                    + " but got " + str(_value))
+            elif (type(value) == str):
+                _value = field.get("value")
+            else:
+                self.failIf(True, "Unsupported value type " + repr(type(value)))
 
-        if (showname == None):
-            _showname = None
-        else:
-            _showname = field.get("showname")
-            if _showname == None:
-                self.failIf(True, "Failed to find showname " + showname)
-        self.failIf(showname != _showname,
-                    "Expected " + repr(showname) + " but got " + repr(_showname))
-        return field
+            if (showname == None):
+                _showname = None
+            else:
+                _showname = field.get("showname")
+                if _showname == None:
+                    self.failIf(True, "Failed to find showname " + showname)
+
+            if value == _value and showname == _showname:
+                return field
+
+        self.failIf(True, "No field with " + name + " had value " + str(value) \
+                    + " and showname " + repr(showname))
 
     def expectFixed(self, tree, name, showname, value):
         proto = name.split(".")[0]
@@ -144,6 +140,54 @@ class TestTShark(unittest.TestCase):
         tagged = tagged[0]
         tagged = self.expectField(tagged, proto + '.tagged.all')
         return self.expectField(tagged, proto + '.tag', showname)
+
+    def do_hwmp_preq(self, flags, hopcount, ttl, pdid, orig_sta, orig_sn,
+                     lifetime, metric, orig_ext=None, targs=[]):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                         addr2="00:11:22:33:44:55",
+                         addr3="00:11:22:33:44:55") \
+                         / Dot11Action(category="Mesh")
+        base_pkt = base_pkt / Dot11Mesh(mesh_action="HWMP")
+
+        if orig_ext == None:
+            info = struct.pack("<BBBI6sIIIB", flags, hopcount, ttl, pdid,
+                               utils.mac2str(orig_sta), orig_sn, lifetime,
+                               metric, len(targs))
+        else:
+            info = struct.pack("<BBBI6sI6sIIB", flags, hopcount, ttl, pdid,
+                               utils.mac2str(orig_sta), orig_sn,
+                               utils.mac2str(orig_ext), lifetime, metric,
+                               len(targs))
+
+        for t in targs:
+            info += struct.pack("<B6sI", t["flags"], utils.mac2str(t["addr"]), t["sn"])
+        pkt = base_pkt / Dot11Elt(ID="PREQ", info=info)
+
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Path Request")
+        self.expectField(ie, 'wlan_mgt.tag.number', 'Tag Number: Path Request (130)', 130)
+        self.expectField(ie, 'wlan.hwmp.flags', 'HWMP Flags: 0x%02X' % flags , flags)
+        self.expectField(ie, 'wlan.hwmp.hopcount', 'HWMP Hop Count: %d' % hopcount, hopcount)
+        self.expectField(ie, 'wlan.hwmp.ttl', 'HWMP TTL: %d' % ttl, ttl)
+        self.expectField(ie, 'wlan.hwmp.pdid', 'HWMP Path Discovery ID: %d' % pdid, htonl(pdid))
+        self.expectField(ie, 'wlan.hwmp.orig_sta',
+                         'Originator STA Address: ' + orig_sta + ' (' + orig_sta + ')',
+                         binascii.hexlify(utils.mac2str(orig_sta)))
+        self.expectField(ie, 'wlan.hwmp.orig_sn', 'HWMP Originator SN: %d' % orig_sn, htonl(orig_sn))
+        if orig_ext != None:
+            self.expectField(ie, 'wlan.hwmp.orig_ext',
+                             'Originator External Address: ' + orig_ext + ' (' + orig_ext + ')',
+                             binascii.hexlify(utils.mac2str(orig_ext)))
+        self.expectField(ie, 'wlan.hwmp.lifetime', 'HWMP Lifetime: %d' % lifetime, htonl(lifetime))
+        self.expectField(ie, 'wlan.hwmp.metric', 'HWMP Metric: %d' % metric, htonl(metric))
+        self.expectField(ie, 'wlan.hwmp.targ_count', 'HWMP Target Count: %d' % len(targs), len(targs))
+        for t in targs:
+            self.expectField(ie, 'wlan.hwmp.targ_flags', 'HWMP Per-Target Flags: 0x%02X' % t["flags"], t["flags"])
+            self.expectField(ie, 'wlan.hwmp.targ_sta',
+                             'Target STA Address: ' + t["addr"] + ' (' + t["addr"] + ')',
+                             binascii.hexlify(utils.mac2str(t["addr"])))
+            self.expectField(ie, 'wlan.hwmp.targ_sn', 'Target HWMP Sequence Number: %d' % t["sn"], htonl(t["sn"]))
 
     def test_beacon(self):
         addr1s = "ff:ff:ff:ff:ff:ff"
@@ -253,7 +297,7 @@ class TestTShark(unittest.TestCase):
         self.expectField(action, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x00', 0x00)
         self.expectField(action, 'wlan_mgt.fixed.mesh_ttl', 'Mesh TTL: 0x05', 0x05)
         self.expectField(action, 'wlan_mgt.fixed.mesh_sequence',
-                         'Sequence Number: 0x00000099', 0x99)
+                         'Sequence Number: 0x00000099', htonl(0x99))
 
         # ...with one address extension
         pkt = base_pkt / Dot11MeshControl(mesh_flags=1, mesh_ttl=5,
@@ -359,3 +403,30 @@ class TestTShark(unittest.TestCase):
         tree = etree.fromstring(xml)
         ie = self.expectTagged(tree, "wlan_mgt", "Tag: Mesh Peering Management")
         self.expectField(ie, 'wlan_mgt.pmkid.akms', 'PMKID: ' + pmkid, pmkid)
+
+    def test_hwmp_preq_ie(self):
+
+        # do the most basic packet (albeit illegal): no external addr and no
+        # targets
+        self.do_hwmp_preq(flags=0, hopcount=9, ttl=3, pdid=123,
+                          orig_sta="00:22:33:44:99:aa", orig_sn=4321,
+                          lifetime=1024, metric=40)
+
+        # now do the same thing but with an external address
+        self.do_hwmp_preq(flags=(1<<6), hopcount=9, ttl=3, pdid=123,
+                          orig_sta="00:22:33:44:99:aa", orig_sn=4321,
+                          lifetime=1024, metric=40, orig_ext="00:00:00:44:44:44")
+
+        # now do the same thing but with a target
+        self.do_hwmp_preq(flags=(1<<6), hopcount=9, ttl=3, pdid=123,
+                          orig_sta="00:22:33:44:99:aa", orig_sn=4321,
+                          lifetime=1024, metric=40, orig_ext="00:00:00:44:44:44",
+                          targs=[{"flags":0, "addr":"00:33:33:33:33:33", "sn":93}])
+
+        # now try no ext address and a few targets
+        self.do_hwmp_preq(flags=0, hopcount=9, ttl=3, pdid=123,
+                          orig_sta="00:22:33:44:99:aa", orig_sn=4321,
+                          lifetime=1024, metric=40,
+                          targs=[{"flags":0, "addr":"00:33:33:33:33:33", "sn":93},
+                                 {"flags":0, "addr":"00:33:33:33:33:38", "sn":45},
+                                 {"flags":0, "addr":"00:33:33:33:33:39", "sn":7}])
