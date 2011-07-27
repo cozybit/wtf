@@ -115,7 +115,7 @@ class TestTShark(unittest.TestCase):
 
         self.failIf(True, "No field with " + name + " had value " + str(value) \
                     + " and showname " + repr(showname) + ".\n" + "Candidates are\n" \
-                    + "\n".join(map(lambda f: "value: " + f.get("value") + " showname: " + f.get("showname"), fields)))
+                    + "\n".join(map(lambda f: "value: " + f.get("value") + " showname: " + str(f.get("showname")), fields)))
 
     def expectFixed(self, tree, name, showname, value):
         proto = name.split(".")[0]
@@ -529,3 +529,97 @@ class TestTShark(unittest.TestCase):
                           targs=[{"flags":0, "addr":"00:33:33:33:33:33", "sn":93, "reason":54},
                                  {"flags":(1<<6), "addr":"00:33:33:33:33:38", "sn":45, "reason":55, "ext":"55:33:55:77:55:44"},
                                  {"flags":0, "addr":"00:33:33:33:33:39", "sn":7, "reason":56}])
+
+    def test_mesh_data_frame_addressing(self):
+        # These tests are inspired by table 9-13 in the 11s standard.  Note
+        # that mesh data frames always have the QoS header, and when they have
+        # the MeshControl field, they always have the MeshControlPresent bit in
+        # the QoS header set.  We fudge this a bit using scapy by setting the
+        # TXOP field to 1.  Have a look at Table 7-4 of 11s draft v12 and
+        # you'll see what I mean.
+
+        # table entry 1
+        pkt = Dot11(addr1="00:11:11:11:11:11",
+                    addr2="00:22:22:22:22:22",
+                    addr3="00:33:33:33:33:33",
+                    addr4="00:44:44:44:44:44",
+                    type="Data",
+                    subtype=0x8,
+                    FCfield="to-DS+from-DS") \
+                    / Dot11QoS(TXOP=1) \
+                    / Dot11MeshControl(mesh_ttl=5, mesh_sequence_number=0x99)
+        data = struct.pack("<IIII", 1, 2, 3, 4)
+        pkt = pkt / Packet(data)
+        pkt = pkt / Packet(struct.pack("<I", 0xffffffff & binascii.crc32(data)))
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        header = tree.xpath("packet/proto[@name='wlan']")[0]
+        meshctl = self.expectField(header, "", None, value="000599000000")
+        self.expectField(meshctl, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x00', 0x00)
+
+        # table entry 2
+        pkt = Dot11(addr1="00:11:11:11:11:11",
+                    addr2="00:22:22:22:22:22",
+                    addr3="00:33:33:33:33:33",
+                    type="Data",
+                    subtype=0x8,
+                    FCfield="from-DS") \
+                    / Dot11QoS(TXOP=1) \
+                    / Dot11MeshControl(mesh_ttl=5, mesh_sequence_number=0x99)
+        data = struct.pack("<IIII", 1, 2, 3, 4)
+        pkt = pkt / Packet(data)
+        pkt = pkt / Packet(struct.pack("<I", 0xffffffff & binascii.crc32(data)))
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        header = tree.xpath("packet/proto[@name='wlan']")[0]
+        meshctl = self.expectField(header, "", None, value="000599000000")
+        self.expectField(meshctl, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x00', 0x00)
+
+        # table entry 3
+        pkt = Dot11(addr1="00:11:11:11:11:11",
+                    addr2="00:22:22:22:22:22",
+                    addr3="00:33:33:33:33:33",
+                    addr4="00:44:44:44:44:44",
+                    type="Data",
+                    subtype=0x8,
+                    FCfield="from-DS+to-DS") \
+                    / Dot11QoS(TXOP=1) \
+                    / Dot11MeshControl(mesh_flags=2, mesh_ttl=5, mesh_sequence_number=0x99,
+                                       mesh_addr5="00:55:55:55:55:55",
+                                       mesh_addr6="00:66:66:66:66:66")
+        data = struct.pack("<IIII", 1, 2, 3, 4)
+        pkt = pkt / Packet(data)
+        pkt = pkt / Packet(struct.pack("<I", 0xffffffff & binascii.crc32(data)))
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        header = tree.xpath("packet/proto[@name='wlan']")[0]
+        meshctl = self.expectField(header, "", None, value="020599000000005555555555006666666666")
+        self.expectField(meshctl, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x02', 0x02)
+        self.expectField(meshctl, 'wlan_mgt.fixed.mesh_addr5',
+                         "Mesh Extended Address 5: 00:55:55:55:55:55 (00:55:55:55:55:55)",
+                         "005555555555")
+        self.expectField(meshctl, 'wlan_mgt.fixed.mesh_addr6',
+                         "Mesh Extended Address 6: 00:66:66:66:66:66 (00:66:66:66:66:66)",
+                         "006666666666")
+
+        # table entry 4
+        pkt = Dot11(addr1="00:11:11:11:11:11",
+                    addr2="00:22:22:22:22:22",
+                    addr3="00:33:33:33:33:33",
+                    type="Data",
+                    subtype=0x8,
+                    FCfield="from-DS") \
+                    / Dot11QoS(TXOP=1) \
+                    / Dot11MeshControl(mesh_flags=1, mesh_ttl=5, mesh_sequence_number=0x99,
+                                       mesh_addr4="00:44:44:44:44:44")
+        data = struct.pack("<IIII", 1, 2, 3, 4)
+        pkt = pkt / Packet(data)
+        pkt = pkt / Packet(struct.pack("<I", 0xffffffff & binascii.crc32(data)))
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        header = tree.xpath("packet/proto[@name='wlan']")[0]
+        meshctl = self.expectField(header, "", None, value="010599000000004444444444")
+        self.expectField(meshctl, 'wlan_mgt.fixed.mesh_flags', 'Mesh Flags: 0x01', 0x01)
+        self.expectField(meshctl, 'wlan_mgt.fixed.mesh_addr4',
+                         "Mesh Extended Address 4: 00:44:44:44:44:44 (00:44:44:44:44:44)",
+                         "004444444444")
