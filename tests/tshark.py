@@ -623,3 +623,30 @@ class TestTShark(unittest.TestCase):
         self.expectField(meshctl, 'wlan_mgt.fixed.mesh_addr4',
                          "Mesh Extended Address 4: 00:44:44:44:44:44 (00:44:44:44:44:44)",
                          "004444444444")
+
+    def test_rann_ie(self):
+        base_pkt = Dot11(addr1="00:11:22:33:44:55",
+                    addr2="00:11:22:33:44:55",
+                    addr3="00:11:22:33:44:55") \
+              / Dot11Action(category="Mesh") \
+
+        pkt = base_pkt / Dot11Mesh(mesh_action="HWMP")
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0d', 0x0d)
+
+        info = binascii.unhexlify("010203444444444444050505050606060607070707")
+        pkt = pkt / Dot11Elt(ID="RANN", info=info)
+        xml = self.do_tshark_xml(pkt)
+        tree = etree.fromstring(xml)
+        action = self.expectFixed(tree, 'wlan_mgt.fixed.action', 'Action: 0x0d', 0x0d)
+        ie = self.expectTagged(tree, "wlan_mgt", "Tag: Root Announcement")
+        self.expectField(ie, 'wlan_mgt.tag.number', 'Tag Number: Root Announcement (126)', 126)
+        self.expectField(ie, "wlan_mgt.tag.length", "Tag length: 21", "15")
+        self.expectField(ie, "wlan.rann.flags", "RANN Flags: 0x01", "01")
+        self.expectField(ie, "wlan.hwmp.hopcount", "HWMP Hop Count: 2", "02")
+        self.expectField(ie, "wlan.hwmp.ttl", "HWMP TTL: 3", "03")
+        self.expectField(ie, "wlan.rann.root_sta", "Root STA Address: 44:44:44:44:44:44 (44:44:44:44:44:44)", "444444444444")
+        self.expectField(ie, "wlan.rann.rann_sn", "Root STA Sequence Number: 84215045", "05050505")
+        self.expectField(ie, "wlan.rann.interval", "RANN Interval: 101058054", "06060606")
+        self.expectField(ie, "wlan.hwmp.metric", "HWMP Metric: 117901063", "07070707")
