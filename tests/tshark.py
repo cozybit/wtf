@@ -63,8 +63,9 @@ class TestTShark(unittest.TestCase):
 
     # write the specified packets to tshark and return his XML txt output
     def do_tshark_xml(self, pkts):
-        wrpcap("/tmp/tshark-test.pcap", pkts, 105)
-        err, out = commands.getstatusoutput("tshark -Tpdml -n -r /tmp/tshark-test.pcap")
+        name = "/tmp/" + self.id().split(".")[-1] + ".pcap"
+        wrpcap(name, pkts, 105)
+        err, out = commands.getstatusoutput("tshark -Tpdml -n -r " + name)
         if err != 0:
             self.failIf(True, "Failed to invoke tshark")
         # Save the xml to a tml file for debugging
