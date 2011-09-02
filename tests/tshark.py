@@ -176,7 +176,7 @@ class TestTShark(unittest.TestCase):
         self.expectField(ie, 'wlan.hwmp.orig_sta',
                          'Originator STA Address: ' + orig_sta + ' (' + orig_sta + ')',
                          binascii.hexlify(utils.mac2str(orig_sta)))
-        self.expectField(ie, 'wlan.hwmp.orig_sn', 'HWMP Originator SN: %d' % orig_sn, htonl(orig_sn))
+        self.expectField(ie, 'wlan.hwmp.orig_sn', 'HWMP Originator Sequence Number: %d' % orig_sn, htonl(orig_sn))
         if orig_ext != None:
             self.expectField(ie, 'wlan.hwmp.orig_ext',
                              'Originator External Address: ' + orig_ext + ' (' + orig_ext + ')',
@@ -230,7 +230,7 @@ class TestTShark(unittest.TestCase):
         self.expectField(ie, 'wlan.hwmp.orig_sta',
                          'Originator STA Address: ' + orig_sta + ' (' + orig_sta + ')',
                          binascii.hexlify(utils.mac2str(orig_sta)))
-        self.expectField(ie, 'wlan.hwmp.orig_sn', 'HWMP Originator SN: %d' % orig_sn, htonl(orig_sn))
+        self.expectField(ie, 'wlan.hwmp.orig_sn', 'HWMP Originator Sequence Number: %d' % orig_sn, htonl(orig_sn))
 
     def do_hwmp_perr(self, ttl, targs=[]):
         base_pkt = Dot11(addr1="00:11:22:33:44:55",
