@@ -4,6 +4,7 @@
 import wtf.node.ap as ap
 import wtf.node.sta as sta
 import wtf.node.p2p as p2p
+import wtf.node.mesh as mesh
 
 class config():
     def __init__(self, suite=None, nodes=[], name="<unamed config>"):
@@ -17,6 +18,8 @@ class config():
         self.aps = []
         self.stas = []
         self.p2ps = []
+        self.mps = []
+
         for n in nodes:
             if isinstance(n, p2p.P2PBase):
                 # We check p2p before the other types because a p2p node might
@@ -26,6 +29,8 @@ class config():
                 self.aps.append(n)
             elif isinstance(n, sta.STABase):
                 self.stas.append(n)
+            elif isinstance(n, mesh.MeshBase):
+                self.mps.append(n)
 
         self.name = name
 
