@@ -36,12 +36,24 @@ import wtf.node.mesh as mesh
 import unittest
 import time
 import wtf
+import sys; err = sys.stderr
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
 
+class MCCARes():
+    def __init__(self, offset, duration, period):
+        self.offset = offset
+        self.duration = duration
+        self.period = period
+
 # global setup, called once during this suite
 def setUp(self):
+    sta[0].res = MCCARes(offset=100, duration=100, period=2)
+    sta[1].res = MCCARes(offset=300, duration=100, period=2)
+    sta[2].res = MCCARes(offset=550, duration=100, period=2)
+    sta[3].res = MCCARes(offset=800, duration=100, period=2)
+
 # start with just STA1 and 2
     for n in wtfconfig.nodes[:2]:
         n.shutdown()
