@@ -52,6 +52,7 @@ class MeshSTA(node.LinuxNode, MeshBase):
             raise node.InsufficientConfigurationError()
         #self._configure()
         self._cmd_or_die("iw " + self.iface + " mesh join " + self.config.ssid)
+        self.set_ip(self.ip)
 
     def stop(self):
         self.comm.send_cmd("iw " + self.iface + " mesh leave")
@@ -59,5 +60,6 @@ class MeshSTA(node.LinuxNode, MeshBase):
 
     def set_mcca_res(self, owner):
 # install owner.res into our debugfs
-        pass
+        self._cmd_or_die("echo \"" + owner.mac + " 1 " + str(owner.res.offset * 32) + " " + str(owner.res.duration * 32) + \
+            " " + str(owner.res.period) + "\" > /sys/kernel/debug/ieee80211/" + self.phy + "/netdev\:" + self.iface + "/mesh_config/reservations/add")
 

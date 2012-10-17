@@ -37,6 +37,7 @@ import unittest
 import time
 import wtf
 import sys; err = sys.stderr
+import time
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
@@ -58,6 +59,7 @@ def setUp(self):
     for n in wtfconfig.nodes[:2]:
         n.shutdown()
         n.init()
+        n.start()
 
 class TestMCCA(unittest.TestCase):
 

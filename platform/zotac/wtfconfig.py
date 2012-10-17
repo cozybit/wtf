@@ -12,7 +12,7 @@ for n in range(8,12):
 # XXX: giving a MAC is robust
     z = wtf.node.mesh.MeshSTA(z_ssh, iface="wlan2", driver="ath9k_htc")
     z.config = wtf.node.mesh.MeshConf(ssid="meshpoo", channel=1)
-    z.ip = "192.168.33." + str(10 + n)
+    z.ip = "192.168.34." + str(10 + n)
     zotacs.append(z)
 
 # XXX: decouple testbed description from the specific test suite

@@ -121,10 +121,6 @@ class LinuxNode(NodeBase):
         if path != None:
             self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
 
-        # TODO: check for error and throw something!
-        r, self.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + self.iface + " | cut -d/ -f6`", verbosity=0)
-        r, self.mac = self.comm.send_cmd("echo `ip link show " + self.iface + " | awk '/ether/ {print $2}'`", verbosity=0)
-
         # who knows what was running on this machine before.  Be sure to kill
         # anything that might get in our way.
         self.comm.send_cmd("killall hostapd; killall wpa_supplicant",
@@ -133,6 +129,17 @@ class LinuxNode(NodeBase):
     def init(self):
         if self.driver:
             self._cmd_or_die("modprobe " + self.driver)
+            # give ifaces time to come up
+            import time
+            time.sleep(1)
+        # TODO: check for error and throw something!
+        r, self.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + self.iface + " | cut -d/ -f6`", verbosity=0)
+        r, self.mac = self.comm.send_cmd("echo `ip link show " + self.iface + " | awk '/ether/ {print $2}'`", verbosity=0)
+
+        # XXX: Python people help!!
+        self.phy = self.phy[0]
+        self.mac = self.mac[0]
+
         self.initialized = True
 
     def shutdown(self):
