@@ -110,13 +110,20 @@ class NodeBase():
 class LinuxNode(NodeBase):
     """
     A linux network node
+
+    Expects: iw, mac80211 debugfs
     """
     def __init__(self, comm, iface, driver=None, path=None):
         self.driver = driver
         self.iface = iface
+        self.monif = None
         NodeBase.__init__(self, comm)
         if path != None:
             self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
+
+        # TODO: check for error and throw something!
+        r, self.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + self.iface + " | cut -d/ -f6`", verbosity=0)
+        r, self.mac = self.comm.send_cmd("echo `ip link show " + self.iface + " | awk '/ether/ {print $2}'`", verbosity=0)
 
         # who knows what was running on this machine before.  Be sure to kill
         # anything that might get in our way.
@@ -150,12 +157,26 @@ class LinuxNode(NodeBase):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host)[0]
 
-    def perf(self, client=None):
+    def perf(self, client=None, timeout=5):
         if client == None:
             # we're the server
             self._cmd_or_die("iperf -s -u -D > /dev/null")
         else:
-            self.comm.send_cmd("iperf -c " + client + " -i 1 -u -b 200M -t 5", verbosity=2)
+            self.comm.send_cmd("iperf -c " + client + " -i 1 -u -b 200M -t " + str(timeout), verbosity=2)
 
     def killperf(self):
         self.comm.send_cmd("killall -9 iperf")
+
+    def start_capture(self, cap_file="/tmp/out.cap"):
+        self.cap_file = cap_file
+        if not self.monif:
+            self.monif = self.iface + ".mon"
+            self._cmd_or_die("iw " + self.iface + " interface add " + self.monif + " type monitor")
+            self._cmd_or_die("ip link set " + self.monif + " up")
+
+        self._cmd_or_die("tcpdump -i " + self.monif + " -ll -xx -p -U -w " + self.cap_file + " &")
+
+    def stop_capture(self):
+        if not self.monif:
+            pass
+        self.comm.send_cmd("killall tcpdump")
