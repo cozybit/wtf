@@ -11,7 +11,7 @@ import time
 import wtf
 
 wtfconfig = wtf.conf
-stas = wtfconfig.mps
+sta = wtfconfig.mps
 
 class TestMCCA(unittest.TestCase):
 
@@ -29,6 +29,6 @@ class TestMCCA(unittest.TestCase):
             n.shutdown()
 
     def test_ping(self):
-        self.failIf(wtfconfig.mps[0].ping("192.168.33.19", timeout=5) != 0,
-                    "failed to ping sta1 at" + "192.168.33.19")
+        self.failIf(sta[0].ping(sta[1].ip, timeout=5) != 0,
+                    "failed to ping sta1 at" + sta[1].ip)
 
