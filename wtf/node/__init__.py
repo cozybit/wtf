@@ -164,12 +164,15 @@ class LinuxNode(NodeBase):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host)[0]
 
-    def perf(self, client=None, timeout=5):
+    def perf(self, client=None, timeout=5, dual=False, b="10M"):
         if client == None:
             # we're the server
-            self._cmd_or_die("iperf -s -u -D > /dev/null")
+            self._cmd_or_die("iperf -s -u &")
         else:
-            self.comm.send_cmd("iperf -c " + client + " -i 1 -u -b 200M -t " + str(timeout), verbosity=2)
+            cmd = "iperf -c " + client + " -i1 -u -b" + b + " -t" + str(timeout)
+            if dual:
+                cmd += " -d -L 6666"
+            self.comm.send_cmd(cmd, verbosity=2)
 
     def killperf(self):
         self.comm.send_cmd("killall -9 iperf")
@@ -187,3 +190,11 @@ class LinuxNode(NodeBase):
         if not self.monif:
             pass
         self.comm.send_cmd("killall tcpdump")
+
+# return path to capture file now available on local system
+    def get_capture(self, path=None):
+        if not path:
+            import tempfile
+            path = tempfile.mktemp()
+        self.comm.get_file(self.cap_file, path);
+        return path

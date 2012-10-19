@@ -4,6 +4,7 @@
 import serial
 import fdpexpect
 import pxssh
+import commands
 
 class CommandFailureError(Exception):
     """
@@ -107,6 +108,7 @@ class SSH(CommBase):
     def __init__(self, ipaddr, user="root"):
         self.session = pxssh.pxssh()
         self.session.login(ipaddr, user)
+        self.ipaddr = ipaddr
         CommBase.__init__(self)
 
     def _send_cmd(self, command):
@@ -133,6 +135,14 @@ class SSH(CommBase):
             print "Failed to find return code in:"
             print self.session.before
         return -1
+
+# should be able to use existing SSH session for this
+# XXX: GARBAGE! Should really be handled by the ssh module
+# copy file from host:$src to $dst
+    def get_file(self, src, dst):
+        r, o = commands.getstatusoutput("scp root@" + self.ipaddr + ":" + src + " " + dst)
+        if r != 0:
+            raise Exception("couldn't copy file: %s to %s" % (src, dst))
 
 class MvdroidSerial(Serial):
     """

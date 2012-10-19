@@ -38,9 +38,22 @@ import time
 import wtf
 import sys; err = sys.stderr
 import time
+import commands
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
+
+CAP_FILE="/tmp/mcca.cap"
+
+BCN_INTVL=1000 #TUs
+DTIM_PERIOD=2
+DTIM_INTVL=BCN_INTVL * DTIM_PERIOD
+
+# current attainable accuracy (s)
+ACCURACY=0.002
+ACCURACY=0.004
+ACCURACY=0.006
+ACCURACY=0.01
 
 class MCCARes():
     def __init__(self, offset, duration, period):
@@ -55,11 +68,62 @@ def setUp(self):
     sta[2].res = MCCARes(offset=550, duration=100, period=2)
     sta[3].res = MCCARes(offset=800, duration=100, period=2)
 
-# start with just STA1 and 2
-    for n in wtfconfig.nodes[:2]:
+# start with just STA1 and 2 in the mesh
+    i = 0
+    for n in wtfconfig.nodes:
         n.shutdown()
         n.init()
-        n.start()
+        if i < 2:
+            n.start()
+        i += 1
+
+# XXX: factor these into a wtfutils module or something
+def tu_to_s(tu):
+    return tu * 1024 / 1000 / float(1000)
+
+# return packets found in tshark_filter
+def do_tshark(cap_file, tshark_filter):
+    r, o = commands.getstatusoutput("tshark -r" + cap_file + " -R'" + tshark_filter + "'")
+    if r != 0 and r != 256:
+        raise Exception("tshark error %d! Is tshark installed and %s exists? Please verify filter %s" % (r, cap_file, tshark_filter))
+    return o
+
+# returns 0 if no traffic was transmitted by peer from tstop to tstart
+def check_no_traffic(cap_file, peer, tstop, tstart):
+    tstop = tstop + ACCURACY
+    tstart = tstart - ACCURACY
+    print "checking for data from " + str(tstop) + " to " + str(tstart) + " by " + peer.mac
+    output = do_tshark(cap_file, "wlan.ta == " + peer.mac + " && data && (frame.time_relative > " +\
+                       str(tstop) + " && frame.time_relative < " + str(tstart) + ")")
+    if output:
+        print output
+        return -1
+    return 0
+
+# check whether peer transmitted during owner's reservation
+def check_mcca_res(cap_file, owner, peer):
+    pkts = do_tshark(cap_file, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)")
+    abs_dtims = [float(x.split()[1]) for x in pkts.splitlines()]
+# XXX: skip first DTIM, as peers set timers for _next_ DTIM on getting a DTIM
+    abs_dtims = abs_dtims[1:]
+
+    for dtim_t in abs_dtims:
+        print "checking MMCA reservation by " + owner.mac + " at DTIM " + str(dtim_t)
+        tstop = dtim_t + tu_to_s(owner.res.offset)
+        tstart = tstop + tu_to_s(owner.res.duration)
+        for i in range(owner.res.period):
+            if check_no_traffic(cap_file, peer, tstop, tstart):
+                return -1
+            tstop = tstop + float(tu_to_s(DTIM_INTVL)) / owner.res.period
+            tstart = tstop + tu_to_s(owner.res.duration)
+    return 0
+
+# check peers in $peers respected our reservation
+def check_mcca_peers(cap_file, owner, peers):
+    for peer in peers:
+        if check_mcca_res(cap_file, owner, peer):
+            return -1
+    return 0
 
 class TestMCCA(unittest.TestCase):
 
@@ -68,17 +132,22 @@ class TestMCCA(unittest.TestCase):
     def setUp(self):
         pass
 
+    def tearDown(self):
+        pass
+
     def test_1(self):
-# start capturing
-        sta[0].start_capture()
 # install reservations
         sta[0].set_mcca_res(sta[1])
         sta[1].set_mcca_res(sta[0])
+        sta[2].start_capture()
 # send traffic
         sta[0].perf()
-        sta[1].perf(sta[0].ip, timeout=10)
-
+        # > 2M we get so many bmisses, no peer reservations are respected :(
+        # This way, at least a few DTIM beacons are observed
+        sta[1].perf(sta[0].ip, timeout=10, dual=True, b="2M")
         sta[0].killperf()
         sta[1].killperf()
-        sta[0].stop_capture()
-# stop capturing
+        sta[2].stop_capture()
+        cap = sta[2].get_capture(CAP_FILE + "2")
+        self.failIf(check_mcca_res(cap, sta[0], sta[1]) != 0, "failed")
+        self.failIf(check_mcca_res(cap, sta[1], sta[0]) != 0, "failed")
