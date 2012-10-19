@@ -117,6 +117,7 @@ class LinuxNode(NodeBase):
         self.driver = driver
         self.iface = iface
         self.monif = None
+        self.local_cap = None
         NodeBase.__init__(self, comm)
         if path != None:
             self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
@@ -186,15 +187,20 @@ class LinuxNode(NodeBase):
 
         self._cmd_or_die("tcpdump -i " + self.monif + " -ll -xx -p -U -w " + self.cap_file + " &")
 
-    def stop_capture(self):
-        if not self.monif:
-            pass
-        self.comm.send_cmd("killall tcpdump")
-
 # return path to capture file now available on local system
     def get_capture(self, path=None):
         if not path:
             import tempfile
             path = tempfile.mktemp()
         self.comm.get_file(self.cap_file, path);
+# save a pointer
+        self.local_cap = path
         return path
+
+# stop capture and get a copy for analysis
+    def stop_capture(self, path=None):
+        if not self.monif:
+            pass
+        self.comm.send_cmd("killall tcpdump")
+        return self.get_capture(path)
+

@@ -90,8 +90,8 @@ def do_tshark(cap_file, tshark_filter):
 
 # returns 0 if no traffic was transmitted by peer from tstop to tstart
 def check_no_traffic(cap_file, peer, tstop, tstart):
-    tstop = tstop + ACCURACY
-    tstart = tstart - ACCURACY
+    tstop = tstop + (ACCURACY / 2.0)
+    tstart = tstart - (ACCURACY / 2.0)
     print "checking for data from " + str(tstop) + " to " + str(tstart) + " by " + peer.mac
     output = do_tshark(cap_file, "wlan.ta == " + peer.mac + " && data && (frame.time_relative > " +\
                        str(tstop) + " && frame.time_relative < " + str(tstart) + ")")
@@ -101,27 +101,25 @@ def check_no_traffic(cap_file, peer, tstop, tstart):
     return 0
 
 # check whether peer transmitted during owner's reservation
-def check_mcca_res(cap_file, owner, peer):
-    pkts = do_tshark(cap_file, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)")
+def check_mcca_res(owner, peer):
+    pkts = do_tshark(peer.local_cap, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)")
     abs_dtims = [float(x.split()[1]) for x in pkts.splitlines()]
-# XXX: skip first DTIM, as peers set timers for _next_ DTIM on getting a DTIM
-    abs_dtims = abs_dtims[1:]
 
     for dtim_t in abs_dtims:
-        print "checking MMCA reservation by " + owner.mac + " at DTIM " + str(dtim_t)
+        print "DTIM by " + owner.mac  + " at " + str(dtim_t) 
         tstop = dtim_t + tu_to_s(owner.res.offset)
         tstart = tstop + tu_to_s(owner.res.duration)
         for i in range(owner.res.period):
-            if check_no_traffic(cap_file, peer, tstop, tstart):
+            if check_no_traffic(peer.local_cap, peer, tstop, tstart):
                 return -1
             tstop = tstop + float(tu_to_s(DTIM_INTVL)) / owner.res.period
             tstart = tstop + tu_to_s(owner.res.duration)
     return 0
 
 # check peers in $peers respected our reservation
-def check_mcca_peers(cap_file, owner, peers):
+def check_mcca_peers(owner, peers):
     for peer in peers:
-        if check_mcca_res(cap_file, owner, peer):
+        if check_mcca_res(owner, peer):
             return -1
     return 0
 
@@ -139,7 +137,8 @@ class TestMCCA(unittest.TestCase):
 # install reservations
         sta[0].set_mcca_res(sta[1])
         sta[1].set_mcca_res(sta[0])
-        sta[2].start_capture()
+        sta[0].start_capture()
+        sta[1].start_capture()
 # send traffic
         sta[0].perf()
         # > 2M we get so many bmisses, no peer reservations are respected :(
@@ -147,7 +146,7 @@ class TestMCCA(unittest.TestCase):
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="2M")
         sta[0].killperf()
         sta[1].killperf()
-        sta[2].stop_capture()
-        cap = sta[2].get_capture(CAP_FILE + "2")
-        self.failIf(check_mcca_res(cap, sta[0], sta[1]) != 0, "failed")
-        self.failIf(check_mcca_res(cap, sta[1], sta[0]) != 0, "failed")
+        sta[0].stop_capture(CAP_FILE + "0")
+        sta[1].stop_capture(CAP_FILE + "1")
+        self.failIf(check_mcca_res(sta[0], sta[1]) != 0, "failed")
+        self.failIf(check_mcca_res(sta[1], sta[0]) != 0, "failed")
