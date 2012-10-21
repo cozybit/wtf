@@ -165,14 +165,16 @@ class LinuxNode(NodeBase):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host)[0]
 
-    def perf(self, client=None, timeout=5, dual=False, b="10M"):
+    def perf(self, client=None, timeout=5, dual=False, b="10M", p=7777, L=6666, fork=False):
         if client == None:
             # we're the server
-            self._cmd_or_die("iperf -s -u &")
+            self._cmd_or_die("iperf -s -u -p " + str(p) + " &")
         else:
-            cmd = "iperf -c " + client + " -i1 -u -b" + b + " -t" + str(timeout)
+            cmd = "iperf -c " + client + " -i1 -u -b" + b + " -t" + str(timeout) + " -p" + str(p)
             if dual:
-                cmd += " -d -L 6666"
+                cmd += " -d -L" + str(L)
+            if fork:
+                cmd += " &"
             self.comm.send_cmd(cmd, verbosity=2)
 
     def killperf(self):
@@ -201,6 +203,6 @@ class LinuxNode(NodeBase):
     def stop_capture(self, path=None):
         if not self.monif:
             pass
-        self.comm.send_cmd("killall tcpdump")
+        self.comm.send_cmd("killall -9 tcpdump")
         return self.get_capture(path)
 

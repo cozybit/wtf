@@ -61,22 +61,6 @@ class MCCARes():
         self.duration = duration
         self.period = period
 
-# global setup, called once during this suite
-def setUp(self):
-    sta[0].res = MCCARes(offset=100, duration=100, period=2)
-    sta[1].res = MCCARes(offset=300, duration=100, period=2)
-    sta[2].res = MCCARes(offset=550, duration=100, period=2)
-    sta[3].res = MCCARes(offset=800, duration=100, period=2)
-
-# start with just STA1 and 2 in the mesh
-    i = 0
-    for n in wtfconfig.nodes:
-        n.shutdown()
-        n.init()
-        if i < 2:
-            n.start()
-        i += 1
-
 # XXX: factor these into a wtfutils module or something
 def tu_to_s(tu):
     return tu * 1024 / 1000 / float(1000)
@@ -102,11 +86,11 @@ def check_no_traffic(cap_file, peer, tstop, tstart):
 
 # check whether peer transmitted during owner's reservation
 def check_mcca_res(owner, peer):
-    pkts = do_tshark(peer.local_cap, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)")
-    abs_dtims = [float(x.split()[1]) for x in pkts.splitlines()]
+    bcns = do_tshark(peer.local_cap, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)")
+    abs_dtims = [float(x.split()[1]) for x in bcns.splitlines()]
 
     for dtim_t in abs_dtims:
-        print "DTIM by " + owner.mac  + " at " + str(dtim_t) 
+        print "DTIM by " + owner.mac  + " at " + str(dtim_t)  + " in " + peer.local_cap
         tstop = dtim_t + tu_to_s(owner.res.offset)
         tstart = tstop + tu_to_s(owner.res.duration)
         for i in range(owner.res.period):
@@ -123,6 +107,36 @@ def check_mcca_peers(owner, peers):
             return -1
     return 0
 
+def start_captures(stas):
+    for sta in stas:
+        sta.start_capture()
+
+def stop_captures(stas):
+    i = 0
+    for sta in stas:
+        sta.stop_capture(CAP_FILE + str(i))
+        i += 1
+
+def killperfs(stas):
+    for sta in stas:
+        sta.killperf()
+
+# global setup, called once during this suite
+def setUp(self):
+    sta[0].res = MCCARes(offset=100, duration=100, period=2)
+    sta[1].res = MCCARes(offset=300, duration=100, period=2)
+    sta[2].res = MCCARes(offset=550, duration=100, period=2)
+    sta[3].res = MCCARes(offset=800, duration=100, period=2)
+
+# start with just STA1 and 2 in the mesh
+    i = 0
+    for n in wtfconfig.nodes:
+        n.shutdown()
+        n.init()
+        if i < 2:
+            n.start()
+        i += 1
+
 class TestMCCA(unittest.TestCase):
 
 # setUp and tearDown are called by nose before / after each test, but all tests
@@ -131,14 +145,15 @@ class TestMCCA(unittest.TestCase):
         pass
 
     def tearDown(self):
+# TODO generate cool gnuplot!
+# save old capture?
         pass
 
     def test_1(self):
 # install reservations
         sta[0].set_mcca_res(sta[1])
         sta[1].set_mcca_res(sta[0])
-        sta[0].start_capture()
-        sta[1].start_capture()
+        start_captures(sta[:2])
 # send traffic
         sta[0].perf()
         # > 2M we get so many bmisses, no peer reservations are respected :(
@@ -146,7 +161,37 @@ class TestMCCA(unittest.TestCase):
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="2M")
         sta[0].killperf()
         sta[1].killperf()
-        sta[0].stop_capture(CAP_FILE + "0")
-        sta[1].stop_capture(CAP_FILE + "1")
+        stop_captures(sta[:2])
+
         self.failIf(check_mcca_res(sta[0], sta[1]) != 0, "failed")
         self.failIf(check_mcca_res(sta[1], sta[0]) != 0, "failed")
+
+    def test_2(self):
+# add STA3 and 4 into the mix
+        sta[2].start()
+        sta[3].start()
+# STA4 has no MCCA knowledge
+        sta[0].set_mcca_res(sta[2])
+        sta[1].set_mcca_res(sta[2])
+        sta[2].set_mcca_res(sta[1])
+        sta[2].set_mcca_res(sta[0])
+
+        start_captures(sta)
+        sta[0].perf(p=7000)
+        sta[0].perf(p=7001)
+        sta[0].perf(p=7002)
+
+        sta[1].perf(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b="2M", fork=True)
+        sta[2].perf(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b="2M", fork=True)
+        sta[3].perf(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b="2M", fork=False)
+        killperfs(sta)
+        stop_captures(sta)
+
+        self.failIf(check_mcca_peers(sta[0], sta[1:3]) != 0, "failed")
+        self.failIf(check_mcca_peers(sta[1], [sta[0], sta[2]]) != 0, "failed")
+        self.failIf(check_mcca_peers(sta[2], sta[0:2]) != 0, "failed")
+
+# STA4 ignored everyone else's reservation
+        self.failIf(check_mcca_res(sta[0], sta[3]) == 0, "STA4 respected STA0's reservation!")
+        self.failIf(check_mcca_res(sta[1], sta[3]) == 0, "STA4 respected STA1's reservation!")
+        self.failIf(check_mcca_res(sta[2], sta[3]) == 0, "STA4 respected STA2's reservation!")
