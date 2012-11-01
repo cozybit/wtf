@@ -27,9 +27,10 @@ class MeshConf():
     XXX: add support for authsae
     """
 
-    def __init__(self, ssid, channel=1):
+    def __init__(self, ssid, channel=1, htmode=""):
         self.ssid = ssid
         self.channel = channel
+        self.htmode = htmode
 
 class MeshSTA(node.LinuxNode, MeshBase):
     """
@@ -46,7 +47,8 @@ class MeshSTA(node.LinuxNode, MeshBase):
         #self.set_iftype("mesh")
         node.LinuxNode.start(self)
         #node.set_channel(self.config.channel)
-        self._cmd_or_die("iw " + self.iface + " set channel " + str(self.config.channel))
+        self._cmd_or_die("iw " + self.iface + " set channel " + str(self.config.channel) +
+                         " " + self.config.htmode)
         # XXX: where does it get this config???
         if not self.config:
             raise node.InsufficientConfigurationError()
