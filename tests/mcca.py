@@ -51,9 +51,6 @@ DTIM_INTVL=BCN_INTVL * DTIM_PERIOD
 
 # current attainable accuracy (s)
 ACCURACY=0.002
-ACCURACY=0.004
-ACCURACY=0.006
-ACCURACY=0.01
 
 class MCCARes():
     def __init__(self, offset, duration, period):
@@ -123,17 +120,18 @@ def killperfs(stas):
 
 # global setup, called once during this suite
 def setUp(self):
-    sta[0].res = MCCARes(offset=100, duration=100, period=2)
-    sta[1].res = MCCARes(offset=300, duration=100, period=2)
-    sta[2].res = MCCARes(offset=550, duration=100, period=2)
-    sta[3].res = MCCARes(offset=800, duration=100, period=2)
+    #XXX: check for collisions on these
+    sta[0].res = MCCARes(offset=100, duration=8, period=16)
+    sta[1].res = MCCARes(offset=300, duration=8, period=16)
+    sta[2].res = MCCARes(offset=550, duration=8, period=16)
+    sta[3].res = MCCARes(offset=800, duration=8, period=16)
 
 # start with just STA1 and 2 in the mesh
     i = 0
     for n in wtfconfig.nodes:
         n.shutdown()
         n.init()
-        if i < 2:
+        if i < 3:
             n.start()
         i += 1
 
@@ -153,15 +151,15 @@ class TestMCCA(unittest.TestCase):
 # install reservations
         sta[0].set_mcca_res(sta[1])
         sta[1].set_mcca_res(sta[0])
-        start_captures(sta[:2])
+        start_captures(sta[:3])
 # send traffic
         sta[0].perf()
         # > 2M we get so many bmisses, no peer reservations are respected :(
         # This way, at least a few DTIM beacons are observed
-        sta[1].perf(sta[0].ip, timeout=10, dual=True, b="2M")
+        sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
         sta[0].killperf()
         sta[1].killperf()
-        stop_captures(sta[:2])
+        stop_captures(sta[:3])
 
         self.failIf(check_mcca_res(sta[0], sta[1]) != 0, "failed")
         self.failIf(check_mcca_res(sta[1], sta[0]) != 0, "failed")
