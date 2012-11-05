@@ -85,17 +85,20 @@ def check_no_traffic(cap_file, peer, tstop, tstart):
     return 0
 
 # check whether peer transmitted during owner's reservation
-def check_mcca_res(owner, peer):
-    bcns = do_tshark(peer.local_cap, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)",
+def check_mcca_res(owner, peer, cap_file=None):
+    if not cap_file:
+        cap_file = peer.local_cap
+
+    bcns = do_tshark(cap_file, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)",
                      "-Tfields -e radiotap.mactime")
     abs_dtims = [int(x) for x in bcns.splitlines()]
 
     for dtim_t in abs_dtims:
-        print "DTIM by " + owner.mac  + " at " + str(dtim_t)  + " in " + peer.local_cap
+        print "DTIM by " + owner.mac  + " at " + str(dtim_t)  + " in " + cap_file
         tstop = dtim_t + tu_to_us(owner.res.offset)
         tstart = tstop + tu_to_us(owner.res.duration)
         for i in range(owner.res.period):
-            if check_no_traffic(peer.local_cap, peer, tstop, tstart):
+            if check_no_traffic(cap_file, peer, tstop, tstart):
                 return -1
             tstop = tstop + float(tu_to_us(DTIM_INTVL)) / owner.res.period
             tstart = tstop + tu_to_us(owner.res.duration)
@@ -158,8 +161,6 @@ class TestMCCA(unittest.TestCase):
         start_captures(sta[:3])
 # send traffic
         sta[0].perf()
-        # > 2M we get so many bmisses, no peer reservations are respected :(
-        # This way, at least a few DTIM beacons are observed
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
         sta[0].killperf()
         sta[1].killperf()
@@ -167,6 +168,10 @@ class TestMCCA(unittest.TestCase):
 
         self.failIf(check_mcca_res(sta[0], sta[1]) != 0, "failed")
         self.failIf(check_mcca_res(sta[1], sta[0]) != 0, "failed")
+
+# verify against the 3rd party capture
+        self.failIf(check_mcca_res(sta[0], sta[1], sta[2].local_cap) != 0, "failed")
+        self.failIf(check_mcca_res(sta[1], sta[0], sta[2].local_cap) != 0, "failed")
 
     def test_2(self):
 # add STA3 and 4 into the mix
