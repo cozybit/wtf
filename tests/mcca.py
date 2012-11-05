@@ -62,20 +62,23 @@ class MCCARes():
 def tu_to_s(tu):
     return tu * 1024 / 1000 / float(1000)
 
+def tu_to_us(tu):
+    return tu * 32 * 32
+
 # return packets found in tshark_filter
-def do_tshark(cap_file, tshark_filter):
-    r, o = commands.getstatusoutput("tshark -r" + cap_file + " -R'" + tshark_filter + "'")
+def do_tshark(cap_file, tshark_filter, extra=""):
+    r, o = commands.getstatusoutput("tshark -r" + cap_file + " -R'" + tshark_filter + "' " + extra)
     if r != 0 and r != 256:
         raise Exception("tshark error %d! Is tshark installed and %s exists? Please verify filter %s" % (r, cap_file, tshark_filter))
     return o
 
 # returns 0 if no traffic was transmitted by peer from tstop to tstart
 def check_no_traffic(cap_file, peer, tstop, tstart):
-    tstop = tstop + (ACCURACY / 2.0)
-    tstart = tstart - (ACCURACY / 2.0)
+    tstop = int(tstop + (ACCURACY / 2.0))
+    tstart = int(tstart - (ACCURACY / 2.0))
     print "checking for data from " + str(tstop) + " to " + str(tstart) + " by " + peer.mac
-    output = do_tshark(cap_file, "wlan.ta == " + peer.mac + " && data && (frame.time_relative > " +\
-                       str(tstop) + " && frame.time_relative < " + str(tstart) + ")")
+    output = do_tshark(cap_file, "wlan.ta == " + peer.mac + " && data && (radiotap.mactime > " +\
+                       str(tstop) + " && radiotap.mactime < " + str(tstart) + ")")
     if output:
         print output
         return -1
@@ -83,18 +86,19 @@ def check_no_traffic(cap_file, peer, tstop, tstart):
 
 # check whether peer transmitted during owner's reservation
 def check_mcca_res(owner, peer):
-    bcns = do_tshark(peer.local_cap, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)")
-    abs_dtims = [float(x.split()[1]) for x in bcns.splitlines()]
+    bcns = do_tshark(peer.local_cap, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)",
+                     "-Tfields -e radiotap.mactime")
+    abs_dtims = [int(x) for x in bcns.splitlines()]
 
     for dtim_t in abs_dtims:
         print "DTIM by " + owner.mac  + " at " + str(dtim_t)  + " in " + peer.local_cap
-        tstop = dtim_t + tu_to_s(owner.res.offset)
-        tstart = tstop + tu_to_s(owner.res.duration)
+        tstop = dtim_t + tu_to_us(owner.res.offset)
+        tstart = tstop + tu_to_us(owner.res.duration)
         for i in range(owner.res.period):
             if check_no_traffic(peer.local_cap, peer, tstop, tstart):
                 return -1
-            tstop = tstop + float(tu_to_s(DTIM_INTVL)) / owner.res.period
-            tstart = tstop + tu_to_s(owner.res.duration)
+            tstop = tstop + float(tu_to_us(DTIM_INTVL)) / owner.res.period
+            tstart = tstop + tu_to_us(owner.res.duration)
     return 0
 
 # check peers in $peers respected our reservation
