@@ -49,8 +49,8 @@ BCN_INTVL=1000 #TUs
 DTIM_PERIOD=2
 DTIM_INTVL=BCN_INTVL * DTIM_PERIOD
 
-# current attainable accuracy (s)
-ACCURACY=0.002
+# current target accuracy (us)
+ACCURACY=256
 
 class MCCARes():
     def __init__(self, offset, duration, period):
@@ -85,16 +85,19 @@ def check_no_traffic(cap_file, peer, tstop, tstart):
     return 0
 
 # check whether peer transmitted during owner's reservation
-def check_mcca_res(owner, peer, cap_file=None):
+# rel_dtim is MAC of DTIM which owner.res was scheduled against
+def check_mcca_res(owner, peer, cap_file=None, rel_dtim=None):
     if not cap_file:
         cap_file = peer.local_cap
+    if not rel_dtim:
+        rel_dtim = owner.mac
 
-    bcns = do_tshark(cap_file, "wlan.sa == " + owner.mac + " && (wlan_mgt.tim.dtim_count == 0)",
+    bcns = do_tshark(cap_file, "wlan.sa == " + rel_dtim + " && (wlan_mgt.tim.dtim_count == 0)",
                      "-Tfields -e radiotap.mactime")
     abs_dtims = [int(x) for x in bcns.splitlines()]
 
     for dtim_t in abs_dtims:
-        print "DTIM by " + owner.mac  + " at " + str(dtim_t)  + " in " + cap_file
+        print "DTIM by " + rel_dtim  + " at " + str(dtim_t)  + " in " + cap_file
         tstop = dtim_t + tu_to_us(owner.res.offset)
         tstart = tstop + tu_to_us(owner.res.duration)
         for i in range(owner.res.period):
@@ -154,6 +157,23 @@ class TestMCCA(unittest.TestCase):
 # save old capture?
         pass
 
+    def test_kern_sched(self):
+# test kernel scheduling with some dummy peer reservation parameters
+        sta[0].set_mcca_res(sta[1])
+        sta[1].set_mcca_res(sta[0])
+        sta[2].start_capture()
+# send traffic
+        sta[0].perf()
+        sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
+        sta[0].killperf()
+        sta[1].killperf()
+        sta[2].stop_capture(CAP_FILE + str(2))
+
+        self.failIf(check_mcca_res(sta[0], sta[1], sta[2].local_cap,
+                                   rel_dtim=sta[1].mac) != 0, "failed")
+        self.failIf(check_mcca_res(sta[1], sta[0], sta[2].local_cap,
+                                   rel_dtim=sta[0].mac) != 0, "failed")
+
     def test_1(self):
 # install reservations
         sta[0].set_mcca_res(sta[1])
@@ -165,9 +185,6 @@ class TestMCCA(unittest.TestCase):
         sta[0].killperf()
         sta[1].killperf()
         stop_captures(sta[:3])
-
-        self.failIf(check_mcca_res(sta[0], sta[1]) != 0, "failed")
-        self.failIf(check_mcca_res(sta[1], sta[0]) != 0, "failed")
 
 # verify against the 3rd party capture
         self.failIf(check_mcca_res(sta[0], sta[1], sta[2].local_cap) != 0, "failed")
