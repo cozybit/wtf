@@ -76,6 +76,7 @@ def do_tshark(cap_file, tshark_filter, extra=""):
 def check_no_traffic(cap_file, peer, tstop, tstart):
     tstop = int(tstop + (ACCURACY / 2.0))
     tstart = int(tstart - (ACCURACY / 2.0))
+# TODO: not only data frames are disallowed (?)
     print "checking for data from " + str(tstop) + " to " + str(tstart) + " by " + peer.mac
     output = do_tshark(cap_file, "wlan.ta == " + peer.mac + " && data && (radiotap.mactime > " +\
                        str(tstop) + " && radiotap.mactime < " + str(tstart) + ")")
@@ -93,8 +94,18 @@ def check_mcca_res(owner, peer, cap_file=None, rel_dtim=None):
         rel_dtim = owner.mac
 
     bcns = do_tshark(cap_file, "wlan.sa == " + rel_dtim + " && (wlan_mgt.tim.dtim_count == 0)",
-                     "-Tfields -e radiotap.mactime")
-    abs_dtims = [int(x) for x in bcns.splitlines()]
+                     "-Tfields -e radiotap.mactime -e wlan_mgt.fixed.timestamp -e radiotap.datarate")
+    abs_dtims = []
+    for bcn in bcns.splitlines():
+        rx_t = int(bcn.split()[0])
+        ts = int(bcn.split()[1], 16)
+# adjust rx_t to account for beacon header tx time, since beacon timestamp is
+# when that field hits the transmitting phy
+# (24 bytes of header * 8 bits/byte) / rate(Mbps)
+# XXX: actually it looks like rx mactime (rx_t) is reported _after_ frame
+# completion, not on first data symbol! Verify then fix this.
+        hdr_t = (24 * 8 ) / int(bcn.split()[2])
+        abs_dtims.append(rx_t - (ts % tu_to_us(DTIM_INTVL) + hdr_t))
 
     for dtim_t in abs_dtims:
         print "DTIM by " + rel_dtim  + " at " + str(dtim_t)  + " in " + cap_file
