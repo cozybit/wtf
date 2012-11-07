@@ -39,6 +39,7 @@ class MeshSTA(node.LinuxNode, MeshBase):
     def __init__(self, comm, iface, driver=None):
         node.LinuxNode.__init__(self, comm, iface, driver)
         self.config = None
+        self.mccapipe = None
 
     def start(self):
         # XXX: self.stop() should work since we extend LinuxNode?? 
@@ -60,8 +61,30 @@ class MeshSTA(node.LinuxNode, MeshBase):
         self.comm.send_cmd("iw " + self.iface + " mesh leave")
         node.LinuxNode.stop(self)
 
-    def set_mcca_res(self, owner):
+    def set_mcca_res(self, owner=None):
 # install owner.res into our debugfs
-        self._cmd_or_die("echo \"" + owner.mac + " 1 " + str(owner.res.offset * 32) + " " + str(owner.res.duration * 32) + \
-            " " + str(owner.res.period) + "\" > /sys/kernel/debug/ieee80211/" + self.phy + "/netdev\:" + self.iface + "/mesh_config/reservations/add")
+        if owner != None:
+            self._cmd_or_die("echo \"" + owner.mac + " 1 " + str(owner.res.offset * 32) + " " + str(owner.res.duration * 32) + \
+                " " + str(owner.res.period) + "\" > /sys/kernel/debug/ieee80211/" + self.phy + "/netdev\:" + self.iface + "/mesh_config/reservations/add")
+        else:
+# install own reservation using mccatool
+            if not self.mccapipe:
+                raise node.InsufficientConfigurationError()
+            self._cmd_or_die("echo a %d %d > %s" % (self.res.duration,
+                                                    self.res.period,
+                                                    self.mccapipe))
 
+    def mccatool_start(self):
+        if not self.mccapipe:
+            import tempfile
+            self.mccapipe = tempfile.mktemp()
+            self._cmd_or_die("mkfifo %s" % self.mccapipe)
+# keep the pipe open :|
+            self._cmd_or_die("nohup sleep 10000 > %s &" % self.mccapipe)
+
+        self._cmd_or_die("nohup mccatool %s > /tmp/mccatool.out 2> /dev/null < %s &" % (self.iface, self.mccapipe))
+
+    def mccatool_stop(self):
+        if self.mccapipe:
+            self._cmd_or_die("killall mccatool")
+            self._cmd_or_die("rm %s" % self.mccapipe)

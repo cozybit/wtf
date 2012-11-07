@@ -52,6 +52,7 @@ DTIM_INTVL=BCN_INTVL * DTIM_PERIOD
 # current target accuracy (us)
 ACCURACY=256
 
+# offset and duration are in 32us units
 class MCCARes():
     def __init__(self, offset, duration, period):
         self.offset = offset
@@ -109,13 +110,13 @@ def check_mcca_res(owner, peer, cap_file=None, rel_dtim=None):
 
     for dtim_t in abs_dtims:
         print "DTIM by " + rel_dtim  + " at " + str(dtim_t)  + " in " + cap_file
-        tstop = dtim_t + tu_to_us(owner.res.offset)
-        tstart = tstop + tu_to_us(owner.res.duration)
+        tstop = dtim_t + owner.res.offset * 32
+        tstart = tstop + owner.res.duration * 32
         for i in range(owner.res.period):
             if check_no_traffic(cap_file, peer, tstop, tstart):
                 return -1
             tstop = tstop + float(tu_to_us(DTIM_INTVL)) / owner.res.period
-            tstart = tstop + tu_to_us(owner.res.duration)
+            tstart = tstop + owner.res.duration * 32
     return 0
 
 # check peers in $peers respected our reservation
@@ -142,10 +143,10 @@ def killperfs(stas):
 # global setup, called once during this suite
 def setUp(self):
     #XXX: check for collisions on these
-    sta[0].res = MCCARes(offset=100, duration=8, period=16)
-    sta[1].res = MCCARes(offset=300, duration=8, period=16)
-    sta[2].res = MCCARes(offset=550, duration=8, period=16)
-    sta[3].res = MCCARes(offset=800, duration=8, period=16)
+    sta[0].res = MCCARes(offset=100 * 32, duration=255, period=16)
+    sta[1].res = MCCARes(offset=300 * 32, duration=255, period=16)
+    sta[2].res = MCCARes(offset=550 * 32, duration=255, period=16)
+    sta[3].res = MCCARes(offset=800 * 32, duration=255, period=16)
 
 # start with just STA1 and 2 in the mesh
     i = 0
@@ -186,16 +187,17 @@ class TestMCCA(unittest.TestCase):
                                    rel_dtim=sta[0].mac) != 0, "failed")
 
     def test_1(self):
-# install reservations
-        sta[0].set_mcca_res(sta[1])
-        sta[1].set_mcca_res(sta[0])
-        start_captures(sta[:3])
+        sta[0].mccatool_start()
+        sta[1].mccatool_start()
+        sta[0].set_mcca_res()
+        sta[1].set_mcca_res()
+        sta[2].start_capture()
 # send traffic
         sta[0].perf()
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
         sta[0].killperf()
         sta[1].killperf()
-        stop_captures(sta[:3])
+        sta[2].stop_capture(CAP_FILE + str(2))
 
 # verify against the 3rd party capture
         self.failIf(check_mcca_res(sta[0], sta[1], sta[2].local_cap) != 0, "failed")
