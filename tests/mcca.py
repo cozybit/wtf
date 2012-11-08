@@ -157,6 +157,10 @@ def setUp(self):
             n.start()
         i += 1
 
+def tearDown(self):
+    for n in wtfconfig.nodes:
+        n.stop()
+
 class TestMCCA(unittest.TestCase):
 
 # setUp and tearDown are called by nose before / after each test, but all tests

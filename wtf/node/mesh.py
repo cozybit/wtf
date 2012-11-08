@@ -59,12 +59,13 @@ class MeshSTA(node.LinuxNode, MeshBase):
 
     def stop(self):
         self.comm.send_cmd("iw " + self.iface + " mesh leave")
+        self.mccatool_stop()
         node.LinuxNode.stop(self)
 
     def set_mcca_res(self, owner=None):
 # install owner.res into our debugfs
         if owner != None:
-            self._cmd_or_die("echo \"" + owner.mac + " 1 " + str(owner.res.offset * 32) + " " + str(owner.res.duration * 32) + \
+            self._cmd_or_die("echo \"" + owner.mac + " 1 " + str(owner.res.offset) + " " + str(owner.res.duration) + \
                 " " + str(owner.res.period) + "\" > /sys/kernel/debug/ieee80211/" + self.phy + "/netdev\:" + self.iface + "/mesh_config/reservations/add")
         else:
 # install own reservation using mccatool
@@ -88,3 +89,4 @@ class MeshSTA(node.LinuxNode, MeshBase):
         if self.mccapipe:
             self._cmd_or_die("killall mccatool")
             self._cmd_or_die("rm %s" % self.mccapipe)
+            self.mccapipe = None
