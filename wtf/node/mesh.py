@@ -90,6 +90,6 @@ class MeshSTA(node.LinuxNode, MeshBase):
 
     def mccatool_stop(self):
         if self.mccapipe:
-            self._cmd_or_die("killall mccatool")
+            self._cmd_or_die("echo q > %s" % self.mccapipe)
             self._cmd_or_die("rm %s" % self.mccapipe)
             self.mccapipe = None
