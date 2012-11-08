@@ -62,15 +62,18 @@ class MeshSTA(node.LinuxNode, MeshBase):
         self.mccatool_stop()
         node.LinuxNode.stop(self)
 
+# empty owner means just configure own owner reservation, else install
+# specified interference reservation.
     def set_mcca_res(self, owner=None):
-# install owner.res into our debugfs
+        if not self.mccapipe:
+            raise node.InsufficientConfigurationError()
+
         if owner != None:
-            self._cmd_or_die("echo \"" + owner.mac + " 1 " + str(owner.res.offset) + " " + str(owner.res.duration) + \
-                " " + str(owner.res.period) + "\" > /sys/kernel/debug/ieee80211/" + self.phy + "/netdev\:" + self.iface + "/mesh_config/reservations/add")
+            self._cmd_or_die("echo i %d %d %d > %s" % (owner.res.offset,
+                                                       owner.res.duration,
+                                                       owner.res.period,
+                                                       self.mccapipe))
         else:
-# install own reservation using mccatool
-            if not self.mccapipe:
-                raise node.InsufficientConfigurationError()
             self._cmd_or_die("echo a %d %d > %s" % (self.res.duration,
                                                     self.res.period,
                                                     self.mccapipe))

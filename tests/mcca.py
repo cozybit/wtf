@@ -175,6 +175,8 @@ class TestMCCA(unittest.TestCase):
 
     def test_kern_sched(self):
 # test kernel scheduling with some dummy peer reservation parameters
+        sta[0].mccatool_start()
+        sta[1].mccatool_start()
         sta[0].set_mcca_res(sta[1])
         sta[1].set_mcca_res(sta[0])
         sta[2].start_capture()
