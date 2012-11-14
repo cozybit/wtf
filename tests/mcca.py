@@ -68,7 +68,8 @@ def tu_to_us(tu):
 
 # return packets found in tshark_filter
 def do_tshark(cap_file, tshark_filter, extra=""):
-    r, o = commands.getstatusoutput("tshark -r" + cap_file + " -R'" + tshark_filter + "' " + extra)
+    r, o = commands.getstatusoutput("tshark -r" + cap_file + " -R'" + tshark_filter +
+                                    "' " + extra + " 2> /dev/null")
     if r != 0 and r != 256:
         raise Exception("tshark error %d! Is tshark installed and %s exists? Please verify filter %s" % (r, cap_file, tshark_filter))
     return o
@@ -86,16 +87,46 @@ def check_no_traffic(cap_file, peer, tstop, tstart):
         return -1
     return 0
 
+# parse beacon received at rx_t for owner or responder reservations.
+# returns a list of MCCARes reservation slots,
+# all units are in 32us units
+def get_mcca_res(cap_file, rx_t, owner=False):
+    import struct
+    res_type="res"
+    if owner:
+        res_type="own"
+
+    ress = []
+    raw_res = do_tshark(cap_file, "radiotap.mactime == " + str(rx_t),
+                        "-Tfields -e wlan_mgt.cozybit.ie.mccaop." + res_type)
+
+    raw_res = raw_res.split(":")
+    i = 0
+    while i < int(raw_res[0]):
+        idx = i * 5
+        duration = int(raw_res[idx + 1], 16)
+        period = int(raw_res[idx + 2], 16)
+        offset = "".join(raw_res[idx + 3 : idx + 6]) + "00"
+        offset = struct.unpack("<L", offset.decode('hex'))
+        ress.append(MCCARes(offset[0], duration, period))
+        i += 1
+
+    return ress
+
 # check whether peer transmitted during owner's reservation
-# rel_dtim is MAC of DTIM which owner.res was scheduled against
-def check_mcca_res(owner, peer, cap_file=None, rel_dtim=None):
+# owner_dtim is a flag controlling who's DTIM we'll check against. Set
+# owner_dtim=False to merely check the parameters reported in the responder
+# DTIM beacon.
+def check_mcca_res(owner, responder, cap_file=None, owner_dtim=True):
     if not cap_file:
-        cap_file = peer.local_cap
-    if not rel_dtim:
-        rel_dtim = owner.mac
+        cap_file = responder.local_cap
+    rel_dtim = owner.mac
+    if not owner_dtim:
+        rel_dtim = responder.mac
 
     bcns = do_tshark(cap_file, "wlan.sa == " + rel_dtim + " && (wlan_mgt.tim.dtim_count == 0)",
                      "-Tfields -e radiotap.mactime -e wlan_mgt.fixed.timestamp -e radiotap.datarate")
+# (dtim TBTT, [res periods for DTIM])
     abs_dtims = []
     for bcn in bcns.splitlines():
         rx_t = int(bcn.split()[0])
@@ -103,20 +134,20 @@ def check_mcca_res(owner, peer, cap_file=None, rel_dtim=None):
 # adjust rx_t to account for beacon header tx time, since beacon timestamp is
 # when that field hits the transmitting phy
 # (24 bytes of header * 8 bits/byte) / rate(Mbps)
-# XXX: actually it looks like rx mactime (rx_t) is reported _after_ frame
-# completion, not on first data symbol! Verify then fix this.
         hdr_t = (24 * 8 ) / int(bcn.split()[2])
-        abs_dtims.append(rx_t - (ts % tu_to_us(DTIM_INTVL) + hdr_t))
+        ress = get_mcca_res(cap_file, rx_t, owner_dtim)
+        abs_dtims.append((rx_t - (ts % tu_to_us(DTIM_INTVL) + hdr_t), ress))
 
-    for dtim_t in abs_dtims:
-        print "DTIM by " + rel_dtim  + " at " + str(dtim_t)  + " in " + cap_file
-        tstop = dtim_t + owner.res.offset * 32
-        tstart = tstop + owner.res.duration * 32
-        for i in range(owner.res.period):
-            if check_no_traffic(cap_file, peer, tstop, tstart):
-                return -1
-            tstop = tstop + float(tu_to_us(DTIM_INTVL)) / owner.res.period
-            tstart = tstop + owner.res.duration * 32
+    for dtim in abs_dtims:
+        print "DTIM by " + rel_dtim  + " at " + str(dtim[0])  + " in " + cap_file
+        for res in dtim[1]:
+            tstop = dtim[0] + res.offset * 32
+            tstart = tstop + res.duration * 32
+            for i in range(res.period):
+                if check_no_traffic(cap_file, responder, tstop, tstart):
+                    return -1
+                tstop = tstop + float(tu_to_us(DTIM_INTVL)) / res.period
+                tstart = tstop + res.duration * 32
     return 0
 
 # check peers in $peers respected our reservation
@@ -177,8 +208,14 @@ class TestMCCA(unittest.TestCase):
 # test kernel scheduling with some dummy peer reservation parameters
         sta[0].mccatool_start()
         sta[1].mccatool_start()
-        sta[0].set_mcca_res(sta[1])
-        sta[1].set_mcca_res(sta[0])
+        # mccatool will advertise responder periods some offset from local
+        # DTIM, we assume these have been correctly programmed into the kernel
+        # and judge scheduling latency based on that.
+        sta[0].set_mcca_res()
+# avoid reservation race
+        import time
+        time.sleep(2)
+        sta[1].set_mcca_res()
         sta[2].start_capture()
 # send traffic
         sta[0].perf()
@@ -188,9 +225,9 @@ class TestMCCA(unittest.TestCase):
         sta[2].stop_capture(CAP_FILE + str(2))
 
         self.failIf(check_mcca_res(sta[0], sta[1], sta[2].local_cap,
-                                   rel_dtim=sta[1].mac) != 0, "failed")
+                                   False), "failed")
         self.failIf(check_mcca_res(sta[1], sta[0], sta[2].local_cap,
-                                   rel_dtim=sta[0].mac) != 0, "failed")
+                                   False), "failed")
 
     def test_1(self):
         sta[0].mccatool_start()
