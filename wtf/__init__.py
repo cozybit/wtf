@@ -5,6 +5,7 @@ import wtf.node.ap as ap
 import wtf.node.sta as sta
 import wtf.node.p2p as p2p
 import wtf.node.mesh as mesh
+import wtf.node.sniffer as sniffer
 
 class config():
     def __init__(self, suite=None, nodes=[], name="<unamed config>"):
@@ -19,6 +20,7 @@ class config():
         self.stas = []
         self.p2ps = []
         self.mps = []
+        self.mons = []
 
         for n in nodes:
             if isinstance(n, p2p.P2PBase):
@@ -31,6 +33,8 @@ class config():
                 self.stas.append(n)
             elif isinstance(n, mesh.MeshBase):
                 self.mps.append(n)
+            elif isinstance(n, sniffer.SnifferBase):
+                self.mons.append(n)
 
         self.name = name
 

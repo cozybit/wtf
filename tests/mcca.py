@@ -42,6 +42,7 @@ import commands
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
+mon = wtfconfig.mons[0]
 
 CAP_FILE="/tmp/mcca.cap"
 
@@ -181,12 +182,17 @@ def setUp(self):
 
 # start with just STA1 and 2 in the mesh
     i = 0
-    for n in wtfconfig.nodes:
+    for n in wtfconfig.mps:
         n.shutdown()
         n.init()
-        if i < 3:
+        if i < 2:
             n.start()
         i += 1
+
+# initialize monitor node
+    mon.shutdown()
+    mon.init()
+    mon.start()
 
 def tearDown(self):
     for n in wtfconfig.nodes:
@@ -216,35 +222,35 @@ class TestMCCA(unittest.TestCase):
         import time
         time.sleep(2)
         sta[1].set_mcca_res()
-        sta[2].start_capture()
+        mon.start_capture()
 # send traffic
         sta[0].perf()
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
         sta[0].killperf()
         sta[1].killperf()
-        sta[2].stop_capture(CAP_FILE + str(2))
+        mon.stop_capture(CAP_FILE)
 
-        self.failIf(check_mcca_res(sta[0], sta[1], sta[2].local_cap,
-                                   False), "failed")
-        self.failIf(check_mcca_res(sta[1], sta[0], sta[2].local_cap,
-                                   False), "failed")
+        self.failIf(check_mcca_res(sta[0], sta[1], mon.local_cap, False), "failed")
+        self.failIf(check_mcca_res(sta[1], sta[0], mon.local_cap, False), "failed")
 
     def test_1(self):
         sta[0].mccatool_start()
         sta[1].mccatool_start()
         sta[0].set_mcca_res()
         sta[1].set_mcca_res()
-        sta[2].start_capture()
+        mon.start_capture()
 # send traffic
         sta[0].perf()
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
         sta[0].killperf()
         sta[1].killperf()
-        sta[2].stop_capture(CAP_FILE + str(2))
+        sta[0].mccatool_stop()
+        sta[1].mccatool_stop()
+        mon.stop_capture(CAP_FILE)
 
 # verify against the 3rd party capture
-        self.failIf(check_mcca_res(sta[0], sta[1], sta[2].local_cap) != 0, "failed")
-        self.failIf(check_mcca_res(sta[1], sta[0], sta[2].local_cap) != 0, "failed")
+        self.failIf(check_mcca_res(sta[0], sta[1], mon.local_cap) != 0, "failed")
+        self.failIf(check_mcca_res(sta[1], sta[0], mon.local_cap) != 0, "failed")
 
     def test_2(self):
 # add STA3 and 4 into the mix
