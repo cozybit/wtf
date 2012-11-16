@@ -103,7 +103,7 @@ def get_mcca_res(cap_file, rx_t, owner=False):
 
     raw_res = raw_res.split(":")
     i = 0
-    while i < int(raw_res[0]):
+    while i < int(raw_res[0], 16):
         idx = i * 5
         duration = int(raw_res[idx + 1], 16)
         period = int(raw_res[idx + 2], 16)
@@ -187,7 +187,14 @@ def setUp(self):
         n.init()
         if i < 2:
             n.start()
+            n.mccatool_start()
+            # avoid race with other nodes
+            time.sleep(tu_to_s(BCN_INTVL))
+            n.set_mcca_res()
         i += 1
+
+# let reservations propagate before we start capturing
+    time.sleep(tu_to_s(DTIM_INTVL))
 
 # initialize monitor node
     mon.shutdown()
@@ -212,41 +219,28 @@ class TestMCCA(unittest.TestCase):
 
     def test_kern_sched(self):
 # test kernel scheduling with some dummy peer reservation parameters
-        sta[0].mccatool_start()
-        sta[1].mccatool_start()
         # mccatool will advertise responder periods some offset from local
         # DTIM, we assume these have been correctly programmed into the kernel
         # and judge scheduling latency based on that.
-        sta[0].set_mcca_res()
-# avoid reservation race
-        import time
-        time.sleep(2)
-        sta[1].set_mcca_res()
         mon.start_capture()
 # send traffic
         sta[0].perf()
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
         sta[0].killperf()
         sta[1].killperf()
-        mon.stop_capture(CAP_FILE)
+        mon.stop_capture(CAP_FILE + "0")
 
         self.failIf(check_mcca_res(sta[0], sta[1], mon.local_cap, False), "failed")
         self.failIf(check_mcca_res(sta[1], sta[0], mon.local_cap, False), "failed")
 
     def test_1(self):
-        sta[0].mccatool_start()
-        sta[1].mccatool_start()
-        sta[0].set_mcca_res()
-        sta[1].set_mcca_res()
         mon.start_capture()
 # send traffic
         sta[0].perf()
         sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
         sta[0].killperf()
         sta[1].killperf()
-        sta[0].mccatool_stop()
-        sta[1].mccatool_stop()
-        mon.stop_capture(CAP_FILE)
+        mon.stop_capture(CAP_FILE + "1")
 
 # verify against the 3rd party capture
         self.failIf(check_mcca_res(sta[0], sta[1], mon.local_cap) != 0, "failed")
