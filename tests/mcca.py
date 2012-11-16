@@ -288,3 +288,42 @@ class TestMCCA(unittest.TestCase):
         #self.failIf(check_mcca_res(sta[0], sta[3]) == 0, "STA4 respected STA0's reservation!")
         #self.failIf(check_mcca_res(sta[1], sta[3]) == 0, "STA4 respected STA1's reservation!")
         #self.failIf(check_mcca_res(sta[2], sta[3]) == 0, "STA4 respected STA2's reservation!")
+
+    def test_3(self):
+        # STA4 becomes aware of MCCA
+        sta[3].mccatool_start()
+# let STA know about other reservations before installing own
+        time.sleep(tu_to_s(BCN_INTVL))
+        sta[3].set_mcca_res()
+# let reservations propagate and schedule before capture..
+        time.sleep(tu_to_s(DTIM_INTVL))
+
+        mon.start_capture()
+        sta[0].perf(p=7000)
+        sta[0].perf(p=7001)
+        sta[0].perf(p=7002)
+
+        sta[1].perf(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b="60M", fork=True)
+        sta[2].perf(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b="60M", fork=True)
+        sta[3].perf(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b="60M", fork=False)
+        killperfs(sta)
+        mon.stop_capture(CAP_FILE + "3")
+        # TODO: failure conditions
+
+    def test_4(self):
+# STA1 and 2 forget all about MCCA
+        sta[0].mccatool_stop()
+        sta[1].mccatool_stop()
+        time.sleep(tu_to_s(DTIM_INTVL))
+
+        mon.start_capture()
+        sta[0].perf(p=7000)
+        sta[0].perf(p=7001)
+        sta[0].perf(p=7002)
+
+        sta[1].perf(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b="60M", fork=True)
+        sta[2].perf(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b="60M", fork=True)
+        sta[3].perf(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b="60M", fork=False)
+        killperfs(sta)
+        mon.stop_capture(CAP_FILE + "4")
+        # TODO: failure conditions
