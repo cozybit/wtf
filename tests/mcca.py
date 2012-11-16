@@ -178,10 +178,10 @@ def killperfs(stas):
 # global setup, called once during this suite
 def setUp(self):
     #XXX: check for collisions on these
-    sta[0].res = MCCARes(offset=100 * 32, duration=255, period=64)
-    sta[1].res = MCCARes(offset=300 * 32, duration=255, period=64)
-    sta[2].res = MCCARes(offset=550 * 32, duration=255, period=64)
-    sta[3].res = MCCARes(offset=800 * 32, duration=255, period=64)
+    sta[0].res = MCCARes(offset=100 * 32, duration=255, period=32)
+    sta[1].res = MCCARes(offset=300 * 32, duration=250, period=32)
+    sta[2].res = MCCARes(offset=550 * 32, duration=250, period=32)
+    sta[3].res = MCCARes(offset=800 * 32, duration=250, period=32)
 
 # start with just STA1 and 2 in the mesh
     i = 0
@@ -263,7 +263,7 @@ class TestMCCA(unittest.TestCase):
         sta[3].start()
         sta[2].mccatool_start()
 # let STA know about other reservations before installing own
-        time.sleep(tu_to_s(BCN_INTVL))
+        time.sleep(tu_to_s(DTIM_INTVL))
         sta[2].set_mcca_res()
 # let reservations propagate and schedule before capture..
         time.sleep(tu_to_s(DTIM_INTVL))
@@ -293,7 +293,7 @@ class TestMCCA(unittest.TestCase):
         # STA4 becomes aware of MCCA
         sta[3].mccatool_start()
 # let STA know about other reservations before installing own
-        time.sleep(tu_to_s(BCN_INTVL))
+        time.sleep(tu_to_s(DTIM_INTVL))
         sta[3].set_mcca_res()
 # let reservations propagate and schedule before capture..
         time.sleep(tu_to_s(DTIM_INTVL))
