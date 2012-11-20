@@ -179,9 +179,9 @@ def killperfs(stas):
 def setUp(self):
     #XXX: check for collisions on these
     sta[0].res = MCCARes(offset=100 * 32, duration=255, period=32)
-    sta[1].res = MCCARes(offset=300 * 32, duration=250, period=32)
-    sta[2].res = MCCARes(offset=550 * 32, duration=250, period=32)
-    sta[3].res = MCCARes(offset=800 * 32, duration=250, period=32)
+    sta[1].res = MCCARes(offset=300 * 32, duration=255, period=32)
+    sta[2].res = MCCARes(offset=550 * 32, duration=255, period=32)
+    sta[3].res = MCCARes(offset=800 * 32, duration=255, period=32)
 
 # start with just STA1 and 2 in the mesh
     i = 0
