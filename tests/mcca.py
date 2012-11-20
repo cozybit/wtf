@@ -192,7 +192,7 @@ def setUp(self):
             n.start()
             n.mccatool_start()
             # avoid race with other nodes
-            time.sleep(tu_to_s(BCN_INTVL))
+            time.sleep(tu_to_s(DTIM_INTVL))
             n.set_mcca_res()
         i += 1
 
