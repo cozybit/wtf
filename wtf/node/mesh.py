@@ -27,10 +27,11 @@ class MeshConf():
     XXX: add support for authsae
     """
 
-    def __init__(self, ssid, channel=1, htmode=""):
+    def __init__(self, ssid, channel=1, htmode="", security=0):
         self.ssid = ssid
         self.channel = channel
         self.htmode = htmode
+        self.security = security
 
 class MeshSTA(node.LinuxNode, MeshBase):
     """
@@ -42,6 +43,32 @@ class MeshSTA(node.LinuxNode, MeshBase):
         self.mccapipe = None
 
     def start(self):
+    # This is the configuration template for the authsae config
+        security_config_base = '''
+/* this is a comment */
+authsae:
+{
+ sae:
+  {
+    debug = 480;
+    password = \\"thisisreallysecret\\";
+    group = [19, 26, 21, 25, 20];
+    blacklist = 5;
+    thresh = 5;
+    lifetime = 3600;
+  };
+ meshd:
+  {
+    meshid = \\"%s\\";
+    interface = \\"%s\\";
+    band = \\"11g\\";
+    channel = %s;
+    htmode = \\"none\\";
+    mcast-rate = 12;
+  };
+};
+
+''' % ( str(self.config.ssid), str(self.iface), str(self.config.channel))
         # XXX: self.stop() should work since we extend LinuxNode?? 
         node.LinuxNode.stop(self)
         self._cmd_or_die("iw " + self.iface + " set type mp")
@@ -54,11 +81,18 @@ class MeshSTA(node.LinuxNode, MeshBase):
         if not self.config:
             raise node.InsufficientConfigurationError()
         #self._configure()
-        self._cmd_or_die("iw " + self.iface + " mesh join " + self.config.ssid)
+        if self.config.security:
+            self._cmd_or_die("echo -e \"" + security_config_base + "\"> /tmp/authsae.conf", verbosity=0);
+            self._cmd_or_die("meshd-nl80211 -c /tmp/authsae.conf /tmp/authsae.log &")
+        else:
+            self._cmd_or_die("iw " + self.iface + " mesh join " + self.config.ssid)
         self.set_ip(self.ip)
 
     def stop(self):
-        self.comm.send_cmd("iw " + self.iface + " mesh leave")
+        if self.config.security:
+            self.comm.send_cmd("start-stop-daemon --quiet --stop --exec meshd-nl80211")
+        else:
+            self.comm.send_cmd("iw " + self.iface + " mesh leave")
         self.mccatool_stop()
         node.LinuxNode.stop(self)
 
