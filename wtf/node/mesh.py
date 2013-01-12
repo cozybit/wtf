@@ -86,7 +86,6 @@ authsae:
             self._cmd_or_die("meshd-nl80211 -c /tmp/authsae.conf /tmp/authsae.log &")
         else:
             self._cmd_or_die("iw " + self.iface + " mesh join " + self.config.ssid)
-        self.set_ip(self.ip)
 
     def stop(self):
         if self.config.security:

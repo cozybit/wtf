@@ -180,6 +180,7 @@ class LinuxNode(NodeBase):
         if self.initialized != True:
             raise UninitializedError()
         self._cmd_or_die("ifconfig " + self.iface + " up")
+        self.set_ip(self.ip)
 
     def stop(self):
         self.comm.send_cmd("ifconfig " + self.iface + " down")
