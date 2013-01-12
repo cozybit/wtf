@@ -71,12 +71,12 @@ authsae:
 ''' % ( str(self.config.ssid), str(self.iface), str(self.config.channel))
         # XXX: self.stop() should work since we extend LinuxNode?? 
         node.LinuxNode.stop(self)
-        self._cmd_or_die("iw " + self.iface + " set type mp")
         #self.set_iftype("mesh")
-        node.LinuxNode.start(self)
+        self._cmd_or_die("iw " + self.iface + " set type mp")
         #node.set_channel(self.config.channel)
         self._cmd_or_die("iw " + self.iface + " set channel " + str(self.config.channel) +
                          " " + self.config.htmode)
+        node.LinuxNode.start(self)
         # XXX: where does it get this config???
         if not self.config:
             raise node.InsufficientConfigurationError()
@@ -95,6 +95,14 @@ authsae:
             self.comm.send_cmd("iw " + self.iface + " mesh leave")
         self.mccatool_stop()
         node.LinuxNode.stop(self)
+
+# restart mesh with supplied new mesh conf
+    def reconf(self, nconf):
+            # LinuxNode.shutdown()????
+            self.shutdown()
+            self.config = nconf
+            self.init()
+            self.start()
 
 # empty owner means just configure own owner reservation, else install
 # specified interference reservation.
