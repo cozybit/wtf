@@ -121,6 +121,18 @@ class PerfConf():
         self.fork = fork
         self.report = None
 
+class IperfReport():
+    def __init__(self, throughput, loss):
+        self.tput = throughput
+        self.loss = loss
+
+# stdout has already been split into a list of lines
+def parse_perf_report(stdout):
+    r = stdout[1]
+    fields = r.split()
+    print len(fields)
+    return IperfReport(fields[6], fields[11].strip("()").strip("%"))
+
 class LinuxNode(NodeBase):
     """
     A linux network node
@@ -219,7 +231,7 @@ class LinuxNode(NodeBase):
         if self.perf.server != True and self.perf.fork != True:
             raise ActionFailureError("don't kill me bro")
         r, o = self.comm.send_cmd("killall iperf")
-        self.perf.report = o[1]
+        self.perf.report = parse_perf_report(o)
 
     def start_capture(self, cap_file="/tmp/out.cap"):
         self.cap_file = cap_file
