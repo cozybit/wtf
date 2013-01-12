@@ -47,12 +47,12 @@ class TestAPSTA(unittest.TestCase):
                     "Failed to associate with AP")
 
     def throughput(self):
-        wtfconfig.aps[0].perf()
-        results = wtfconfig.stas[0].perf(AP_IP)
+        wtfconfig.aps[0].perf_serve()
+        results = wtfconfig.stas[0].perf_client(AP_IP)
         wtfconfig.aps[0].killperf()
 
     def stressTest(self):
-        wtfconfig.aps[0].perf()
+        wtfconfig.aps[0].perf_serve()
         results = wtfconfig.stas[0].stress(AP_IP)
         wtfconfig.aps[0].killperf()
         self.pingTest()

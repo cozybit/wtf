@@ -236,8 +236,8 @@ class TestMCCA(unittest.TestCase):
 # Whether these are actually correct compared to the owner's DTIM is out of
 # scope of this test.
         mon.start_capture()
-        sta[0].perf()
-        sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
+        sta[0].perf_serve()
+        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, b=60)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "0")
 
@@ -248,8 +248,8 @@ class TestMCCA(unittest.TestCase):
     def test_1(self):
         mon.start_capture()
 # send traffic
-        sta[0].perf()
-        sta[1].perf(sta[0].ip, timeout=10, dual=True, b="60M")
+        sta[0].perf_serve()
+        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, b=60)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "1")
 
@@ -269,13 +269,13 @@ class TestMCCA(unittest.TestCase):
         time.sleep(tu_to_s(DTIM_INTVL))
 
         mon.start_capture()
-        sta[0].perf(p=7000)
-        sta[0].perf(p=7001)
-        sta[0].perf(p=7002)
+        sta[0].perf_serve(p=7000)
+        sta[0].perf_serve(p=7001)
+        sta[0].perf_serve(p=7002)
 
-        sta[1].perf(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b="60M", fork=True)
-        sta[2].perf(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b="60M", fork=True)
-        sta[3].perf(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b="60M", fork=False)
+        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        sta[2].perf_client(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        sta[3].perf_client(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "2")
 
@@ -299,13 +299,13 @@ class TestMCCA(unittest.TestCase):
         time.sleep(tu_to_s(DTIM_INTVL))
 
         mon.start_capture()
-        sta[0].perf(p=7000)
-        sta[0].perf(p=7001)
-        sta[0].perf(p=7002)
+        sta[0].perf_serve(p=7000)
+        sta[0].perf_serve(p=7001)
+        sta[0].perf_serve(p=7002)
 
-        sta[1].perf(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b="60M", fork=True)
-        sta[2].perf(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b="60M", fork=True)
-        sta[3].perf(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b="60M", fork=False)
+        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        sta[2].perf_client(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        sta[3].perf_client(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "3")
         # TODO: failure conditions
@@ -317,13 +317,13 @@ class TestMCCA(unittest.TestCase):
         time.sleep(tu_to_s(DTIM_INTVL))
 
         mon.start_capture()
-        sta[0].perf(p=7000)
-        sta[0].perf(p=7001)
-        sta[0].perf(p=7002)
+        sta[0].perf_serve(p=7000)
+        sta[0].perf_serve(p=7001)
+        sta[0].perf_serve(p=7002)
 
-        sta[1].perf(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b="60M", fork=True)
-        sta[2].perf(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b="60M", fork=True)
-        sta[3].perf(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b="60M", fork=False)
+        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        sta[2].perf_client(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        sta[3].perf_client(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "4")
         # TODO: failure conditions

@@ -107,6 +107,20 @@ class NodeBase():
             raise ActionFailureError("Failed to \"" + cmd + "\"")
         return o
 
+# TODO: put perf stuff in own util module, it doesn't belong here
+class PerfConf():
+    def __init__(self, server=False, dst_ip=None, timeout=5,
+                 dual=False, b=10, p=7777, L=6666, fork=False):
+        self.server = server
+        self.dst_ip = dst_ip
+        self.timeout = timeout
+        self.dual = dual
+        self.bw = b
+        self.listen_port = p
+        self.dual_port = L
+        self.fork = fork
+        self.report = None
+
 class LinuxNode(NodeBase):
     """
     A linux network node
@@ -161,24 +175,51 @@ class LinuxNode(NodeBase):
     def set_ip(self, ipaddr):
         self.comm.send_cmd("ifconfig " + self.iface + " " + ipaddr + " up")
 
-    def ping(self, host, timeout=2, count=1):
+    def ping(self, host, timeout=2, count=1, verbosity=2):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
-                                  str(timeout) + " " + host)[0]
+                                  str(timeout) + " " + host, verbosity=verbosity)[0]
 
-    def perf(self, client=None, timeout=5, dual=False, b="10M", p=7777, L=6666, fork=False):
-        if client == None:
-            # we're the server
-            self._cmd_or_die("iperf -s -u -p " + str(p) + " &")
+    def start_perf(self, conf):
+        self.perf = conf
+        if conf.server == True:
+            cmd = "iperf -s -u -p " + str(conf.listen_port)
+            if conf.dst_ip:
+                cmd += "-B" + conf.dst_ip
+            cmd += " &"
         else:
-            cmd = "iperf -c " + client + " -i1 -u -b" + b + " -t" + str(timeout) + " -p" + str(p)
-            if dual:
-                cmd += " -d -L" + str(L)
-            if fork:
+# in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
+# yet), so prime it with a ping first. Takes care of initial "losses" as the
+# path is refreshed.
+            self.ping(conf.dst_ip, verbosity=0)
+            cmd = "iperf -c " + conf.dst_ip + \
+                  " -i1 -u -b" + str(conf.bw) + "M -t" + str(conf.timeout) + \
+                  " -p" + str(conf.listen_port)
+            if conf.dual:
+                cmd += " -d -L" + str(conf.dual_port)
+            if conf.fork:
                 cmd += " &"
-            self.comm.send_cmd(cmd, verbosity=2)
+
+        r, o = self.comm.send_cmd(cmd)
+        if conf.server != True and conf.fork != True:
+# we blocked on completion and report is ready now
+            self.perf.report = o[1]
+
+    def perf_serve(self, dst_ip=None, p=7777):
+        self.start_perf(PerfConf(server=True, dst_ip=dst_ip, p=p))
+
+    def perf_client(self, dst_ip=None, timeout=5, dual=False, b=10, p=7777, L=6666, fork=False):
+        if dst_ip == None:
+            raise InsufficientConfigurationError("need dst_ip for perf")
+        self.start_perf(PerfConf(dst_ip=dst_ip, timeout=timeout,
+                                 dual=dual, b=b, p=p, L=L, fork=fork))
 
     def killperf(self):
-        self.comm.send_cmd("killall -9 iperf")
+        # only need to kill servers or forked clients. This is really to
+        # protect against missing report output in o, but that's not obvious :(
+        if self.perf.server != True and self.perf.fork != True:
+            raise ActionFailureError("don't kill me bro")
+        r, o = self.comm.send_cmd("killall iperf")
+        self.perf.report = o[1]
 
     def start_capture(self, cap_file="/tmp/out.cap"):
         self.cap_file = cap_file
