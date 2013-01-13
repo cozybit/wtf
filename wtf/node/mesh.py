@@ -27,11 +27,15 @@ class MeshConf():
     XXX: add support for authsae
     """
 
-    def __init__(self, ssid, channel=1, htmode="", security=0):
+    def __init__(self, ssid, channel=1, htmode="", security=0, ip=None,
+                 mesh_params=None, mcast_rate=None, mcast_route=None):
         self.ssid = ssid
         self.channel = channel
         self.htmode = htmode
         self.security = security
+        self.mesh_params = mesh_params
+        self.mcast_rate = mcast_rate
+        self.mcast_route = mcast_route
 
 class MeshSTA(node.LinuxNode, MeshBase):
     """
@@ -85,7 +89,7 @@ authsae:
             self._cmd_or_die("echo -e \"" + security_config_base + "\"> /tmp/authsae.conf", verbosity=0);
             self._cmd_or_die("meshd-nl80211 -c /tmp/authsae.conf /tmp/authsae.log &")
         else:
-            self._cmd_or_die("iw " + self.iface + " mesh join " + self.config.ssid)
+            self.mesh_join()
 
     def stop(self):
         if self.config.security:
@@ -94,6 +98,14 @@ authsae:
             self.comm.send_cmd("iw " + self.iface + " mesh leave")
         self.mccatool_stop()
         node.LinuxNode.stop(self)
+
+    def mesh_join(self):
+        cmd = "iw %s mesh join %s" % (self.iface, self.config.ssid)
+        if self.config.mcast_rate:
+            cmd +=  " mcast-rate %s" % (self.config.mcast_rate)
+        if self.config.mesh_params:
+            cmd += " " + self.config.mesh_params
+        self._cmd_or_die(cmd)
 
 # restart mesh with supplied new mesh conf
     def reconf(self, nconf):

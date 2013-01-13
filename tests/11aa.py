@@ -51,8 +51,14 @@ import commands
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
 
+mcast_dst = "224.0.0.0"
+
 # XXX: nose probably has something like this?
 results={}
+
+def reconf_stas(stas, conf):
+    for sta in stas:
+        sta.reconf(conf)
 
 # global setup, called once during this suite
 def setUp(self):
@@ -77,20 +83,20 @@ class Test11aa(unittest.TestCase):
     def tearDown(self):
         pass
 
-#XXX: our crude reporting only works if these are run in order!
     def test_1_unicast_ht20(self):
         sta[0].perf_serve()
         sta[1].perf_client(dst_ip=sta[0].ip, timeout=10, b=100)
         sta[0].killperf()
-        print "server sta0 reports:"
         results[sys._getframe().f_code.co_name] = sta[0].perf.report
 
     def test_2_unicast_noht(self):
-        #for n in wtfconfig.mps:
-        #    conf = n.config
-        #    conf.htmode = ""
-        #    n.reconf(conf)
-        pass
+        conf = sta[0].config
+        conf.htmode = ""
+        reconf_stas(wtfconfig.mps, conf)
+        sta[0].perf_serve()
+        sta[1].perf_client(dst_ip=sta[0].ip, timeout=10, b=100)
+        sta[0].killperf()
+        results[sys._getframe().f_code.co_name] = sta[0].perf.report
 
     def test_3_mcast_mcs7(self):
         # XXX: need new firmware, derp
@@ -98,4 +104,14 @@ class Test11aa(unittest.TestCase):
         pass
 
     def test_4_mcast_54mbps(self):
+        # hard-coded to 54mbps for now
+        conf = sta[0].config
+        conf.mesh_params = "mesh_ttl=1"
+        conf.mcast_rate = "54"
+        conf.mcast_route = mcast_dst
+        reconf_stas(wtfconfig.mps, conf)
+        sta[0].perf_serve(dst_ip=mcast_dst)
+        sta[1].perf_client(dst_ip=mcast_dst, timeout=10, b=100)
+        sta[0].killperf()
+        results[sys._getframe().f_code.co_name] = sta[0].perf.report
         pass

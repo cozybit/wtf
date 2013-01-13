@@ -130,7 +130,6 @@ class IperfReport():
 def parse_perf_report(stdout):
     r = stdout[1]
     fields = r.split()
-    print len(fields)
     return IperfReport(fields[6], fields[11].strip("()").strip("%"))
 
 class LinuxNode(NodeBase):
@@ -179,14 +178,18 @@ class LinuxNode(NodeBase):
     def start(self):
         if self.initialized != True:
             raise UninitializedError()
-        self._cmd_or_die("ifconfig " + self.iface + " up")
         self.set_ip(self.ip)
+        if self.config.mcast_route:
+            self.set_mcast(self.config.mcast_route)
 
     def stop(self):
         self.comm.send_cmd("ifconfig " + self.iface + " down")
 
     def set_ip(self, ipaddr):
         self.comm.send_cmd("ifconfig " + self.iface + " " + ipaddr + " up")
+
+    def set_mcast(self, mcast_route):
+        self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route,  self.iface))
 
     def ping(self, host, timeout=2, count=1, verbosity=2):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
@@ -197,7 +200,7 @@ class LinuxNode(NodeBase):
         if conf.server == True:
             cmd = "iperf -s -u -p " + str(conf.listen_port)
             if conf.dst_ip:
-                cmd += "-B" + conf.dst_ip
+                cmd += " -B" + conf.dst_ip
             cmd += " &"
         else:
 # in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
