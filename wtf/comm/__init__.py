@@ -140,10 +140,16 @@ class SSH(CommBase):
 # XXX: GARBAGE! Should really be handled by the ssh module
 # copy file from host:$src to $dst
     def get_file(self, src, dst):
-        print self.name + ": getting " + src
-        r, o = commands.getstatusoutput("scp root@" + self.ipaddr + ":" + src + " " + dst)
+        print "copying %s:%s to %s" % (self.name, src, dst)
+        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr,src,dst))
         if r != 0:
-            raise Exception("couldn't copy file: %s to %s" % (src, dst))
+            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
+
+    def put_file(self, src, dst):
+        print "copying %s to %s:%s" % (src, self.name, dst)
+        r, o = commands.getstatusoutput("rsync %s root@%s:%s" % (src, self.ipaddr, dst))
+        if r != 0:
+            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
 
 class MvdroidSerial(Serial):
     """
