@@ -36,6 +36,7 @@ import wtf.node.mesh as mesh
 import unittest
 import time
 import wtf
+import wtf.util
 import sys; err = sys.stderr
 import time
 import commands
@@ -43,8 +44,6 @@ import commands
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
 mon = wtfconfig.mons[0]
-
-CAP_FILE="/tmp/mcca.cap"
 
 BCN_INTVL=1000 #TUs
 DTIM_PERIOD=2
@@ -59,21 +58,6 @@ class MCCARes():
         self.offset = offset
         self.duration = duration
         self.period = period
-
-# XXX: factor these into a wtfutils module or something
-def tu_to_s(tu):
-    return tu * 1024 / 1000 / float(1000)
-
-def tu_to_us(tu):
-    return tu * 32 * 32
-
-# return packets found in tshark_filter
-def do_tshark(cap_file, tshark_filter, extra=""):
-    r, o = commands.getstatusoutput("tshark -r" + cap_file + " -R'" + tshark_filter +
-                                    "' " + extra + " 2> /dev/null")
-    if r != 0 and r != 256:
-        raise Exception("tshark error %d! Is tshark installed and %s exists? Please verify filter %s" % (r, cap_file, tshark_filter))
-    return o
 
 # returns 0 if no traffic was transmitted by peer from tstop to tstart
 def check_no_traffic(cap_file, peer, tstop, tstart):
@@ -160,20 +144,6 @@ def check_mcca_peers(owner, peers):
         if check_mcca_res(owner, peer):
             return -1
     return 0
-
-def start_captures(stas):
-    for sta in stas:
-        sta.start_capture()
-
-def stop_captures(stas):
-    i = 0
-    for sta in stas:
-        sta.stop_capture(CAP_FILE + str(i))
-        i += 1
-
-def killperfs(stas):
-    for sta in stas:
-        sta.killperf()
 
 # global setup, called once during this suite
 def setUp(self):

@@ -1,6 +1,8 @@
 # Copyright cozybit, Inc 2010-2011
 # All rights reserved
 
+from wtf.util import *
+
 class UninitializedError(Exception):
     """
     Exception raised when routines are called prior to initialization.
@@ -106,32 +108,6 @@ class NodeBase():
         if r != 0:
             raise ActionFailureError("Failed to \"" + cmd + "\"")
         return o
-
-# TODO: put perf stuff in own util module, it doesn't belong here
-class PerfConf():
-    def __init__(self, server=False, dst_ip=None, timeout=5,
-                 dual=False, b=10, p=7777, L=6666, fork=False):
-        self.server = server
-        self.dst_ip = dst_ip
-        self.timeout = timeout
-        self.dual = dual
-        self.bw = b
-        self.listen_port = p
-        self.dual_port = L
-        self.fork = fork
-        self.report = None
-
-class IperfReport():
-    def __init__(self, throughput=0.0, loss=0.0):
-        self.tput = throughput
-        self.loss = loss
-
-# CSV iperf report as @r
-def parse_perf_report(r):
-# output comes as list of strings, hence r[0]...
-    tput = float(r[0].split(',')[-6]) / (1024 * 1024) # bits -> mbits
-    loss = float(r[0].split(',')[-2])
-    return IperfReport(tput, loss)
 
 class LinuxNode(NodeBase):
     """

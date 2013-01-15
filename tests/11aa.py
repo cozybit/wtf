@@ -46,57 +46,18 @@ import wtf.node.mesh as mesh
 import unittest
 import time
 import wtf
+from wtf.util import *
 import sys; err = sys.stderr
 import time
-import commands
 import os
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
 
 mcast_dst = "224.0.0.0"
-rtp_port = 5004
-
 ref_clip = os.getenv("REF_CLIP")
-
 # XXX: nose probably has something like this?
 results={}
-
-# XXX: again util module
-
-# collection of different link metric results
-class LinkReport():
-    def __init__(self, perf_report=None, vqm_report=None):
-        self.perf = perf_report
-        self.vqm = vqm_report
-
-class VQMReport():
-    def __init__(self, ref_clip="", out_clip="", ssim=0, psnr=0):
-        self.ref_clip = ref_clip
-        self.out_clip = out_clip
-        self.ssim = ssim
-        self.psnr = psnr
-
-def get_vqm_report(ref_clip, out_clip):
-    print "getting VQM for " + out_clip
-
-# TODO: follow their stdout
-    o = commands.getoutput("qpsnr -a avg_ssim -s100 -m1000 -o fpa=1000 -r %s %s" % \
-                                    (ref_clip, out_clip))
-    print o
-# final result should be on the last line
-    avg_ssim = o.splitlines()[-1].split(",")[1]
-
-    o = commands.getoutput("qpsnr -a avg_psnr -s100 -m1000 -o fpa=1000 -r %s %s" % \
-                                    (ref_clip, out_clip))
-    print o
-# final result should be on the last line
-    avg_psnr = o.splitlines()[-1].split(",")[1]
-    return VQMReport(ref_clip, out_clip, avg_ssim, avg_psnr)
-
-def reconf_stas(stas, conf):
-    for sta in stas:
-        sta.reconf(conf)
 
 # global setup, called once during this suite
 def setUp(self):
@@ -121,50 +82,6 @@ def tearDown(self):
             line += "%s     %s      %s      " % (vqm.ssim, vqm.psnr, vqm.out_clip)
 
         print line
-
-# TODO: pass a conf parameter
-def do_perf(sta, dst):
-
-# destination needs to match server in unicast.
-    server  = None
-    for s in sta:
-        if dst == s.ip:
-            server = s
-            continue
-        client = s
-
-# at least make transmitter consistent in mcast case.
-    if server == None:
-        server = sta[1]
-        client = sta[0]
-
-    server.perf_serve(dst_ip=dst)
-    client.perf_client(dst_ip=dst, timeout=10, b=100)
-    server.killperf()
-    return  server.get_perf_report()
-
-def do_vqm(sta, dst, ref_clip):
-    # XXX: a bit nasty, test better be 1 frames above us!
-    rcv_clip = "/tmp/" + sys._getframe(1).f_code.co_name + ".ts"
-
-# destination needs to match client in unicast.
-    client = None
-    for s in sta:
-        if dst == s.ip:
-            client = s
-            continue
-        server = s
-
-# at least make transmitter (sta0) consistent in mcast case.
-    if client == None:
-        server = sta[0]
-        client = sta[1]
-
-    client.video_client(ip=dst, port=rtp_port)
-    server.video_serve(video=ref_clip, ip=dst, port=rtp_port)
-
-    client.get_video(rcv_clip)
-    return get_vqm_report(ref_clip, rcv_clip)
 
 class Test11aa(unittest.TestCase):
 
