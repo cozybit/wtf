@@ -134,6 +134,8 @@ class SSH(CommBase):
         except ValueError:
             print "Failed to find return code in:"
             print self.session.before
+            # try to recover
+            self.session.synch_original_prompt()
         return -1
 
 # should be able to use existing SSH session for this

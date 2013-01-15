@@ -55,6 +55,8 @@ wtfconfig = wtf.conf
 sta = wtfconfig.mps
 
 mcast_dst = "224.0.0.0"
+rtp_port = 5004
+
 ref_clip = os.getenv("REF_CLIP")
 
 # XXX: nose probably has something like this?
@@ -107,13 +109,13 @@ def tearDown(self):
     for n in wtfconfig.nodes:
         n.stop()
 
-    print "TEST             THROUGHPUT(Mb/s)  LOSS(%)       SSIM        PSNR        FILE"
+    print "TEST             THROUGHPUT(Mb/s)        LOSS(%)       SSIM        PSNR        FILE"
     for test, result in results.iteritems():
         line = "%s      " % (test,)
 
         if result.perf != None:
             perf = result.perf
-            line += "%s         %s      " % (perf.tput, perf.loss)
+            line += "%f         %f      " % (perf.tput, perf.loss)
         if result.vqm != None:
             vqm = result.vqm
             line += "%s     %s      %s      " % (vqm.ssim, vqm.psnr, vqm.out_clip)
@@ -158,8 +160,8 @@ def do_vqm(sta, dst, ref_clip):
         server = sta[0]
         client = sta[1]
 
-    client.video_client(dst)
-    server.video_serve(dst, ref_clip)
+    client.video_client(ip=dst, port=rtp_port)
+    server.video_serve(video=ref_clip, ip=dst, port=rtp_port)
 
     client.get_video(rcv_clip)
     return get_vqm_report(ref_clip, rcv_clip)
@@ -176,7 +178,7 @@ class Test11aa(unittest.TestCase):
     def test_1_unicast_ht20(self):
         fname = sys._getframe().f_code.co_name
 
-        perf_report = do_perf(sta[:2], sta[0].ip)
+        perf_report = do_perf(sta[:2], sta[1].ip)
         vqm_report = do_vqm(sta[:2], sta[1].ip, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
@@ -188,9 +190,8 @@ class Test11aa(unittest.TestCase):
         conf.htmode = ""
         reconf_stas(wtfconfig.mps, conf)
 
-        perf_report = do_perf(sta[:2], sta[0].ip)
-        vqm_report = None
-        #vqm_report = do_vqm(sta[:2], sta[1].ip, ref_clip)
+        perf_report = do_perf(sta[:2], sta[1].ip)
+        vqm_report = do_vqm(sta[:2], sta[1].ip, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
 
@@ -210,7 +211,6 @@ class Test11aa(unittest.TestCase):
         reconf_stas(wtfconfig.mps, conf)
 
         perf_report = do_perf(sta[:2], mcast_dst)
-        vqm_report = None
-        #vqm_report = do_vqm(sta[:2], mcast_dst, ref_clip)
+        vqm_report = do_vqm(sta[:2], mcast_dst, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)

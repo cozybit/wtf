@@ -122,20 +122,15 @@ class PerfConf():
         self.report = None
 
 class IperfReport():
-    def __init__(self, throughput, loss):
+    def __init__(self, throughput=0.0, loss=0.0):
         self.tput = throughput
         self.loss = loss
 
-# stdout has already been split into a list of lines
-def parse_perf_report(stdout):
-# don't seem to be able to control iperf output, so grep
-    for l in stdout:
-        if '%' in l:
-            break
-
-    print l
-    tput = l.split()[6]
-    loss = l.split()[11].strip("()").strip("%")
+# CSV iperf report as @r
+def parse_perf_report(r):
+# output comes as list of strings, hence r[0]...
+    tput = float(r[0].split(',')[-6]) / (1024 * 1024) # bits -> mbits
+    loss = float(r[0].split(',')[-2])
     return IperfReport(tput, loss)
 
 class LinuxNode(NodeBase):
@@ -209,7 +204,7 @@ class LinuxNode(NodeBase):
             if conf.dst_ip:
                 cmd += " -B" + conf.dst_ip
 # -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
-            cmd += " -x CS | tee " + self.perf.log
+            cmd += " -y c -x CS | tee " + self.perf.log
             cmd += " &"
         else:
 # in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
@@ -223,7 +218,7 @@ class LinuxNode(NodeBase):
                 cmd += " -d -L" + str(conf.dual_port)
             if conf.fork:
 # -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
-                cmd += " -x CS | tee " + self.perf.log
+                cmd += " -y c -x CS | tee " + self.perf.log
                 cmd += " &"
 
         r, o = self.comm.send_cmd(cmd)
@@ -241,22 +236,25 @@ class LinuxNode(NodeBase):
                                  dual=dual, b=b, p=p, L=L, fork=fork))
 
 # server @video to @dst_ip using VLC. Blocks until stream completion
-    def video_serve(self, dst_ip=None, video=None):
-        if dst_ip == None or video == None:
+    def video_serve(self, video=None, ip=None, port=5004):
+        if ip == None or video == None:
             raise InsufficientConfigurationError("need a reference clip and destination ip!")
+        print "%s: starting video server" % (self.ip,)
         import os
         self.ref_clip = "/tmp/" + os.path.basename(video)
         self.comm.put_file(video, self.ref_clip)
-        self.comm.send_cmd("su nobody -c 'cvlc -I dummy %s :sout=\"#rtp{dst=%s,port=5004,mux=ts,ttl=1}\" :sout-all :sout-keep vlc://quit'" % (self.ref_clip, dst_ip))
+        self.comm.send_cmd("su nobody -c 'vlc -I dummy %s :sout=\"#rtp{dst=%s,port=%d,mux=ts,ttl=1}\" :sout-all :sout-keep vlc://quit' &> /tmp/video.log" % (self.ref_clip, ip, port))
 
-    def video_client(self, dst_ip, out_file="/tmp/video.ts"):
-        if dst_ip == None:
+    def video_client(self, out_file="/tmp/video.ts", ip=None, port=5004):
+        print "%s: starting video client" % (self.ip,)
+        if ip == None:
             raise InsufficientConfigurationError("need a reference clip and destination ip!")
         self.video_file = out_file
-        self.comm.send_cmd("su nobody -c 'cvlc -I dummy rtp://%s --sout file/ts:%s &'" % (dst_ip, self.video_file))
+        self.comm.send_cmd("su nobody -c 'vlc -I dummy rtp://%s:%d --sout file/ts:%s' &> /tmp/video.log &" % (ip, port, self.video_file))
 
     def killvideo(self):
-        self.comm.send_cmd("killall vlc")
+        self.comm.send_cmd("killall -w vlc")
+        self.comm.send_cmd("cat /tmp/video.log")
 
     def get_video(self, path="/tmp/out.ts"):
         if self.video_file == None:
@@ -274,8 +272,6 @@ class LinuxNode(NodeBase):
     def get_perf_report(self):
         r, o = self.comm.send_cmd("cat " + self.perf.log)
         print "parsing perf report"
-        print o
-        print "--------"
         return parse_perf_report(o)
 
     def start_capture(self, cap_file="/tmp/out.cap"):
