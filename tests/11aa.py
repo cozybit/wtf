@@ -20,6 +20,9 @@ video over wifi. Things you will need:
         client:
         cvlc -I dummy rtp://$client_ip --sout file/ts:out.ts
 
+    hint: sync multiple mcast recepients with '--netsync-master' on the server
+          and '--netsync-master-ip=<server_ip>' on the clients.
+
     qpsnr:
         ./qpsnr -a avg_ssim -s100 -m1000 -o fpa=1000 -r <ref_vid> <recv_vid>
         ./qpsnr -a avg_psnr -s100 -m1000 -o fpa=1000 -r <ref_vid> <recv_vid>
@@ -40,6 +43,7 @@ We test the following link cases:
     2. unicast noHT.
     3. mcast MCS7.
     4. mcast 54mb/s
+
 """
 
 import wtf.node.mesh as mesh

@@ -53,21 +53,24 @@ def get_vqm_report(ref_clip, out_clip):
 # correlation where SSIM closer to 1 means better quality, see DCM for a more
 # reliable quality metric.
 
+# comment these out for now since they take a lot of time.
 # TODO: follow their stdout
-    o = commands.getoutput("qpsnr -a avg_ssim -s100 -m1000 -o fpa=1000 -r %s %s" % \
-                                    (ref_clip, out_clip))
-    print o
+#    o = commands.getoutput("qpsnr -a avg_ssim -s100 -m1000 -o fpa=1000 -r %s %s" % \
+#                                    (ref_clip, out_clip))
+#    print o
 # final result should be on the last line
-    avg_ssim = o.splitlines()[-1].split(",")[1]
-
-    o = commands.getoutput("qpsnr -a avg_psnr -s100 -m1000 -o fpa=1000 -r %s %s" % \
-                                    (ref_clip, out_clip))
-    print o
+#    avg_ssim = o.splitlines()[-1].split(",")[1]
+#
+#    o = commands.getoutput("qpsnr -a avg_psnr -s100 -m1000 -o fpa=1000 -r %s %s" % \
+#                                    (ref_clip, out_clip))
+#    print o
 # final result should be on the last line
-    avg_psnr = o.splitlines()[-1].split(",")[1]
-
+#    avg_psnr = o.splitlines()[-1].split(",")[1]
+#
 # DCM == Dumb Completion Metric :D
     dcm = float(os.path.getsize(out_clip)) / os.path.getsize(ref_clip)
+    avg_ssim = 0
+    avg_psnr = 0
     return VQMReport(ref_clip, out_clip, avg_ssim, avg_psnr, dcm)
 
 def do_vqm(sta, dst, ref_clip):
