@@ -219,6 +219,8 @@ class LinuxNode(NodeBase):
         import os
         self.ref_clip = "/tmp/" + os.path.basename(video)
         self.comm.put_file(video, self.ref_clip)
+# prime mpath so we don't lose inital frames in unicast!
+        self.ping(ip, verbosity=0)
         self.comm.send_cmd("su nobody -c 'vlc -I dummy %s :sout=\"#rtp{dst=%s,port=%d,mux=ts,ttl=1}\" :sout-all :sout-keep vlc://quit' &> /tmp/video.log" % (self.ref_clip, ip, port))
 
     def video_client(self, out_file="/tmp/video.ts", ip=None, port=5004):

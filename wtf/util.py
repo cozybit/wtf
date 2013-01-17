@@ -1,5 +1,6 @@
 import sys
 import commands
+import os
 
 CAP_FILE="/tmp/out.cap"
 
@@ -36,14 +37,21 @@ class LinkReport():
         self.vqm = vqm_report
 
 class VQMReport():
-    def __init__(self, ref_clip="", out_clip="", ssim=0, psnr=0):
+    def __init__(self, ref_clip="", out_clip="", ssim=0, psnr=0, dcm=0):
         self.ref_clip = ref_clip
         self.out_clip = out_clip
         self.ssim = ssim
         self.psnr = psnr
+        self.dcm = dcm
 
 def get_vqm_report(ref_clip, out_clip):
     print "getting VQM for " + out_clip
+
+# XXX: the qpsnr metrics are currently more or less bogus since it will blindly
+# compare the reference and output clips frame-by-frame, but both clips won't
+# start at the *same* frame (due to client-side buffering). Although there is a
+# correlation where SSIM closer to 1 means better quality, see DCM for a more
+# reliable quality metric.
 
 # TODO: follow their stdout
     o = commands.getoutput("qpsnr -a avg_ssim -s100 -m1000 -o fpa=1000 -r %s %s" % \
@@ -57,7 +65,10 @@ def get_vqm_report(ref_clip, out_clip):
     print o
 # final result should be on the last line
     avg_psnr = o.splitlines()[-1].split(",")[1]
-    return VQMReport(ref_clip, out_clip, avg_ssim, avg_psnr)
+
+# DCM == Dumb Completion Metric :D
+    dcm = float(os.path.getsize(out_clip)) / os.path.getsize(ref_clip)
+    return VQMReport(ref_clip, out_clip, avg_ssim, avg_psnr, dcm)
 
 def do_vqm(sta, dst, ref_clip):
     # XXX: a bit nasty, test better be 1 frames above us!

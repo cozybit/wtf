@@ -70,7 +70,8 @@ def tearDown(self):
     for n in wtfconfig.nodes:
         n.stop()
 
-    print "TEST             THROUGHPUT(Mb/s)        LOSS(%)       SSIM        PSNR        FILE"
+    print "                                                     ref_clip=%s" % (ref_clip,)
+    print "TEST             THROUGHPUT(Mb/s)        LOSS(%)       SSIM        PSNR      DCM     FILE"
     for test, result in results.iteritems():
         line = "%s      " % (test,)
 
@@ -79,7 +80,7 @@ def tearDown(self):
             line += "%f         %f      " % (perf.tput, perf.loss)
         if result.vqm != None:
             vqm = result.vqm
-            line += "%s     %s      %s      " % (vqm.ssim, vqm.psnr, vqm.out_clip)
+            line += "%s     %s  %s  %s      " % (vqm.ssim, vqm.psnr, vqm.dcm, vqm.out_clip)
 
         print line
 
