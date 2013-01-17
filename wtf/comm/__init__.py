@@ -111,6 +111,8 @@ class SSH(CommBase):
         self.ipaddr = ipaddr
         CommBase.__init__(self)
 
+# XXX: WARNING! _send_cmd() won't ever block for more than 5 minutes, see the
+# session.prompt() call below.
     def _send_cmd(self, command):
         # TODO: Okay.  Here's a mystery.  If the command is 69 chars long,
         # pxssh chokes on whatever it sees over ssh and all subsequent tests
@@ -122,7 +124,8 @@ class SSH(CommBase):
         if len(command) == 69:
             command = "  " + command
         self.session.sendline(command)
-        self.session.prompt()
+# maybe we want to block on command completion...
+        self.session.prompt(timeout=300)
         output = self.session.before.split("\r\n")[1:-1]
         return output
 
