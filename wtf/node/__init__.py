@@ -186,7 +186,7 @@ class LinuxNode(NodeBase):
 # in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
 # yet), so prime it with a ping first. Takes care of initial "losses" as the
 # path is refreshed.
-            self.ping(conf.dst_ip, verbosity=0)
+            self.ping(conf.dst_ip, verbosity=0, timeout=3)
             cmd = "iperf -c " + conf.dst_ip + \
                   " -i1 -u -b" + str(conf.bw) + "M -t" + str(conf.timeout) + \
                   " -p" + str(conf.listen_port)
