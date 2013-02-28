@@ -16,14 +16,16 @@ def tu_to_us(tu):
 
 def start_captures(stas):
     for sta in stas:
-        sta.start_capture()
+        for conf in sta.configs:
+            sta.start_capture(conf.iface)
 
 def stop_captures(stas, cap_file=CAP_FILE):
     i = 0
     for sta in stas:
         if cap_file == CAP_FILE:
             cap_file += str(i)
-        sta.stop_capture(cap_file)
+        for conf in sta.configs:
+            sta.stop_capture(conf.iface, cap_file)
         i += 1
 
 def killperfs(stas):
@@ -122,7 +124,8 @@ def parse_perf_report(r):
     loss = float(r[0].split(',')[-2])
     return IperfReport(tput, loss)
 
-# TODO: pass a conf parameter
+# perform performance report between nodes listed in sta[]
+# and return report as an IperfReport
 def do_perf(sta, dst):
 
 # destination needs to match server in unicast.

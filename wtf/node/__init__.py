@@ -85,7 +85,7 @@ class NodeBase():
         """
         pass
 
-    def set_ip(self, ipaddr):
+    def set_ip(self, iface, ipaddr):
         """
         set the ip address of a node
         """
@@ -109,17 +109,29 @@ class NodeBase():
             raise ActionFailureError("Failed to \"" + cmd + "\"")
         return o
 
+# wifi interface with associated driver and ip and maybe a monitor interface
+class Iface():
+    def __init__(self, name=None, driver=None, ip=None):
+        if not name:
+            raise InsufficientConfigurationError("need iface name")
+        if not driver:
+            raise InsufficientConfigurationError("need iface driver")
+        self.ip = ip
+        self.name = name
+        self.driver = driver
+        self.phy = None
+        self.mac = None
+        self.monif = None
+        self.local_cap = None
+
 class LinuxNode(NodeBase):
     """
     A linux network node
 
     Expects: iw, mac80211 debugfs
     """
-    def __init__(self, comm, iface, driver=None, path=None):
-        self.driver = driver
-        self.iface = iface
-        self.monif = None
-        self.local_cap = None
+    def __init__(self, comm, ifaces=[], path=None):
+        self.ifaces = ifaces
         NodeBase.__init__(self, comm)
         if path != None:
             self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
@@ -130,43 +142,46 @@ class LinuxNode(NodeBase):
                            verbosity=0)
 
     def init(self):
-        if self.driver:
-            self._cmd_or_die("modprobe " + self.driver)
+        for iface in self.ifaces:
+            self._cmd_or_die("modprobe " + iface.driver)
             # give ifaces time to come up
             import time
             time.sleep(1)
-        # TODO: check for error and throw something!
-        r, self.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + self.iface + " | cut -d/ -f6`", verbosity=0)
-        r, self.mac = self.comm.send_cmd("echo `ip link show " + self.iface + " | awk '/ether/ {print $2}'`", verbosity=0)
+            # TODO: check for error and throw something!
+            r, iface.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + iface.name + " | cut -d/ -f6`", verbosity=0)
+            r, iface.mac = self.comm.send_cmd("echo `ip link show " + iface.name + " | awk '/ether/ {print $2}'`", verbosity=0)
 
-        # XXX: Python people help!!
-        self.phy = self.phy[0]
-        self.mac = self.mac[0]
+            # XXX: Python people help!!
+            iface.phy = iface.phy[0]
+            iface.mac = iface.mac[0]
 
         self.initialized = True
 
     def shutdown(self):
         self.stop()
-        self.comm.send_cmd("ifconfig " + self.iface + " down")
-        if self.driver:
-            self.comm.send_cmd("modprobe -r " + self.driver)
+        for iface in self.ifaces:
+            self.comm.send_cmd("ifconfig " + iface.name + " down")
+            if iface.driver:
+                self.comm.send_cmd("modprobe -r " + iface.driver)
         self.initialized = False
 
     def start(self):
         if self.initialized != True:
             raise UninitializedError()
-        self.set_ip(self.ip)
-        if self.config.mcast_route:
-            self.set_mcast(self.config.mcast_route)
+        for config in self.configs:
+            # FIXME: config.iface.set_ip()?
+            self.set_ip(config.iface, config.iface.ip)
+            if config.mcast_route:
+                self.set_mcast(config.iface, config.mcast_route)
 
     def stop(self):
         self.comm.send_cmd("ifconfig " + self.iface + " down")
 
-    def set_ip(self, ipaddr):
-        self.comm.send_cmd("ifconfig " + self.iface + " " + ipaddr + " up")
+    def set_ip(self, iface, ipaddr):
+        self.comm.send_cmd("ifconfig " + iface.name + " " + ipaddr + " up")
 
-    def set_mcast(self, mcast_route):
-        self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route,  self.iface))
+    def set_mcast(self, iface, mcast_route):
+        self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route, iface.name))
 
     def ping(self, host, timeout=2, count=1, verbosity=2):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
@@ -252,29 +267,34 @@ class LinuxNode(NodeBase):
         print "parsing perf report"
         return parse_perf_report(o)
 
-    def start_capture(self, cap_file="/tmp/out.cap"):
-        self.cap_file = cap_file
-        if not self.monif:
-            self.monif = self.iface + ".mon"
-            self._cmd_or_die("iw " + self.iface + " interface add " + self.monif + " type monitor")
-            self._cmd_or_die("ip link set " + self.monif + " up")
+    def start_capture(self, iface=None, cap_file="/tmp/out.cap"):
+        iface.cap_file = cap_file
+        if not iface:
+            # just grab the first one
+            iface = self.configs[0].iface
+        if not iface.monif:
+            iface.monif = iface.name + ".mon"
+            self._cmd_or_die("iw " + iface.name + " interface add " + iface.monif + " type monitor")
+            self._cmd_or_die("ip link set " + iface.monif + " up")
 
-        self._cmd_or_die("tcpdump -i " + self.monif + " -ll -xx -p -U -w " + self.cap_file + " &")
+        self._cmd_or_die("tcpdump -i " + iface.monif + " -ll -xx -p -U -w " + iface.cap_file + " &")
 
 # return path to capture file now available on local system
-    def get_capture(self, path=None):
+    def get_capture(self, iface, path=None):
+        if not iface:
+            raise UninitializedError("need iface to get capture!")
         if not path:
             import tempfile
             path = tempfile.mktemp()
-        self.comm.get_file(self.cap_file, path)
+        self.comm.get_file(iface.cap_file, path)
 # save a pointer
-        self.local_cap = path
+        iface.local_cap = path
         return path
 
 # stop capture and get a copy for analysis
-    def stop_capture(self, path=None):
-        if not self.monif:
+    def stop_capture(self, iface, path=None):
+        if not iface.monif:
             pass
         self.comm.send_cmd("killall -9 tcpdump")
-        return self.get_capture(path)
+        return self.get_capture(iface, path)
 

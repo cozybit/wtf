@@ -21,26 +21,24 @@ class SnifferBase(node.NodeBase) :
 
 class SnifferConf():
 
-    def __init__(self, channel=1, htmode=""):
+    def __init__(self, channel=1, htmode="", iface=None):
         self.channel = channel
         self.htmode = htmode
+        self.iface = iface
 
 class SnifferSTA(node.LinuxNode, SnifferBase):
-    def __init__(self, comm, iface, driver=None):
-        node.LinuxNode.__init__(self, comm, iface, driver)
-        self.config = None
+    def __init__(self, comm, ifaces, driver=None):
+        node.LinuxNode.__init__(self, comm, ifaces, driver)
+        self.configs = None
 
     def start(self):
-        # XXX: self.stop() should work since we extend LinuxNode?? 
         node.LinuxNode.stop(self)
-        self._cmd_or_die("iw " + self.iface + " set type monitor")
-        node.LinuxNode.start(self)
-        self._cmd_or_die("iw " + self.iface + " set channel " + str(self.config.channel) +
-                         " " + self.config.htmode)
-        self.monif = self.iface
-        # XXX: where does it get this config???
-        if not self.config:
-            raise node.InsufficientConfigurationError()
+        for conf in self.configs:
+            self._cmd_or_die("iw " + conf.iface.name + " set type monitor")
+            node.LinuxNode.start(self)
+            self._cmd_or_die("iw " + conf.iface.name + " set channel " + str(conf.channel) +
+                             " " + conf.htmode)
+            conf.iface.monif = conf.iface
 
     def stop(self):
         node.LinuxNode.stop(self)

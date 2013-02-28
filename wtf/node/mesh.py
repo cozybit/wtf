@@ -27,8 +27,11 @@ class MeshConf():
     XXX: add support for authsae
     """
 
-    def __init__(self, ssid, channel=1, htmode="", security=0, ip=None,
+    def __init__(self, iface=None, ssid, channel=1, htmode="", security=0,
                  mesh_params=None, mcast_rate=None, mcast_route=None):
+        if not iface:
+            raise UninitializedError("need iface for mesh config")
+        self.iface = iface
         self.ssid = ssid
         self.channel = channel
         self.htmode = htmode
@@ -41,13 +44,41 @@ class MeshSTA(node.LinuxNode, MeshBase):
     """
     mesh STA node
     """
-    def __init__(self, comm, iface, driver=None):
-        node.LinuxNode.__init__(self, comm, iface, driver)
-        self.config = None
+    def __init__(self, comm, ifaces):
+        node.LinuxNode.__init__(self, comm, ifaces)
+        self.configs = []
         self.mccapipe = None
 
     def start(self):
-    # This is the configuration template for the authsae config
+        # XXX: self.stop() should work since we extend LinuxNode?? 
+        node.LinuxNode.stop(self)
+
+        for config in configs:
+            #self.set_iftype("mesh")
+            self._cmd_or_die("iw " + config.iface + " set type mp")
+            #node.set_channel(self.config.channel)
+            self._cmd_or_die("iw " + config.iface.name + " set channel " + str(config.channel) +
+                             " " + config.htmode)
+            #self._configure()
+            if config.security:
+                self.authsae_join()
+            else:
+                self.mesh_join()
+        node.LinuxNode.start(self)
+
+    def stop(self):
+        for config in self.configs:
+            if config.security:
+                self.comm.send_cmd("start-stop-daemon --quiet --stop --exec meshd-nl80211")
+            else:
+                self.comm.send_cmd("iw " + config.iface.name + " mesh leave")
+        self.mccatool_stop()
+        node.LinuxNode.stop(self)
+
+    def authsae_join(self, config):
+        # This is the configuration template for the authsae config
+        confpath="/tmp/authsae-%s.conf" % (config.iface.name)
+        logpath="/tmp/authsae-%s.log" % (config.iface.name)
         security_config_base = '''
 /* this is a comment */
 authsae:
@@ -72,48 +103,26 @@ authsae:
   };
 };
 
-''' % ( str(self.config.ssid), str(self.iface), str(self.config.channel))
-        # XXX: self.stop() should work since we extend LinuxNode?? 
-        node.LinuxNode.stop(self)
-        #self.set_iftype("mesh")
-        self._cmd_or_die("iw " + self.iface + " set type mp")
-        #node.set_channel(self.config.channel)
-        self._cmd_or_die("iw " + self.iface + " set channel " + str(self.config.channel) +
-                         " " + self.config.htmode)
-        node.LinuxNode.start(self)
-        # XXX: where does it get this config???
-        if not self.config:
-            raise node.InsufficientConfigurationError()
-        #self._configure()
-        if self.config.security:
-            self._cmd_or_die("echo -e \"" + security_config_base + "\"> /tmp/authsae.conf", verbosity=0);
-            self._cmd_or_die("meshd-nl80211 -c /tmp/authsae.conf /tmp/authsae.log &")
-        else:
-            self.mesh_join()
+''' % ( str(config.ssid), str(config.iface.name), str(config.channel))
+        self._cmd_or_die("echo -e \"" + security_config_base + "\"> %s" % (confpath), verbosity=0);
+        self._cmd_or_die("meshd-nl80211 -c %s %s &" % (confpath, logpath))
 
-    def stop(self):
-        if self.config.security:
-            self.comm.send_cmd("start-stop-daemon --quiet --stop --exec meshd-nl80211")
-        else:
-            self.comm.send_cmd("iw " + self.iface + " mesh leave")
-        self.mccatool_stop()
-        node.LinuxNode.stop(self)
-
-    def mesh_join(self):
-        cmd = "iw %s mesh join %s" % (self.iface, self.config.ssid)
-        if self.config.mcast_rate:
-            cmd +=  " mcast-rate %s" % (self.config.mcast_rate)
-        if self.config.mesh_params:
-            cmd += " " + self.config.mesh_params
+    def mesh_join(self, config):
+        cmd = "iw %s mesh join %s" % (config.iface.name, config.ssid)
+        if config.mcast_rate:
+            cmd +=  " mcast-rate %s" % (config.mcast_rate)
+        if config.mesh_params:
+            cmd += " " + config.mesh_params
         self._cmd_or_die(cmd)
 
-# restart mesh with supplied new mesh conf
+# restart mesh with supplied new mesh conf with matching iface
     def reconf(self, nconf):
-            # LinuxNode.shutdown()????
-            self.shutdown()
-            self.config = nconf
-            self.init()
-            self.start()
+        # LinuxNode.shutdown()????
+        self.shutdown()
+        i = 0
+        self.configs = [conf if conf.iface.name != nconf.iface.name else nconf for conf in self.configs]
+        self.init()
+        self.start()
 
 # empty owner means just configure own owner reservation, else install
 # specified interference reservation.
@@ -131,7 +140,7 @@ authsae:
                                                     self.res.period,
                                                     self.mccapipe))
 
-    def mccatool_start(self):
+    def mccatool_start(self, config=self.configs[0]):
         if not self.mccapipe:
             import tempfile
             self.mccapipe = tempfile.mktemp()
@@ -139,9 +148,9 @@ authsae:
 # keep the pipe open :|
             self._cmd_or_die("nohup sleep 10000 > %s &" % self.mccapipe)
 
-        self._cmd_or_die("nohup mccatool %s > /tmp/mccatool.out 2> /dev/null < %s &" % (self.iface, self.mccapipe))
+        self._cmd_or_die("nohup mccatool %s > /tmp/mccatool.out 2> /dev/null < %s &" % (config.iface.name, self.mccapipe))
 
-    def mccatool_stop(self):
+    def mccatool_stop(self, config=self.configs[0]):
         if self.mccapipe:
             self.comm.send_cmd("killall mccatool")
             self.comm.send_cmd("rm %s" % self.mccapipe)
