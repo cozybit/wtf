@@ -131,8 +131,11 @@ def do_perf(sta, dst):
 # destination needs to match server in unicast.
     server  = None
     for s in sta:
-        if dst == s.ip:
-            server = s
+        for conf in s.configs:
+            if dst == conf.iface.ip:
+                server = s
+                break
+        if server == s:
             continue
         client = s
 

@@ -132,6 +132,7 @@ class LinuxNode(NodeBase):
     """
     def __init__(self, comm, ifaces=[], path=None):
         self.ifaces = ifaces
+        self.brif = None
         NodeBase.__init__(self, comm)
         if path != None:
             self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
@@ -170,15 +171,17 @@ class LinuxNode(NodeBase):
             raise UninitializedError()
         for config in self.configs:
             # FIXME: config.iface.set_ip()?
-            self.set_ip(config.iface, config.iface.ip)
+            self.set_ip(config.iface.name, config.iface.ip)
             if config.mcast_route:
                 self.set_mcast(config.iface, config.mcast_route)
 
     def stop(self):
-        self.comm.send_cmd("ifconfig " + self.iface + " down")
+        for iface in self.ifaces:
+            self.comm.send_cmd("ifconfig " + iface.name + " down")
+        self.del_brif()
 
-    def set_ip(self, iface, ipaddr):
-        self.comm.send_cmd("ifconfig " + iface.name + " " + ipaddr + " up")
+    def set_ip(self, name, ipaddr):
+        self.comm.send_cmd("ifconfig " + name + " " + ipaddr + " up")
 
     def set_mcast(self, iface, mcast_route):
         self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route, iface.name))
@@ -294,7 +297,26 @@ class LinuxNode(NodeBase):
 # stop capture and get a copy for analysis
     def stop_capture(self, iface, path=None):
         if not iface.monif:
-            pass
+            return
         self.comm.send_cmd("killall -9 tcpdump")
         return self.get_capture(iface, path)
 
+    def if_down(self, iface):
+        self.comm.send_cmd("ifconfig " + iface + " down")
+
+    def del_brif(self):
+        if not self.brif:
+            return
+        self.if_down(self.brif)
+        self._cmd_or_die("brctl delbr " + self.brif)
+
+# bridge interfaces in ifaces[] and assign ip
+    def bridge(self, ifaces, ip):
+        bridge="br0"
+        self.del_brif();
+        self.brif = bridge
+        self._cmd_or_die("brctl addbr " + bridge)
+        for iface in ifaces:
+            self._cmd_or_die("ip addr flush " + iface.name)
+            self._cmd_or_die("brctl addif %s %s " % (bridge, iface.name))
+        self.set_ip("br0", ip)

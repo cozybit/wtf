@@ -27,7 +27,7 @@ class MeshConf():
     XXX: add support for authsae
     """
 
-    def __init__(self, iface=None, ssid, channel=1, htmode="", security=0,
+    def __init__(self, ssid, channel=1, htmode="", security=0, iface=None,
                  mesh_params=None, mcast_rate=None, mcast_route=None):
         if not iface:
             raise UninitializedError("need iface for mesh config")
@@ -53,17 +53,18 @@ class MeshSTA(node.LinuxNode, MeshBase):
         # XXX: self.stop() should work since we extend LinuxNode?? 
         node.LinuxNode.stop(self)
 
-        for config in configs:
+        for config in self.configs:
             #self.set_iftype("mesh")
-            self._cmd_or_die("iw " + config.iface + " set type mp")
+            self._cmd_or_die("iw " + config.iface.name + " set type mp")
             #node.set_channel(self.config.channel)
             self._cmd_or_die("iw " + config.iface.name + " set channel " + str(config.channel) +
                              " " + config.htmode)
-            #self._configure()
+            # must be up for authsae or iw
+            self._cmd_or_die("ifconfig " + config.iface.name + " up")
             if config.security:
-                self.authsae_join()
+                self.authsae_join(config)
             else:
-                self.mesh_join()
+                self.mesh_join(config)
         node.LinuxNode.start(self)
 
     def stop(self):
@@ -140,7 +141,9 @@ authsae:
                                                     self.res.period,
                                                     self.mccapipe))
 
-    def mccatool_start(self, config=self.configs[0]):
+    def mccatool_start(self, config=None):
+        if not config:
+            config = self.configs[0]
         if not self.mccapipe:
             import tempfile
             self.mccapipe = tempfile.mktemp()
@@ -150,7 +153,9 @@ authsae:
 
         self._cmd_or_die("nohup mccatool %s > /tmp/mccatool.out 2> /dev/null < %s &" % (config.iface.name, self.mccapipe))
 
-    def mccatool_stop(self, config=self.configs[0]):
+    def mccatool_stop(self, config=None):
+        if not config:
+            config = self.configs[0]
         if self.mccapipe:
             self.comm.send_cmd("killall mccatool")
             self.comm.send_cmd("rm %s" % self.mccapipe)
