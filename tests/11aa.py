@@ -100,20 +100,24 @@ class Test11aa(unittest.TestCase):
     def test_1_unicast_ht20(self):
         fname = sys._getframe().f_code.co_name
 
-        perf_report = do_perf(sta[:2], sta[1].ip)
-        vqm_report = do_vqm(sta[:2], sta[1].ip, ref_clip)
+        dst_ip = sta[1].configs[0].iface.ip
+
+        perf_report = do_perf(sta[:2], dst_ip)
+        vqm_report = do_vqm(sta[:2], dst_ip, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
 
     def test_2_unicast_noht(self):
         fname = sys._getframe().f_code.co_name
 
-        conf = sta[0].config
+        conf = sta[0].configs[0]
         conf.htmode = ""
         reconf_stas(wtfconfig.mps, conf)
 
-        perf_report = do_perf(sta[:2], sta[1].ip)
-        vqm_report = do_vqm(sta[:2], sta[1].ip, ref_clip)
+        dst_ip = sta[1].configs[0].iface.ip
+
+        perf_report = do_perf(sta[:2], dst_ip)
+        vqm_report = do_vqm(sta[:2], dst_ip, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
 
@@ -126,7 +130,7 @@ class Test11aa(unittest.TestCase):
         # hard-coded to 54mbps for now
         fname = sys._getframe().f_code.co_name
 
-        conf = sta[0].config
+        conf = sta[0].configs[0]
         conf.mesh_params = "mesh_ttl=1"
         conf.mcast_rate = "54"
         conf.mcast_route = mcast_dst

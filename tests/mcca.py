@@ -207,7 +207,7 @@ class TestMCCA(unittest.TestCase):
 # scope of this test.
         mon.start_capture()
         sta[0].perf_serve()
-        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, b=60)
+        sta[1].perf_client(sta[0].configs[0].iface.ip, timeout=10, dual=True, b=60)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "0")
 
@@ -219,7 +219,7 @@ class TestMCCA(unittest.TestCase):
         mon.start_capture()
 # send traffic
         sta[0].perf_serve()
-        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, b=60)
+        sta[1].perf_client(sta[0].configs[0].iface.ip, timeout=10, dual=True, b=60)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "1")
 
@@ -243,9 +243,10 @@ class TestMCCA(unittest.TestCase):
         sta[0].perf_serve(p=7001)
         sta[0].perf_serve(p=7002)
 
-        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        sta[2].perf_client(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        sta[3].perf_client(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        dst_ip = sta[0].configs[0].iface.ip
+        sta[1].perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        sta[2].perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        sta[3].perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "2")
 
@@ -273,9 +274,10 @@ class TestMCCA(unittest.TestCase):
         sta[0].perf_serve(p=7001)
         sta[0].perf_serve(p=7002)
 
-        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        sta[2].perf_client(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        sta[3].perf_client(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        dst_ip = sta[0].configs[0].iface.ip
+        sta[1].perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        sta[2].perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        sta[3].perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "3")
         # TODO: failure conditions
@@ -291,9 +293,10 @@ class TestMCCA(unittest.TestCase):
         sta[0].perf_serve(p=7001)
         sta[0].perf_serve(p=7002)
 
-        sta[1].perf_client(sta[0].ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        sta[2].perf_client(sta[0].ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        sta[3].perf_client(sta[0].ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        dst_ip = sta[0].configs[0].iface.ip
+        sta[1].perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        sta[2].perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        sta[3].perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "4")
         # TODO: failure conditions
