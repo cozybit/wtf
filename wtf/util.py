@@ -157,3 +157,24 @@ def do_tshark(cap_file, tshark_filter, extra=""):
         raise Exception("tshark error %d! Is tshark installed and %s exists? Please verify filter %s" % (r, cap_file, tshark_filter))
     return o
 
+def print_linkreports(results):
+    header="TEST             "
+
+# assuming we have same stats for all the tests...
+    if results.values()[0].perf != None:
+        header += "THROUGHPUT(Mb/s)        LOSS(%)       "
+    if results.values()[0].vqm != None:
+        header += "SSIM        PSNR      DCM     FILE           "
+
+    print header
+    for test, result in results.iteritems():
+        line = "%s      " % (test,)
+
+        if result.perf != None:
+            perf = result.perf
+            line += "%f         %f      " % (perf.tput, perf.loss)
+        if result.vqm != None:
+            vqm = result.vqm
+            line += "%s     %s  %s  %s      " % (vqm.ssim, vqm.psnr, vqm.dcm, vqm.out_clip)
+
+        print line
