@@ -74,7 +74,10 @@ class TestMMBSS(unittest.TestCase):
         fname = sys._getframe().f_code.co_name
         dst_ip = sta[2].configs[0].iface.ip
 
-        # TODO: set vif forwarding = true and reconf
+        # enable in-kernel intra-vif forwarding
+        conf = sta[1].configs[0].shared = True
+        conf = sta[1].configs[1].shared = True
+        sta[1].reconf()
 
         perf_report = do_perf([sta[0], sta[2]], dst_ip)
         results[fname] = LinkReport(perf_report=perf_report)

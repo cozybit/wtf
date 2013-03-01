@@ -120,10 +120,12 @@ authsae:
         self._cmd_or_die(cmd)
 
 # restart mesh with supplied new mesh conf with matching iface
-    def reconf(self, nconf):
+# if no new conf supplied, just restart node
+    def reconf(self, nconf=None):
         # LinuxNode.shutdown()????
         self.shutdown()
-        self.configs = [conf if conf.iface.name != nconf.iface.name else nconf for conf in self.configs]
+        if nconf:
+            self.configs = [conf if conf.iface.name != nconf.iface.name else nconf for conf in self.configs]
         self.init()
         self.start()
 
