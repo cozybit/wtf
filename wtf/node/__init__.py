@@ -161,9 +161,10 @@ class LinuxNode(NodeBase):
     def shutdown(self):
         self.stop()
         for iface in self.ifaces:
-            self.comm.send_cmd("ifconfig " + iface.name + " down")
             if iface.driver:
                 self.comm.send_cmd("modprobe -r " + iface.driver)
+        # stop meshkitd in case it's installed
+        self.comm.send_cmd("/etc/init.d/meshkit stop")
         self.initialized = False
 
     def start(self):
@@ -308,7 +309,7 @@ class LinuxNode(NodeBase):
         if not self.brif:
             return
         self.if_down(self.brif)
-        self._cmd_or_die("brctl delbr " + self.brif)
+        self.comm.send_cmd("brctl delbr " + self.brif)
 
 # bridge interfaces in ifaces[] and assign ip
     def bridge(self, ifaces, ip):

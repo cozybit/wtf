@@ -120,7 +120,6 @@ authsae:
     def reconf(self, nconf):
         # LinuxNode.shutdown()????
         self.shutdown()
-        i = 0
         self.configs = [conf if conf.iface.name != nconf.iface.name else nconf for conf in self.configs]
         self.init()
         self.start()
