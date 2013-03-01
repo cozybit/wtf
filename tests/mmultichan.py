@@ -43,6 +43,9 @@ def tearDown(self):
 
 class TestMMBSS(unittest.TestCase):
     def setUp(self):
+        for n in wtfconfig.nodes:
+            n.stop()
+            n.start()
         pass
 
     def tearDown(self):
@@ -63,6 +66,15 @@ class TestMMBSS(unittest.TestCase):
         if1 = sta[1].configs[0].iface
         if2 = sta[1].configs[1].iface
         sta[1].bridge([if1, if2], sta[1].configs[0].iface.ip)
+
+        perf_report = do_perf([sta[0], sta[2]], dst_ip)
+        results[fname] = LinkReport(perf_report=perf_report)
+
+    def test_2_mmbss(self):
+        fname = sys._getframe().f_code.co_name
+        dst_ip = sta[2].configs[0].iface.ip
+
+        # TODO: set vif forwarding = true and reconf
 
         perf_report = do_perf([sta[0], sta[2]], dst_ip)
         results[fname] = LinkReport(perf_report=perf_report)
