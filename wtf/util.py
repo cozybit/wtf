@@ -171,7 +171,8 @@ def print_linkreports(results):
         header += "SSIM        PSNR      DCM     FILE           "
 
     print header
-    for test, result in results.iteritems():
+    for test in sorted(results):
+        result = results[test]
         line = "%s      " % (test,)
 
         if result.perf != None:
