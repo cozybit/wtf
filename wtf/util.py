@@ -124,8 +124,8 @@ def parse_perf_report(r):
         loss = 0
     else:
 # output comes as list of strings, hence r[0]...
-        tput = float(r[0].split(',')[-6]) / (1024 * 1024) # bits -> mbits
-        loss = float(r[0].split(',')[-2])
+        tput = float(r[-1].split(',')[-6]) / (1024 * 1024) # bits -> mbits
+        loss = float(r[-1].split(',')[-2])
     return IperfReport(tput, loss)
 
 # perform performance report between nodes listed in sta[]
