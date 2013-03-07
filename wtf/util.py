@@ -16,16 +16,16 @@ def tu_to_us(tu):
 
 def start_captures(stas):
     for sta in stas:
-        for conf in sta.configs:
-            sta.start_capture(conf.iface)
+        for iface in sta.iface:
+            sta.start_capture(iface)
 
 def stop_captures(stas, cap_file=CAP_FILE):
     i = 0
     for sta in stas:
         if cap_file == CAP_FILE:
             cap_file += str(i)
-        for conf in sta.configs:
-            sta.stop_capture(conf.iface, cap_file)
+        for iface in sta.iface:
+            sta.stop_capture(iface, cap_file)
         i += 1
 
 def killperfs(stas):
@@ -111,6 +111,7 @@ class PerfConf():
         self.dual_port = L
         self.fork = fork
         self.report = None
+        self.pid = None
 
 class IperfReport():
     def __init__(self, throughput=0.0, loss=0.0):
@@ -124,29 +125,26 @@ def parse_perf_report(r):
         loss = 0
     else:
 # output comes as list of strings, hence r[0]...
-        tput = float(r[-1].split(',')[-6]) / (1024 * 1024) # bits -> mbits
-        loss = float(r[-1].split(',')[-2])
+        tput = float(r[0].split(',')[-6]) / (1024 * 1024) # bits -> mbits
+        loss = float(r[0].split(',')[-2])
     return IperfReport(tput, loss)
 
-# perform performance report between nodes listed in sta[]
-# and return report as an IperfReport
-def do_perf(sta, dst):
+# perform performance report between interfaces listed in ifaces[] and return
+# report as an IperfReport
+def do_perf(ifaces, dst):
 
 # destination needs to match server in unicast.
     server  = None
-    for s in sta:
-        for conf in s.configs:
-            if dst == conf.iface.ip:
-                server = s
-                break
-        if server == s:
-            continue
-        client = s
+    for iface in ifaces:
+        if dst == iface.ip:
+            server = iface
+            break
+        client = iface
 
 # at least make transmitter consistent in mcast case.
     if server == None:
-        server = sta[1]
-        client = sta[0]
+        server = ifaces[1]
+        client = ifaces[0]
 
     server.perf_serve(dst_ip=dst)
     client.perf_client(dst_ip=dst, timeout=10, b=100)

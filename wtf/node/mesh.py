@@ -47,29 +47,29 @@ class MeshSTA(node.LinuxNode, MeshBase):
     """
     def __init__(self, comm, ifaces):
         node.LinuxNode.__init__(self, comm, ifaces)
-        self.configs = []
         self.mccapipe = None
 
     def start(self):
         # XXX: self.stop() should work since we extend LinuxNode?? 
         node.LinuxNode.stop(self)
 
-        for config in self.configs:
+        for iface in self.iface:
             #self.set_iftype("mesh")
-            self._cmd_or_die("iw " + config.iface.name + " set type mp")
+            self._cmd_or_die("iw " + iface.name + " set type mp")
             #node.set_channel(self.config.channel)
-            self._cmd_or_die("iw " + config.iface.name + " set channel " + str(config.channel) +
-                             " " + config.htmode)
+            self._cmd_or_die("iw " + iface.name + " set channel " + str(iface.conf.channel) +
+                             " " + iface.conf.htmode)
             # must be up for authsae or iw
-            self._cmd_or_die("ifconfig " + config.iface.name + " up")
-            if config.security:
-                self.authsae_join(config)
+            self._cmd_or_die("ifconfig " + iface.name + " up")
+            if iface.conf.security:
+                self.authsae_join(iface.conf)
             else:
-                self.mesh_join(config)
+                self.mesh_join(iface.conf)
         node.LinuxNode.start(self)
 
     def stop(self):
-        for config in self.configs:
+        for iface in self.iface:
+            config = iface.conf
             if config.security:
                 self.comm.send_cmd("start-stop-daemon --quiet --stop --exec meshd-nl80211")
             else:
@@ -119,13 +119,10 @@ authsae:
             cmd += " " + config.mesh_params
         self._cmd_or_die(cmd)
 
-# restart mesh with supplied new mesh conf with matching iface
-# if no new conf supplied, just restart node
-    def reconf(self, nconf=None):
+# restart mesh node
+    def reconf(self):
         # LinuxNode.shutdown()????
         self.shutdown()
-        if nconf:
-            self.configs = [conf if conf.iface.name != nconf.iface.name else nconf for conf in self.configs]
         self.init()
         self.start()
 
@@ -147,7 +144,7 @@ authsae:
 
     def mccatool_start(self, config=None):
         if not config:
-            config = self.configs[0]
+            config = self.iface[0].conf
         if not self.mccapipe:
             import tempfile
             self.mccapipe = tempfile.mktemp()
@@ -159,7 +156,7 @@ authsae:
 
     def mccatool_stop(self, config=None):
         if not config:
-            config = self.configs[0]
+            config = self.iface[0].conf
         if self.mccapipe:
             self.comm.send_cmd("killall mccatool")
             self.comm.send_cmd("rm %s" % self.mccapipe)

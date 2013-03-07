@@ -111,7 +111,7 @@ class NodeBase():
 
 # wifi interface with associated driver and ip and maybe a monitor interface
 class Iface():
-    def __init__(self, name=None, driver=None, ip=None):
+    def __init__(self, name=None, driver=None, ip=None, conf=None):
         if not name:
             raise InsufficientConfigurationError("need iface name")
         if not driver:
@@ -119,10 +119,68 @@ class Iface():
         self.ip = ip
         self.name = name
         self.driver = driver
+        self.conf = conf
+        self.perf = None
+        self.node = None
         self.phy = None
         self.mac = None
         self.monif = None
         self.local_cap = None
+
+    def start_perf(self, conf):
+        if conf.dst_ip == None:
+            conf.dst_ip = self.ip
+        self.perf = conf
+        self.perf.log = "/tmp/iperf_" + self.name + ".log"
+        if conf.server == True:
+            cmd = "iperf -s -u -p" + str(conf.listen_port)
+            if conf.dst_ip:
+                cmd += " -B" + conf.dst_ip
+# -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
+            cmd += " -y c -x CS > " + self.perf.log
+            cmd += " &"
+        else:
+# in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
+# yet), so prime it with a ping first. Takes care of initial "losses" as the
+# path is refreshed.
+            self.node.ping(conf.dst_ip, verbosity=0, timeout=3)
+            cmd = "iperf -c " + conf.dst_ip + \
+                  " -i1 -u -b" + str(conf.bw) + "M -t" + str(conf.timeout) + \
+                  " -p" + str(conf.listen_port)
+            if conf.dual:
+                cmd += " -d -L" + str(conf.dual_port)
+            if conf.fork:
+                cmd += " &"
+
+        r, o = self.node.comm.send_cmd(cmd)
+        if conf.server != True and conf.fork != True:
+# we blocked on completion and report is ready now
+            self.perf.report = o[1]
+        else:
+            r, o = self.node.comm.send_cmd("echo $!")
+            self.perf.pid =  int(o[0])
+
+    def perf_serve(self, dst_ip=None, p=7777):
+        self.start_perf(PerfConf(server=True, dst_ip=dst_ip, p=p))
+
+    def perf_client(self, dst_ip=None, timeout=5, dual=False, b=10, p=7777, L=6666, fork=False):
+        if dst_ip == None:
+            raise InsufficientConfigurationError("need dst_ip for perf")
+        self.start_perf(PerfConf(dst_ip=dst_ip, timeout=timeout,
+                                 dual=dual, b=b, p=p, L=L, fork=fork))
+
+    def killperf(self):
+        if self.perf.pid == None:
+            return
+        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.perf.pid,))
+        self.perf.pid = None
+
+    def get_perf_report(self):
+        self.killperf()
+        r, o = self.node.comm.send_cmd("cat " + self.perf.log)
+        print "parsing perf report"
+        return parse_perf_report(o)
+
 
 class LinuxNode(NodeBase):
     """
@@ -131,7 +189,7 @@ class LinuxNode(NodeBase):
     Expects: iw, mac80211 debugfs
     """
     def __init__(self, comm, ifaces=[], path=None):
-        self.ifaces = ifaces
+        self.iface = ifaces
         self.brif = None
         NodeBase.__init__(self, comm)
         if path != None:
@@ -143,7 +201,7 @@ class LinuxNode(NodeBase):
                            verbosity=0)
 
     def init(self):
-        for iface in self.ifaces:
+        for iface in self.iface:
             self._cmd_or_die("modprobe " + iface.driver)
             # give ifaces time to come up
             import time
@@ -155,12 +213,13 @@ class LinuxNode(NodeBase):
             # XXX: Python people help!!
             iface.phy = iface.phy[0]
             iface.mac = iface.mac[0]
+            iface.node = self
 
         self.initialized = True
 
     def shutdown(self):
         self.stop()
-        for iface in self.ifaces:
+        for iface in self.iface:
             if iface.driver:
                 self.comm.send_cmd("modprobe -r " + iface.driver)
         # stop meshkitd in case it's installed
@@ -170,14 +229,14 @@ class LinuxNode(NodeBase):
     def start(self):
         if self.initialized != True:
             raise UninitializedError()
-        for config in self.configs:
+        for iface in self.iface:
             # FIXME: config.iface.set_ip()?
-            self.set_ip(config.iface.name, config.iface.ip)
-            if config.mcast_route:
-                self.set_mcast(config.iface, config.mcast_route)
+            self.set_ip(iface.name, iface.ip)
+            if iface.conf.mcast_route:
+                self.set_mcast(iface, iface.conf.mcast_route)
 
     def stop(self):
-        for iface in self.ifaces:
+        for iface in self.iface:
             self.comm.send_cmd("ifconfig " + iface.name + " down")
         self.del_brif()
 
@@ -190,45 +249,6 @@ class LinuxNode(NodeBase):
     def ping(self, host, timeout=2, count=1, verbosity=2):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host, verbosity=verbosity)[0]
-
-    def start_perf(self, conf):
-        self.perf = conf
-        self.perf.log = "/tmp/iperf.log"
-        if conf.server == True:
-            cmd = "iperf -s -u -p" + str(conf.listen_port)
-            if conf.dst_ip:
-                cmd += " -B" + conf.dst_ip
-# -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
-            cmd += " -y c -x CS | tee " + self.perf.log
-            cmd += " &"
-        else:
-# in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
-# yet), so prime it with a ping first. Takes care of initial "losses" as the
-# path is refreshed.
-            self.ping(conf.dst_ip, verbosity=0, timeout=3)
-            cmd = "iperf -c " + conf.dst_ip + \
-                  " -i1 -u -b" + str(conf.bw) + "M -t" + str(conf.timeout) + \
-                  " -p" + str(conf.listen_port)
-            if conf.dual:
-                cmd += " -d -L" + str(conf.dual_port)
-            if conf.fork:
-# -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
-                cmd += " -y c -x CS | tee " + self.perf.log
-                cmd += " &"
-
-        r, o = self.comm.send_cmd(cmd)
-        if conf.server != True and conf.fork != True:
-# we blocked on completion and report is ready now
-            self.perf.report = o[1]
-
-    def perf_serve(self, dst_ip=None, p=7777):
-        self.start_perf(PerfConf(server=True, dst_ip=dst_ip, p=p))
-
-    def perf_client(self, dst_ip=None, timeout=5, dual=False, b=10, p=7777, L=6666, fork=False):
-        if dst_ip == None:
-            raise InsufficientConfigurationError("need dst_ip for perf")
-        self.start_perf(PerfConf(dst_ip=dst_ip, timeout=timeout,
-                                 dual=dual, b=b, p=p, L=L, fork=fork))
 
 # server @video to @dst_ip using VLC. Blocks until stream completion
     def video_serve(self, video=None, ip=None, port=5004):
@@ -259,23 +279,11 @@ class LinuxNode(NodeBase):
         self.killvideo()
         self.comm.get_file(self.video_file, path)
 
-    def killperf(self):
-        # only need to kill servers or forked clients. This is really to
-        # protect against missing report output in o, but that's not obvious :(
-        if self.perf.server != True and self.perf.fork != True:
-            raise ActionFailureError("don't kill me bro")
-        self.comm.send_cmd("killall -w iperf")
-        
-    def get_perf_report(self):
-        r, o = self.comm.send_cmd("cat " + self.perf.log)
-        print "parsing perf report"
-        return parse_perf_report(o)
-
     def start_capture(self, iface=None, cap_file="/tmp/out.cap"):
         iface.cap_file = cap_file
         if not iface:
             # just grab the first one
-            iface = self.configs[0].iface
+            iface = self.iface[0]
         if not iface.monif:
             iface.monif = iface.name + ".mon"
             self._cmd_or_die("iw " + iface.name + " interface add " + iface.monif + " type monitor")
