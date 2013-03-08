@@ -68,10 +68,11 @@ class TestMMBSS(unittest.TestCase):
         fname = sys._getframe().f_code.co_name
 
         perf_report = do_perf([if_a, if_b], if_b.ip)
+        results[fname + "_ab"] = LinkReport(perf_report=perf_report)
+        perf_report = do_perf([if_c, if_d], if_d.ip)
+        results[fname + "_cd"] = LinkReport(perf_report=perf_report)
 
-        results[fname] = LinkReport(perf_report=perf_report)
-
-    def test_1_dual_single_hop(self):
+    def test_1_sim_single_hop(self):
         fname = sys._getframe().f_code.co_name
 
 # separate one of the links at IP layer
@@ -90,9 +91,9 @@ class TestMMBSS(unittest.TestCase):
         if_c.perf_client(dst_ip=if_d.ip, timeout=10, b=100)
 
         perf_report = if_b.get_perf_report()
-        results[fname + "_a"] = LinkReport(perf_report=perf_report)
+        results[fname + "_ab"] = LinkReport(perf_report=perf_report)
         perf_report = if_d.get_perf_report()
-        results[fname + "_b"] = LinkReport(perf_report=perf_report)
+        results[fname + "_cd"] = LinkReport(perf_report=perf_report)
 
         if_c.ip = old_ipc
         if_d.ip = old_ipd
