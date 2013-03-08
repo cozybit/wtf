@@ -213,6 +213,11 @@ class Iface():
         self.killvideo()
         self.node.comm.get_file(self.video_file, path)
 
+    # XXX: ahem, mesh-specific goes in MeshIface?
+    def add_mesh_peer(self, peer):
+        self.node.comm.send_cmd("iw %s station set %s plink_action open" %
+                                (self.name, peer.mac))
+
 
 class LinuxNode(NodeBase):
     """

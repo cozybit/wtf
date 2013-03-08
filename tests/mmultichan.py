@@ -117,3 +117,27 @@ class TestMMBSS(unittest.TestCase):
 
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
+
+    def test_4_same_ch_mhop(self):
+        fname = sys._getframe().f_code.co_name
+
+        # do a -> b -> d
+# disable c
+        if_c.enable = False
+        if_c.node.reconf()
+
+        ifs = [if_a, if_b, if_d]
+        for iface in ifs:
+            if iface != if_b:
+                iface.conf.mesh_params = "mesh_auto_open_plinks=0"
+            iface.conf.channel = 1
+            iface.node.reconf()
+
+        import time
+        time.sleep(3)
+        if_a.add_mesh_peer(if_b)
+        if_d.add_mesh_peer(if_b)
+
+        perf_report = do_perf([if_a, if_d], if_d.ip)
+        # test multi-hop performance using a single radio for forwarding
+        results[fname] = LinkReport(perf_report=perf_report)
