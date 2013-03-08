@@ -181,6 +181,37 @@ class Iface():
         print "parsing perf report"
         return parse_perf_report(o)
 
+# server @video to @dst_ip using VLC. Blocks until stream completion
+    def video_serve(self, video=None, ip=None, port=5004):
+        if ip == None or video == None:
+            raise InsufficientConfigurationError("need a reference clip and destination ip!")
+        print "%s: starting video server" % (self.ip,)
+        import os
+        self.ref_clip = "/tmp/" + os.path.basename(video)
+        self.comm.put_file(video, self.ref_clip)
+# prime mpath so we don't lose inital frames in unicast!
+        self.node.ping(ip, verbosity=0)
+        self.node.comm.send_cmd("su nobody -c 'vlc -I dummy %s :sout=\"#rtp{dst=%s,port=%d,mux=ts,ttl=1}\" :sout-all :sout-keep vlc://quit' &> /tmp/video.log" % (self.ref_clip, ip, port))
+
+    def video_client(self, out_file=None, ip=None, port=5004):
+        print "%s: starting video client" % (self.ip,)
+        if ip == None:
+            raise InsufficientConfigurationError("need a reference clip and destination ip!")
+        if out_file == None:
+            out_file = "/tmp/" + self.name + "_video.ts"
+        self.video_file = out_file
+        self.node.comm.send_cmd("su nobody -c 'vlc -I dummy rtp://%s:%d --sout file/ts:%s' &> /tmp/video.log &" % (ip, port, self.video_file))
+
+    def killvideo(self):
+        self.node.comm.send_cmd("killall -w vlc")
+        self.node.comm.send_cmd("cat /tmp/video.log")
+
+    def get_video(self, path="/tmp/out.ts"):
+        if self.video_file == None:
+            pass
+        self.killvideo()
+        self.node.comm.get_file(self.video_file, path)
+
 
 class LinuxNode(NodeBase):
     """
@@ -249,35 +280,6 @@ class LinuxNode(NodeBase):
     def ping(self, host, timeout=2, count=1, verbosity=2):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host, verbosity=verbosity)[0]
-
-# server @video to @dst_ip using VLC. Blocks until stream completion
-    def video_serve(self, video=None, ip=None, port=5004):
-        if ip == None or video == None:
-            raise InsufficientConfigurationError("need a reference clip and destination ip!")
-        print "%s: starting video server" % (self.ip,)
-        import os
-        self.ref_clip = "/tmp/" + os.path.basename(video)
-        self.comm.put_file(video, self.ref_clip)
-# prime mpath so we don't lose inital frames in unicast!
-        self.ping(ip, verbosity=0)
-        self.comm.send_cmd("su nobody -c 'vlc -I dummy %s :sout=\"#rtp{dst=%s,port=%d,mux=ts,ttl=1}\" :sout-all :sout-keep vlc://quit' &> /tmp/video.log" % (self.ref_clip, ip, port))
-
-    def video_client(self, out_file="/tmp/video.ts", ip=None, port=5004):
-        print "%s: starting video client" % (self.ip,)
-        if ip == None:
-            raise InsufficientConfigurationError("need a reference clip and destination ip!")
-        self.video_file = out_file
-        self.comm.send_cmd("su nobody -c 'vlc -I dummy rtp://%s:%d --sout file/ts:%s' &> /tmp/video.log &" % (ip, port, self.video_file))
-
-    def killvideo(self):
-        self.comm.send_cmd("killall -w vlc")
-        self.comm.send_cmd("cat /tmp/video.log")
-
-    def get_video(self, path="/tmp/out.ts"):
-        if self.video_file == None:
-            pass
-        self.killvideo()
-        self.comm.get_file(self.video_file, path)
 
     def start_capture(self, iface=None, cap_file="/tmp/out.cap"):
         iface.cap_file = cap_file

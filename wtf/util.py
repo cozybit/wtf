@@ -4,9 +4,9 @@ import os
 
 CAP_FILE="/tmp/out.cap"
 
-def reconf_stas(stas, conf):
+def reconf_stas(stas):
     for sta in stas:
-        sta.reconf(conf)
+        sta.reconf()
 
 def tu_to_s(tu):
     return tu * 1024 / 1000 / float(1000)
@@ -75,23 +75,23 @@ def get_vqm_report(ref_clip, out_clip):
     avg_psnr = 0
     return VQMReport(ref_clip, out_clip, avg_ssim, avg_psnr, dcm)
 
-def do_vqm(sta, dst, ref_clip):
+def do_vqm(ifaces, dst, ref_clip):
     # XXX: a bit nasty, test better be 1 frames above us!
     rcv_clip = "/tmp/" + sys._getframe(1).f_code.co_name + ".ts"
     rtp_port = 5004
 
 # destination needs to match client in unicast.
     client = None
-    for s in sta:
-        if dst == s.ip:
-            client = s
+    for iface in ifaces:
+        if dst == iface.ip:
+            client = iface
             continue
-        server = s
+        server = iface
 
 # at least make transmitter (sta0) consistent in mcast case.
     if client == None:
-        server = sta[0]
-        client = sta[1]
+        server = ifaces[0]
+        client = ifaces[1]
 
     client.video_client(ip=dst, port=rtp_port)
     server.video_serve(video=ref_clip, ip=dst, port=rtp_port)

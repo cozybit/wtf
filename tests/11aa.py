@@ -65,6 +65,11 @@ results={}
 
 # global setup, called once during this suite
 def setUp(self):
+
+# if_1 <-> if_2
+    global if_1
+    global if_2
+
     for n in wtfconfig.mps:
         n.shutdown()
         n.init()
@@ -89,9 +94,10 @@ class Test11aa(unittest.TestCase):
     def test_1_unicast_ht20(self):
         fname = sys._getframe().f_code.co_name
 
-        dst_ip = sta[1].configs[0].iface.ip
+        dst_ip = if_2.ip
 
-        perf_report = do_perf(sta[:2], dst_ip)
+        perf_report = do_perf([if_1, if_2], dst_ip)
+        vqm_report = do_vqm([if_1, if_2], dst_ip, ref_clip)
         vqm_report = do_vqm(sta[:2], dst_ip, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
@@ -99,13 +105,13 @@ class Test11aa(unittest.TestCase):
     def test_2_unicast_noht(self):
         fname = sys._getframe().f_code.co_name
 
-        conf = sta[0].configs[0]
-        conf.htmode = ""
-        reconf_stas(wtfconfig.mps, conf)
+        for mp in wtfconfig.mps:
+            mp.iface[0].conf.htmode = ""
+            mp.reconf()
 
-        dst_ip = sta[1].configs[0].iface.ip
+        dst_ip = if_2.ip
 
-        perf_report = do_perf(sta[:2], dst_ip)
+        perf_report = do_perf([if_1, if_2], dst_ip)
         vqm_report = do_vqm(sta[:2], dst_ip, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
@@ -119,13 +125,13 @@ class Test11aa(unittest.TestCase):
         # hard-coded to 54mbps for now
         fname = sys._getframe().f_code.co_name
 
-        conf = sta[0].configs[0]
-        conf.mesh_params = "mesh_ttl=1"
-        conf.mcast_rate = "54"
-        conf.mcast_route = mcast_dst
-        reconf_stas(wtfconfig.mps, conf)
+        for mp in wtfconfig.mps:
+            mp.iface[0].conf.mesh_params = "mesh_ttl=1"
+            mp.iface[0].conf.mcast_rate = "54"
+            mp.iface[0].conf.mcast_route = mcast_dst
+            mp.reconf()
 
-        perf_report = do_perf(sta[:2], mcast_dst)
+        perf_report = do_perf([if_1, if_2], mcast_dst)
         vqm_report = do_vqm(sta[:2], mcast_dst, ref_clip)
 
         results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
