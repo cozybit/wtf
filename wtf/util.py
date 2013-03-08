@@ -30,7 +30,8 @@ def stop_captures(stas, cap_file=CAP_FILE):
 
 def killperfs(stas):
     for sta in stas:
-        sta.killperf()
+        for iface in sta.iface:
+            iface.killperf()
 
 # collection of different link metric results
 class LinkReport():

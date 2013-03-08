@@ -147,6 +147,12 @@ def check_mcca_peers(owner, peers):
 
 # global setup, called once during this suite
 def setUp(self):
+
+    global if_a
+    global if_b
+    global if_c
+    global if_d
+
     #XXX: check for collisions on these
     sta[0].res = MCCARes(offset=100 * 32, duration=255, period=32)
     sta[1].res = MCCARes(offset=300 * 32, duration=255, period=32)
@@ -165,6 +171,11 @@ def setUp(self):
             time.sleep(tu_to_s(DTIM_INTVL))
             n.set_mcca_res()
         i += 1
+
+    if_a = sta[0].iface[0]
+    if_b = sta[1].iface[1]
+    if_c = sta[2].iface[2]
+    if_d = sta[3].iface[3]
 
 # let reservations propagate before we start capturing
     time.sleep(tu_to_s(DTIM_INTVL))
@@ -206,9 +217,9 @@ class TestMCCA(unittest.TestCase):
 # Whether these are actually correct compared to the owner's DTIM is out of
 # scope of this test.
         mon.start_capture()
-        sta[0].perf_serve()
-        sta[1].perf_client(sta[0].configs[0].iface.ip, timeout=10, dual=True, b=60)
-        killperfs(sta)
+        if_a.perf_serve()
+        if_b.perf_client(if_b.ip, timeout=10, dual=True, b=60)
+        if_a.killperf()
         mon.stop_capture(CAP_FILE + "0")
 
 # check responder respects advertised periods
@@ -218,9 +229,9 @@ class TestMCCA(unittest.TestCase):
     def test_1(self):
         mon.start_capture()
 # send traffic
-        sta[0].perf_serve()
-        sta[1].perf_client(sta[0].configs[0].iface.ip, timeout=10, dual=True, b=60)
-        killperfs(sta)
+        if_a.perf_serve()
+        if_b.perf_client(if_a.ip, timeout=10, dual=True, b=60)
+        if_a.killperf()
         mon.stop_capture(CAP_FILE + "1")
 
 # check owner periods are respected
@@ -239,14 +250,14 @@ class TestMCCA(unittest.TestCase):
         time.sleep(tu_to_s(DTIM_INTVL))
 
         mon.start_capture()
-        sta[0].perf_serve(p=7000)
-        sta[0].perf_serve(p=7001)
-        sta[0].perf_serve(p=7002)
+        if_a.perf_serve(p=7000)
+        if_a.perf_serve(p=7001)
+        if_a.perf_serve(p=7002)
 
-        dst_ip = sta[0].configs[0].iface.ip
-        sta[1].perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        sta[2].perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        sta[3].perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        dst_ip = if_a.ip
+        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "2")
 
@@ -262,22 +273,22 @@ class TestMCCA(unittest.TestCase):
 
     def test_3(self):
         # STA4 becomes aware of MCCA
-        sta[3].mccatool_start()
+        if_d.mccatool_start()
 # let STA know about other reservations before installing own
         time.sleep(tu_to_s(DTIM_INTVL))
-        sta[3].set_mcca_res()
+        if_d.set_mcca_res()
 # let reservations propagate and schedule before capture..
         time.sleep(tu_to_s(DTIM_INTVL))
 
         mon.start_capture()
-        sta[0].perf_serve(p=7000)
-        sta[0].perf_serve(p=7001)
-        sta[0].perf_serve(p=7002)
+        if_a.perf_serve(p=7000)
+        if_a.perf_serve(p=7001)
+        if_a.perf_serve(p=7002)
 
-        dst_ip = sta[0].configs[0].iface.ip
-        sta[1].perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        sta[2].perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        sta[3].perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        dst_ip = if_a.ip
+        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "3")
         # TODO: failure conditions
@@ -289,14 +300,14 @@ class TestMCCA(unittest.TestCase):
         time.sleep(tu_to_s(DTIM_INTVL))
 
         mon.start_capture()
-        sta[0].perf_serve(p=7000)
-        sta[0].perf_serve(p=7001)
-        sta[0].perf_serve(p=7002)
+        if_a.perf_serve(p=7000)
+        if_a.perf_serve(p=7001)
+        if_a.perf_serve(p=7002)
 
         dst_ip = sta[0].configs[0].iface.ip
-        sta[1].perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        sta[2].perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        sta[3].perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
+        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
+        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "4")
         # TODO: failure conditions
