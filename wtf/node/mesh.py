@@ -54,6 +54,8 @@ class MeshSTA(node.LinuxNode, MeshBase):
         node.LinuxNode.stop(self)
 
         for iface in self.iface:
+            if iface.enable != True:
+                continue
             #self.set_iftype("mesh")
             self._cmd_or_die("iw " + iface.name + " set type mp")
             #node.set_channel(self.config.channel)
@@ -69,6 +71,8 @@ class MeshSTA(node.LinuxNode, MeshBase):
 
     def stop(self):
         for iface in self.iface:
+            if iface.enable != True:
+                continue
             config = iface.conf
             if config.security:
                 self.comm.send_cmd("start-stop-daemon --quiet --stop --exec meshd-nl80211")

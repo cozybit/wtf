@@ -120,6 +120,7 @@ class Iface():
         self.name = name
         self.driver = driver
         self.conf = conf
+        self.enable = True
         self.perf = None
         self.node = None
         self.phy = None
@@ -233,6 +234,8 @@ class LinuxNode(NodeBase):
 
     def init(self):
         for iface in self.iface:
+            if iface.enable != True:
+                continue
             self._cmd_or_die("modprobe " + iface.driver)
             # give ifaces time to come up
             import time
@@ -261,6 +264,8 @@ class LinuxNode(NodeBase):
         if self.initialized != True:
             raise UninitializedError()
         for iface in self.iface:
+            if iface.enable != True:
+                continue
             # FIXME: config.iface.set_ip()?
             self.set_ip(iface.name, iface.ip)
             if iface.conf.mcast_route:
