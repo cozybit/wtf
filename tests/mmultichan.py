@@ -4,12 +4,13 @@
 Test Mesh multichannel operation.
 
 Topology:
-    sta[0] <-> sta[1] <-> sta[2]
+    sta[0]     sta[1]       sta[2]
+    if_a <-> [if_b|if_c] <-> if_d
 
-    sta[0] is on channel 1, sta[2] is on channel 12.
-    sta[1] becomes a natural forwarding node by having two vifs on ch. 1 and 12
+    if_a and if_b are on channel 1, if_c and if_d are on channel 149.
 
 Tests:
+    0. single-hop baseline throughput
     1. bridge baseline throughput, why not just use a linux bridge?
     2. throughput with in-kernel forwarding between vifs
 """
@@ -30,12 +31,24 @@ results={}
 
 # global setup, called once during this suite
 def setUp(self):
+    global if_a
+    global if_b
+    global if_c
+    global if_d
+
     for n in wtfconfig.mps:
         n.shutdown()
         n.init()
         n.start()
 
+# if_a -> if_b, if_c -> if_d
+        if_a = sta[0].iface[0]
+        if_b = sta[1].iface[1] # switched
+        if_c = sta[1].iface[0] # because only the [0] interface supports ch. 149
+        if_d = sta[2].iface[0]
+
 def tearDown(self):
+
     for n in wtfconfig.nodes:
         n.stop()
 
@@ -54,57 +67,52 @@ class TestMMBSS(unittest.TestCase):
     def test_0_single_hop(self):
         fname = sys._getframe().f_code.co_name
 
-        dst_ip = sta[1].configs[0].iface.ip
-        perf_report = do_perf([sta[0], sta[1]], dst_ip)
+        perf_report = do_perf([if_a, if_b], if_b.ip)
 
         results[fname] = LinkReport(perf_report=perf_report)
 
     def test_1_dual_single_hop(self):
         fname = sys._getframe().f_code.co_name
 
-# separate one of the interfaces at IP layer
+# separate one of the links at IP layer
+        old_ipc = if_c.ip
+        old_ipd = if_d.ip
+
         subnet = "192.168.22."
-        old_ip1 = sta[1].configs[1].iface.ip
-        old_ip2 = sta[2].configs[0].iface.ip
-        dst_1 = sta[1].configs[0].iface.ip
-        dst_2 = subnet + "2"
-        sta[1].configs[1].iface.ip = subnet + "1"
-        sta[2].configs[0].iface.ip = dst_2
-        sta[1].reconf()
-        sta[2].reconf()
+        if_c.ip = subnet + "1"
+        if_d.ip = subnet + "2"
+        if_c.node.reconf()
+        if_d.node.reconf()
 
-        sta[1].perf_serve(dst_ip=dst_1)
-        sta[2].perf_serve(dst_ip=dst_2)
-        sta[0].perf_client(dst_ip=dst_1, timeout=10, b=100, fork=True)
-        sta[1].perf_client(dst_ip=dst_2, timeout=10, b=100)
+        if_b.perf_serve()
+        if_d.perf_serve()
+        if_a.perf_client(dst_ip=if_b.ip, timeout=10, b=100, fork=True)
+        if_c.perf_client(dst_ip=if_d.ip, timeout=10, b=100)
 
-        perf_report = sta[1].get_perf_report()
+        perf_report = if_b.get_perf_report()
         results[fname + "_a"] = LinkReport(perf_report=perf_report)
-        perf_report = sta[2].get_perf_report()
+        perf_report = if_d.get_perf_report()
         results[fname + "_b"] = LinkReport(perf_report=perf_report)
 
-        sta[1].configs[1].iface.ip = old_ip1
-        sta[2].configs[0].iface.ip = old_ip2
+        if_c.ip = old_ipc
+        if_d.ip = old_ipd
 
     def test_2_bridge(self):
         fname = sys._getframe().f_code.co_name
-        dst_ip = sta[2].configs[0].iface.ip
+        dst_ip = sta[2].iface[0].ip
 
-        if1 = sta[1].configs[0].iface
-        if2 = sta[1].configs[1].iface
-        sta[1].bridge([if1, if2], sta[1].configs[0].iface.ip)
+        sta[1].bridge([if_b, if_c], if_c.ip)
 
-        perf_report = do_perf([sta[0], sta[2]], dst_ip)
+        perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
 
     def test_3_mmbss(self):
         fname = sys._getframe().f_code.co_name
-        dst_ip = sta[2].configs[0].iface.ip
 
         # enable in-kernel intra-vif forwarding
-        sta[1].configs[0].shared = True
-        sta[1].configs[1].shared = True
+        if_b.conf.shared = True
+        if_c.conf.shared = True
         sta[1].reconf()
 
-        perf_report = do_perf([sta[0], sta[2]], dst_ip)
+        perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
