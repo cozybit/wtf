@@ -341,3 +341,15 @@ class LinuxNode(NodeBase):
             self._cmd_or_die("ip addr flush " + iface.name)
             self._cmd_or_die("brctl addif %s %s " % (bridge, iface.name))
         self.set_ip("br0", ip)
+
+    def bond_reload(self):
+        self.comm.send_cmd("modprobe -r bonding")
+        self.comm.send_cmd("modprobe bonding")
+
+# bond interfaces in ifaces[] and assign ip
+    def bond(self, ifaces, ip):
+        self.bond_reload()
+        self.set_ip("bond0", ip)
+        for iface in ifaces:
+            self._cmd_or_die("ip addr flush " + iface.name)
+            self._cmd_or_die("ifenslave bond0 " + iface.name)
