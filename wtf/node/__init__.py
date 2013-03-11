@@ -220,6 +220,34 @@ class Iface():
         self.killvideo()
         self.node.comm.get_file(self.video_file, path)
 
+    def start_capture(self, cap_file=None):
+        if cap_file == None:
+            cap_file = "/tmp/" + self.name + "_out.cap"
+        self.cap_file = cap_file
+        if not self.monif:
+            self.monif = self.name + ".mon"
+            self.node._cmd_or_die("iw " + self.name + " interface add " + self.monif + " type monitor")
+            self.node._cmd_or_die("ip link set " + self.monif + " up")
+
+        self.node._cmd_or_die("tcpdump -i " + self.monif + " -ll -xx -p -U -w " + self.cap_file + " &")
+
+# return path to capture file now available on local system
+    def get_capture(self, path=None):
+        if not path:
+            import tempfile
+            path = tempfile.mktemp()
+        self.node.comm.get_file(self.cap_file, path)
+# save a pointer
+        self.local_cap = path
+        return path
+
+# stop capture and get a copy for analysis
+    def stop_capture(self, path=None):
+        if not self.monif:
+            return
+        self.node.comm.send_cmd("killall -9 tcpdump")
+        return self.get_capture(path)
+
     # XXX: ahem, mesh-specific goes in MeshIface?
     def add_mesh_peer(self, peer):
         self.node.comm.send_cmd("iw %s station set %s plink_action open" %
@@ -297,37 +325,6 @@ class LinuxNode(NodeBase):
     def ping(self, host, timeout=2, count=1, verbosity=2):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host, verbosity=verbosity)[0]
-
-    def start_capture(self, iface=None, cap_file="/tmp/out.cap"):
-        iface.cap_file = cap_file
-        if not iface:
-            # just grab the first one
-            iface = self.iface[0]
-        if not iface.monif:
-            iface.monif = iface.name + ".mon"
-            self._cmd_or_die("iw " + iface.name + " interface add " + iface.monif + " type monitor")
-            self._cmd_or_die("ip link set " + iface.monif + " up")
-
-        self._cmd_or_die("tcpdump -i " + iface.monif + " -ll -xx -p -U -w " + iface.cap_file + " &")
-
-# return path to capture file now available on local system
-    def get_capture(self, iface, path=None):
-        if not iface:
-            raise UninitializedError("need iface to get capture!")
-        if not path:
-            import tempfile
-            path = tempfile.mktemp()
-        self.comm.get_file(iface.cap_file, path)
-# save a pointer
-        iface.local_cap = path
-        return path
-
-# stop capture and get a copy for analysis
-    def stop_capture(self, iface, path=None):
-        if not iface.monif:
-            return
-        self.comm.send_cmd("killall -9 tcpdump")
-        return self.get_capture(iface, path)
 
     def if_down(self, iface):
         self.comm.send_cmd("ifconfig " + iface + " down")
