@@ -253,6 +253,10 @@ class Iface():
         self.node.comm.send_cmd("iw %s station set %s plink_action open" %
                                 (self.name, peer.mac))
 
+    def dump_mpaths(self):
+        self.node.comm.send_cmd("iw %s mpath dump" % (self.name))
+
+
 
 class LinuxNode(NodeBase):
     """
