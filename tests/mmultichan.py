@@ -141,3 +141,27 @@ class TestMMBSS(unittest.TestCase):
         perf_report = do_perf([if_a, if_d], if_d.ip)
         # test multi-hop performance using a single radio for forwarding
         results[fname] = LinkReport(perf_report=perf_report)
+
+    def fixmetest_5_bonding(self):
+        # bond a & f, b & c, d & e together
+        fname = sys._getframe().f_code.co_name
+        sta[0].bond([if_a, if_f], if_a.ip)
+        sta[1].bond([if_b, if_c], if_b.ip)
+        sta[2].bond([if_d, if_e], if_d.ip)
+
+        # force linear topology
+        for iface in [if_a, if_f, if_d, if_e]:
+            iface.conf.mesh_params = "mesh_auto_open_plinks=0"
+
+        sta[0].reconf()
+        sta[1].reconf()
+        sta[2].reconf()
+
+        time.sleep(3)
+        if_a.add_mesh_peer(if_c)
+        if_f.add_mesh_peer(if_b)
+        if_d.add_mesh_peer(if_c)
+        if_e.add_mesh_peer(if_b)
+
+        perf_report = do_perf([if_a, if_d], if_d.ip)
+        results[fname] = LinkReport(perf_report=perf_report)
