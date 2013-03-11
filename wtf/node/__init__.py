@@ -134,7 +134,9 @@ class Iface():
         self.perf = conf
         self.perf.log = "/tmp/iperf_" + self.name + ".log"
         if conf.server == True:
-            cmd = "iperf -s -u -p" + str(conf.listen_port)
+            cmd = "iperf -s -p" + str(conf.listen_port)
+            if conf.tcp != True:
+                cmd += " -u"
             if conf.dst_ip:
                 cmd += " -B" + conf.dst_ip
 # -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
@@ -144,10 +146,13 @@ class Iface():
 # in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
 # yet), so prime it with a ping first. Takes care of initial "losses" as the
 # path is refreshed.
-            self.node.ping(conf.dst_ip, verbosity=0, timeout=3)
+            self.node.ping(conf.dst_ip, verbosity=3, timeout=10, count=10)
+            self.dump_mpaths()
             cmd = "iperf -c " + conf.dst_ip + \
-                  " -i1 -u -b" + str(conf.bw) + "M -t" + str(conf.timeout) + \
+                  " -i1 -t" + str(conf.timeout) + \
                   " -p" + str(conf.listen_port)
+            if conf.tcp != True:
+                cmd += " -u -b" + str(conf.bw) + "M"
             if conf.dual:
                 cmd += " -d -L" + str(conf.dual_port)
             if conf.fork:
@@ -161,14 +166,16 @@ class Iface():
             r, o = self.node.comm.send_cmd("echo $!")
             self.perf.pid =  int(o[0])
 
-    def perf_serve(self, dst_ip=None, p=7777):
-        self.start_perf(PerfConf(server=True, dst_ip=dst_ip, p=p))
+    def perf_serve(self, dst_ip=None, p=7777, tcp=False):
+        self.start_perf(PerfConf(server=True, dst_ip=dst_ip, p=p, tcp=tcp))
 
-    def perf_client(self, dst_ip=None, timeout=5, dual=False, b=10, p=7777, L=6666, fork=False):
+    def perf_client(self, dst_ip=None, timeout=5, dual=False, b=10, p=7777, L=6666, fork=False,
+                    tcp=False):
         if dst_ip == None:
             raise InsufficientConfigurationError("need dst_ip for perf")
         self.start_perf(PerfConf(dst_ip=dst_ip, timeout=timeout,
-                                 dual=dual, b=b, p=p, L=L, fork=fork))
+                                 dual=dual, b=b, p=p, L=L, fork=fork,
+                                 tcp=tcp))
 
     def killperf(self):
         if self.perf.pid == None:
@@ -180,7 +187,7 @@ class Iface():
         self.killperf()
         r, o = self.node.comm.send_cmd("cat " + self.perf.log)
         print "parsing perf report"
-        return parse_perf_report(o)
+        return parse_perf_report(self.perf, o)
 
 # server @video to @dst_ip using VLC. Blocks until stream completion
     def video_serve(self, video=None, ip=None, port=5004):

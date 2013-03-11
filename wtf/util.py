@@ -102,12 +102,14 @@ def do_vqm(ifaces, dst, ref_clip):
 
 class PerfConf():
     def __init__(self, server=False, dst_ip=None, timeout=5,
-                 dual=False, b=10, p=7777, L=6666, fork=False):
+                 dual=False, b=10, p=7777, L=6666, fork=False,
+                 tcp=False):
         self.server = server
         self.dst_ip = dst_ip
         self.timeout = timeout
         self.dual = dual
         self.bw = b
+        self.tcp = tcp
         self.listen_port = p
         self.dual_port = L
         self.fork = fork
@@ -120,10 +122,13 @@ class IperfReport():
         self.loss = loss
 
 # CSV iperf report as @r
-def parse_perf_report(r):
+def parse_perf_report(conf, r):
     if len(r) == 0:
         tput = 0
         loss = 0
+    elif conf.tcp == True:
+        tput = float(r[0].split(',')[-1]) / (1024 * 1024) # bits -> mbits
+        loss = 0.0  # no loss stats with TCP...
     else:
 # output comes as list of strings, hence r[0]...
         tput = float(r[0].split(',')[-6]) / (1024 * 1024) # bits -> mbits
@@ -132,14 +137,14 @@ def parse_perf_report(r):
 
 # perform performance report between interfaces listed in ifaces[] and return
 # report as an IperfReport
-def do_perf(ifaces, dst):
+def do_perf(ifaces, dst, tcp=False):
 
 # destination needs to match server in unicast.
     server  = None
     for iface in ifaces:
         if dst == iface.ip:
             server = iface
-            break
+            continue
         client = iface
 
 # at least make transmitter consistent in mcast case.
@@ -147,8 +152,8 @@ def do_perf(ifaces, dst):
         server = ifaces[1]
         client = ifaces[0]
 
-    server.perf_serve(dst_ip=dst)
-    client.perf_client(dst_ip=dst, timeout=10, b=100)
+    server.perf_serve(dst_ip=dst, tcp=tcp)
+    client.perf_client(dst_ip=dst, timeout=10, b=100, tcp=tcp)
     server.killperf()
     return  server.get_perf_report()
 
