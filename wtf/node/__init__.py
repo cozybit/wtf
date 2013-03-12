@@ -146,7 +146,7 @@ class Iface():
 # in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
 # yet), so prime it with a ping first. Takes care of initial "losses" as the
 # path is refreshed.
-            self.node.ping(conf.dst_ip, verbosity=3, timeout=10, count=10)
+            self.node.ping(conf.dst_ip, verbosity=3, timeout=3, count=3)
             self.dump_mpaths()
             cmd = "iperf -c " + conf.dst_ip + \
                   " -i1 -t" + str(conf.timeout) + \
@@ -255,6 +255,10 @@ class Iface():
 
     def dump_mpaths(self):
         self.node.comm.send_cmd("iw %s mpath dump" % (self.name))
+
+    def dump_mesh_stats(self):
+        self.node.comm.send_cmd("grep \"\" /sys/kernel/debug/ieee80211/%s/netdev\:%s/mesh_stats/*" %
+                                (self.phy, self.name))
 
 
 
