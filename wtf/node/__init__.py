@@ -229,7 +229,7 @@ class Iface():
             self.node._cmd_or_die("iw " + self.name + " interface add " + self.monif + " type monitor")
             self.node._cmd_or_die("ip link set " + self.monif + " up")
 
-        self.node._cmd_or_die("tcpdump -i " + self.monif + " -ll -xx -p -U -w " + self.cap_file + " &")
+        self.node._cmd_or_die("tcpdump -i " + self.monif + " -s 0 -U -w " + self.cap_file + " &")
 
 # return path to capture file now available on local system
     def get_capture(self, path=None):
@@ -245,7 +245,7 @@ class Iface():
     def stop_capture(self, path=None):
         if not self.monif:
             return
-        self.node.comm.send_cmd("killall -9 tcpdump")
+        self.node.comm.send_cmd("killall -w tcpdump")
         return self.get_capture(path)
 
     # XXX: ahem, mesh-specific goes in MeshIface?
@@ -270,6 +270,8 @@ class LinuxNode(NodeBase):
     """
     def __init__(self, comm, ifaces=[], path=None):
         self.iface = ifaces
+        for iface in self.iface:
+            iface.node = self
         self.brif = None
         NodeBase.__init__(self, comm)
         if path != None:
@@ -295,7 +297,6 @@ class LinuxNode(NodeBase):
             # XXX: Python people help!!
             iface.phy = iface.phy[0]
             iface.mac = iface.mac[0]
-            iface.node = self
 
         self.initialized = True
 
@@ -304,6 +305,7 @@ class LinuxNode(NodeBase):
         for iface in self.iface:
             if iface.driver:
                 self.comm.send_cmd("modprobe -r " + iface.driver)
+                iface.monif = None
         # stop meshkitd in case it's installed
         self.comm.send_cmd("/etc/init.d/meshkit stop")
         self.initialized = False

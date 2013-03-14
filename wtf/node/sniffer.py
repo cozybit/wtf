@@ -27,18 +27,16 @@ class SnifferConf():
         self.iface = iface
 
 class SnifferSTA(node.LinuxNode, SnifferBase):
-    def __init__(self, comm, ifaces, driver=None):
-        node.LinuxNode.__init__(self, comm, ifaces, driver)
-        self.configs = None
+    def __init__(self, comm, ifaces):
+        node.LinuxNode.__init__(self, comm, ifaces)
 
     def start(self):
-        node.LinuxNode.stop(self)
-        for conf in self.configs:
-            self._cmd_or_die("iw " + conf.iface.name + " set type monitor")
-            node.LinuxNode.start(self)
-            self._cmd_or_die("iw " + conf.iface.name + " set channel " + str(conf.channel) +
-                             " " + conf.htmode)
-            conf.iface.monif = conf.iface
+        for iface in self.iface:
+            self._cmd_or_die("iw " + iface.name + " set type monitor")
+            self._cmd_or_die("ifconfig " + iface.name + " up")
+            self._cmd_or_die("iw " + iface.name + " set channel " + str(iface.conf.channel) +
+                             " " + iface.conf.htmode)
+            iface.monif = iface.name
 
     def stop(self):
         node.LinuxNode.stop(self)
