@@ -24,12 +24,12 @@ for n in range(10,13):
 # iface + ip
     ifaces.append(wtf.node.Iface(name="wlan0", driver="ath9k", ip="%s.%d" % (subnet, 10 + n)))
 # BSS
-    ifaces[-1].conf = wtf.node.mesh.MeshConf(ssid=meshid, channel=channel, htmode=htmode, iface=ifaces[-1])
+    ifaces[-1].conf = wtf.node.mesh.MeshConf(ssid=meshid, channel=channel, htmode=htmode, iface=ifaces[-1], shared=False)
 
 # "middle" node
     if n == 11:
         ifaces.append(wtf.node.Iface(name="wlan1", driver="ath9k", ip="%s.%d" % (subnet, 40 + n)))
-        ifaces[-1].conf = wtf.node.mesh.MeshConf(ssid=meshid, channel=1, htmode=htmode, iface=ifaces[-1])
+        ifaces[-1].conf = wtf.node.mesh.MeshConf(ssid=meshid, channel=1, htmode=htmode, iface=ifaces[-1], shared=False)
 
     z = wtf.node.mesh.MeshSTA(z_ssh, ifaces=ifaces)
 
