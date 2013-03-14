@@ -128,7 +128,7 @@ class Test11aa(unittest.TestCase):
         for mp in wtfconfig.mps:
             mp.iface[0].conf.mesh_params = "mesh_ttl=1"
             mp.iface[0].conf.mcast_rate = "54"
-            mp.iface[0].conf.mcast_route = mcast_dst
+            mp.iface[0].mcast_route = mcast_dst
             mp.reconf()
 
         perf_report = do_perf([if_1, if_2], mcast_dst)

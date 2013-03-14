@@ -111,12 +111,13 @@ class NodeBase():
 
 # wifi interface with associated driver and ip and maybe a monitor interface
 class Iface():
-    def __init__(self, name=None, driver=None, ip=None, conf=None):
+    def __init__(self, name=None, driver=None, ip=None, mcast_route=None, conf=None):
         if not name:
             raise InsufficientConfigurationError("need iface name")
         if not driver:
             raise InsufficientConfigurationError("need iface driver")
         self.ip = ip
+        self.mcast_route = mcast_route
         self.name = name
         self.driver = driver
         self.conf = conf
@@ -317,9 +318,10 @@ class LinuxNode(NodeBase):
             if iface.enable != True:
                 continue
             # FIXME: config.iface.set_ip()?
-            self.set_ip(iface.name, iface.ip)
-            if iface.conf.mcast_route:
-                self.set_mcast(iface, iface.conf.mcast_route)
+            if iface.ip:
+                self.set_ip(iface.name, iface.ip)
+            if iface.mcast_route:
+                self.set_mcast(iface, iface.mcast_route)
 
     def stop(self):
         for iface in self.iface:

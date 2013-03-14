@@ -28,7 +28,7 @@ class MeshConf():
     """
 
     def __init__(self, ssid, channel=1, htmode="", security=0, iface=None,
-                 mesh_params=None, mcast_rate=None, mcast_route=None, shared=False):
+                 mesh_params=None, mcast_rate=None, shared=False):
         if not iface:
             raise UninitializedError("need iface for mesh config")
         self.iface = iface
@@ -38,7 +38,6 @@ class MeshConf():
         self.security = security
         self.mesh_params = mesh_params
         self.mcast_rate = mcast_rate
-        self.mcast_route = mcast_route
         self.shared = shared
 
 class MeshSTA(node.LinuxNode, MeshBase):
