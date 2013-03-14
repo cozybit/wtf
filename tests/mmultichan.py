@@ -26,6 +26,7 @@ import os
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
+mon = wtfconfig.mons[0]
 
 results={}
 
@@ -42,10 +43,14 @@ def setUp(self):
         n.start()
 
 # if_a -> if_b, if_c -> if_d
-        if_a = sta[0].iface[0]
-        if_b = sta[1].iface[1] # switched
-        if_c = sta[1].iface[0] # because only the [0] interface supports ch. 149
-        if_d = sta[2].iface[0]
+    if_a = sta[0].iface[0]
+    if_b = sta[1].iface[1] # switched
+    if_c = sta[1].iface[0] # because only the [0] interface supports ch. 149
+    if_d = sta[2].iface[0]
+
+    mon.shutdown()
+    mon.init()
+    mon.start()
 
 def tearDown(self):
 
@@ -56,7 +61,7 @@ def tearDown(self):
 
 class TestMMBSS(unittest.TestCase):
     def setUp(self):
-        for n in wtfconfig.nodes:
+        for n in wtfconfig.mps:
             n.stop()
             n.start()
         pass
@@ -104,8 +109,12 @@ class TestMMBSS(unittest.TestCase):
 
         sta[1].bridge([if_b, if_c], if_c.ip)
 
+        mon.iface[0].start_capture()
+        mon.iface[1].start_capture()
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
+        mon.iface[0].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[0].conf.channel))
+        mon.iface[1].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[1].conf.channel))
 
     def test_3_mmbss(self):
         fname = sys._getframe().f_code.co_name
@@ -115,8 +124,14 @@ class TestMMBSS(unittest.TestCase):
         if_c.conf.shared = True
         sta[1].reconf()
 
+        mon.iface[0].start_capture()
+        mon.iface[1].start_capture()
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
+
+        if_b.dump_mesh_stats()
+        mon.iface[0].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[0].conf.channel))
+        mon.iface[1].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[1].conf.channel))
 
     def test_4_same_ch_mhop(self):
         fname = sys._getframe().f_code.co_name
@@ -133,14 +148,13 @@ class TestMMBSS(unittest.TestCase):
             iface.conf.channel = 1
             iface.node.reconf()
 
-        import time
-        time.sleep(3)
         if_a.add_mesh_peer(if_b)
         if_d.add_mesh_peer(if_b)
 
         perf_report = do_perf([if_a, if_d], if_d.ip)
         # test multi-hop performance using a single radio for forwarding
         results[fname] = LinkReport(perf_report=perf_report)
+        if_b.dump_mesh_stats()
 
     def fixmetest_5_bonding(self):
         # bond a & f, b & c, d & e together

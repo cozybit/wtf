@@ -35,5 +35,17 @@ for n in range(10,13):
 
     zotacs.append(z)
 
+# configure your sniffer node here
+ifaces=[]
+ssh = wtf.comm.SSH(ipaddr="supersniffer.local")
+ssh.name = "sniffer"
+ssh.verbosity = 2
+ifaces.append(wtf.node.Iface(name="intel", driver="iwl4965"))
+ifaces[-1].conf = wtf.node.sniffer.SnifferConf(channel=1, htmode=htmode, iface=ifaces[-1])
+ifaces.append(wtf.node.Iface(name="ath9k", driver="ath9k"))
+ifaces[-1].conf = wtf.node.sniffer.SnifferConf(channel=149, htmode=htmode, iface=ifaces[-1])
+sniffer = wtf.node.sniffer.SnifferSTA(ssh, ifaces=ifaces)
+zotacs.append(sniffer)
+
 # XXX: decouple testbed description from the specific test suite
 wtf.conf = wtf.config("mmultichan", nodes=zotacs, name="mesh multichan")
