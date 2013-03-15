@@ -220,25 +220,30 @@ class Iface():
         self.killvideo()
         self.node.comm.get_file(self.video_file, path)
 
-    def start_capture(self, cap_file=None):
+# note the low snaplen, this is to prioritize no dropped packets over getting
+# the whole payload
+    def start_capture(self, cap_file=None, snaplen=300):
         if not cap_file:
             cap_file = "/tmp/" + self.name + "_out.cap"
         if not self.cap:
             self.cap = CapData(cap_file=cap_file)
         else:
             self.cap.node_cap = cap_file
+        self.cap.snaplen = snaplen
 
 # if no monif configured, attach to this interface in non-promiscuous
         if not self.cap.monif:
             self.cap.monif = self.name + ".mon"
-            self.node._cmd_or_die("iw %s interface add %s type monitor flags none" %
+            self.node._cmd_or_die("iw %s interface add %s type monitor" %
                                   (self.name, self.cap.monif))
             self.node._cmd_or_die("ip link set %s up" % (self.cap.monif))
             self.cap.promisc = False
 
-        cmd = "tcpdump -i %s -s0 -U " % (self.name)
+        cmd = "tcpdump -i %s -U " % (self.name)
         if not self.cap.promisc:
             cmd += "-p "
+        if self.cap.snaplen:
+            cmd += "-s %d " % (self.cap.snaplen)
         cmd += "-w %s &" % (self.cap.node_cap)
         self.node.comm.send_cmd(cmd)
         r, o = self.node.comm.send_cmd("echo $!")

@@ -108,6 +108,7 @@ class CapData():
         self.monif = monif
         self.promisc = promisc
         self.pid = None
+        self.snaplen = None
 
 class PerfConf():
     def __init__(self, server=False, dst_ip=None, timeout=5,
