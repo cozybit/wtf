@@ -236,9 +236,9 @@ class Iface():
             self.node._cmd_or_die("ip link set %s up" % (self.cap.monif))
             self.cap.promisc = False
 
-        cmd = "tcpdump -i %s -s0 -U" % (self.name)
+        cmd = "tcpdump -i %s -s0 -U " % (self.name)
         if not self.cap.promisc:
-            cmd += " -p "
+            cmd += "-p "
         cmd += "-w %s &" % (self.cap.node_cap)
         self.node._cmd_or_die(cmd)
 
