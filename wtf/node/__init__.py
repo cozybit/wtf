@@ -126,8 +126,7 @@ class Iface():
         self.node = None
         self.phy = None
         self.mac = None
-        self.monif = None
-        self.local_cap = None
+        self.cap = None
 
     def start_perf(self, conf):
         if conf.dst_ip == None:
@@ -222,24 +221,35 @@ class Iface():
         self.node.comm.get_file(self.video_file, path)
 
     def start_capture(self, cap_file=None):
-        if cap_file == None:
+        if not cap_file:
             cap_file = "/tmp/" + self.name + "_out.cap"
-        self.cap_file = cap_file
-        if not self.monif:
-            self.monif = self.name + ".mon"
-            self.node._cmd_or_die("iw " + self.name + " interface add " + self.monif + " type monitor")
-            self.node._cmd_or_die("ip link set " + self.monif + " up")
+        if not self.cap:
+            self.cap = CapData(cap_file=cap_file)
+        else:
+            self.cap.node_cap = cap_file
 
-        self.node._cmd_or_die("tcpdump -i " + self.monif + " -s 0 -U -w " + self.cap_file + " &")
+# if no monif configured, attach to this interface in non-promiscuous
+        if not self.cap.monif:
+            self.cap.monif = self.name + ".mon"
+            self.node._cmd_or_die("iw %s interface add %s type monitor flags none" %
+                                  (self.name, self.cap.monif))
+            self.node._cmd_or_die("ip link set %s up" % (self.cap.monif))
+            self.cap.promisc = False
+
+        cmd = "tcpdump -i %s -s0 -U" % (self.name)
+        if not self.cap.promisc:
+            cmd += " -p "
+        cmd += "-w %s &" % (self.cap.node_cap)
+        self.node._cmd_or_die(cmd)
 
 # return path to capture file now available on local system
     def get_capture(self, path=None):
         if not path:
             import tempfile
             path = tempfile.mktemp()
-        self.node.comm.get_file(self.cap_file, path)
+        self.node.comm.get_file(self.cap.node_cap, path)
 # save a pointer
-        self.local_cap = path
+        self.cap.local_cap = path
         return path
 
 # stop capture and get a copy for analysis

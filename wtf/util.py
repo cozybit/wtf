@@ -100,6 +100,14 @@ def do_vqm(ifaces, dst, ref_clip):
     client.get_video(rcv_clip)
     return get_vqm_report(ref_clip, rcv_clip)
 
+class CapData():
+    def __init__(self, cap_file=None, monif=None, promisc=False):
+# local to the monif
+        self.node_cap = cap_file
+        self.local_cap = None
+        self.monif = monif
+        self.promisc = promisc
+
 class PerfConf():
     def __init__(self, server=False, dst_ip=None, timeout=5,
                  dual=False, b=10, p=7777, L=6666, fork=False,
