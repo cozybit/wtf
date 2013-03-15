@@ -240,7 +240,9 @@ class Iface():
         if not self.cap.promisc:
             cmd += "-p "
         cmd += "-w %s &" % (self.cap.node_cap)
-        self.node._cmd_or_die(cmd)
+        self.node.comm.send_cmd(cmd)
+        r, o = self.node.comm.send_cmd("echo $!")
+        self.cap.pid =  int(o[0])
 
 # return path to capture file now available on local system
     def get_capture(self, path=None):
@@ -254,9 +256,10 @@ class Iface():
 
 # stop capture and get a copy for analysis
     def stop_capture(self, path=None):
-        if not self.monif:
+        if not self.cap:
             return
-        self.node.comm.send_cmd("killall -w tcpdump")
+        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.cap.pid,))
+        self.cap.pid = None
         return self.get_capture(path)
 
     # XXX: ahem, mesh-specific goes in MeshIface?
