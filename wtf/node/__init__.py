@@ -239,7 +239,7 @@ class Iface():
             self.node._cmd_or_die("ip link set %s up" % (self.cap.monif))
             self.cap.promisc = False
 
-        cmd = "tcpdump -i %s -U " % (self.name)
+        cmd = "tcpdump -i %s -U " % (self.cap.monif)
         if not self.cap.promisc:
             cmd += "-p "
         if self.cap.snaplen:
@@ -324,7 +324,8 @@ class LinuxNode(NodeBase):
         for iface in self.iface:
             if iface.driver:
                 self.comm.send_cmd("modprobe -r " + iface.driver)
-                iface.monif = None
+                if iface.cap:
+                    iface.cap.monif = None
         # stop meshkitd in case it's installed
         self.comm.send_cmd("/etc/init.d/meshkit stop")
         self.initialized = False
