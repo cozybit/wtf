@@ -205,10 +205,14 @@ class TestMMBSS(unittest.TestCase):
         for iface in [if_a, if_b, if_c, if_d]:
             if iface == if_c:
                 iface.ip = None
+            iface.conf.shared = True
             iface.conf.channel = 1
             iface.enable = True
             iface.conf.mesh_params = "mesh_auto_open_plinks=0"
-            iface.node.reconf()
+
+        sta[0].reconf()
+        sta[1].reconf()
+        sta[2].reconf()
 
 # XXX: should work on both ends?
         time.sleep(3)
@@ -216,9 +220,9 @@ class TestMMBSS(unittest.TestCase):
         if_c.add_mesh_peer(if_d)
 
 #XXX: failIf
-        sta[0].ping(if_b.ip)
-        sta[2].ping(if_b.ip)
-        sta[1].ping(if_a.ip)
-        sta[1].ping(if_d.ip)
+        sta[0].ping(if_b.ip, count=3)
+        sta[2].ping(if_b.ip, count=3)
+        sta[1].ping(if_a.ip, count=3)
+        sta[1].ping(if_d.ip, count=3)
         if mon:
             mon.iface[0].stop_capture(path="/tmp/%s_out.cap" % (fname))
