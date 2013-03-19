@@ -166,6 +166,7 @@ class TestMMBSS(unittest.TestCase):
         if_b.dump_mesh_stats()
 
     def fixmetest_5_bonding(self):
+        return
         # bond a & f, b & c, d & e together
         fname = sys._getframe().f_code.co_name
         sta[0].bond([if_a, if_f], if_a.ip)
@@ -188,3 +189,36 @@ class TestMMBSS(unittest.TestCase):
 
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
+
+    def test_6_ping(self):
+# test the following:
+# ip1               ip2                    ip3
+# mesh0 ---------- [mesh1-mesh2] -------- mesh1
+# 
+# ip2 is attached to mesh1.
+# all ip addrs should be able to ping eachother.
+        fname = sys._getframe().f_code.co_name
+        if mon:
+            mon.iface[0].start_capture()
+
+# TODO: a function to reset to default conf would be nice..
+        for iface in [if_a, if_b, if_c, if_d]:
+            if iface == if_c:
+                iface.ip = None
+            iface.conf.channel = 1
+            iface.enable = True
+            iface.conf.mesh_params = "mesh_auto_open_plinks=0"
+            iface.node.reconf()
+
+# XXX: should work on both ends?
+        time.sleep(3)
+        if_a.add_mesh_peer(if_b)
+        if_c.add_mesh_peer(if_d)
+
+#XXX: failIf
+        sta[0].ping(if_b.ip)
+        sta[2].ping(if_b.ip)
+        sta[1].ping(if_a.ip)
+        sta[1].ping(if_d.ip)
+        if mon:
+            mon.iface[0].stop_capture(path="/tmp/%s_out.cap" % (fname))

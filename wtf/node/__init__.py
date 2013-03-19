@@ -164,7 +164,7 @@ class Iface():
             self.perf.report = o[1]
         else:
             r, o = self.node.comm.send_cmd("echo $!")
-            self.perf.pid =  int(o[0])
+            self.perf.pid =  int(o[-1])
 
     def perf_serve(self, dst_ip=None, p=7777, tcp=False):
         self.start_perf(PerfConf(server=True, dst_ip=dst_ip, p=p, tcp=tcp))
@@ -247,7 +247,7 @@ class Iface():
         cmd += "-w %s &" % (self.cap.node_cap)
         self.node.comm.send_cmd(cmd)
         r, o = self.node.comm.send_cmd("echo $!")
-        self.cap.pid =  int(o[0])
+        self.cap.pid =  int(o[-1])
 
 # return path to capture file now available on local system
     def get_capture(self, path=None):
