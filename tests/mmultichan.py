@@ -15,18 +15,16 @@ Tests:
     2. throughput with in-kernel forwarding between vifs
 """
 
-import wtf.node.mesh as mesh
 import unittest
 import time
 import wtf
-from wtf.util import *
+from wtf.util import do_perf, print_linkreports, LinkReport
 import sys; err = sys.stderr
-import time
-import os
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
 mon = wtfconfig.mons[0]
+if_a, if_b, if_c, if_d, if_e, if_f = [None] * 6
 
 results={}
 
@@ -105,7 +103,6 @@ class TestMMBSS(unittest.TestCase):
 
     def test_2_bridge(self):
         fname = sys._getframe().f_code.co_name
-        dst_ip = sta[2].iface[0].ip
 
         sta[1].bridge([if_b, if_c], if_c.ip)
 
