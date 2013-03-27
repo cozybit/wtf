@@ -193,17 +193,16 @@ class TestMMBSS(unittest.TestCase):
 
     def test_6_ping(self):
 # test the following:
-# ip1               ip2                    ip3
+# ip1                                      ip3
 # mesh0 ---------- [mesh1-mesh2] -------- mesh1
 #                    |
-#                   br0
+#                   br0 ip2
 #                    |
 #                   eth1
 #                    :
 #                    :
-#                   eth1 ip4
+#                   eth2 ip4
 # 
-# ip2 is attached to mesh1.
 # all ip addrs should be able to ping eachother.
         fname = sys._getframe().f_code.co_name
 
@@ -216,20 +215,21 @@ class TestMMBSS(unittest.TestCase):
             iface.enable = True
             iface.conf.mesh_params = "mesh_auto_open_plinks=0"
 
-# XXX: gross, need to store the topology subnet somewhere
-        sta[3].set_ip(sta[3].iface[0].name, "192.168.34.149")
-
         sta[0].reconf()
         sta[1].reconf()
         sta[2].reconf()
 
         eth1 = sta[1].iface[2]
+        eth2 = sta[3].iface[0]
+# XXX: gross, need to store the topology subnet somewhere
+        eth2.ip = "192.168.34.149"
+        sta[3].set_ip(eth2.name, eth2.ip)
         eth1.link_up()
 
         if_a.start_capture()
         if_b.start_capture()
         if_d.start_capture()
-        sta[3].iface[0].start_capture(eth=True)
+        eth2.start_capture(eth=True)
 
         time.sleep(3)
         if_a.add_mesh_peer(if_b)
@@ -238,14 +238,18 @@ class TestMMBSS(unittest.TestCase):
         sta[1].bridge([if_b, eth1], if_b.ip)
 
         self.failIf(sta[0].ping(if_b.ip) != 0)
-        self.failIf(sta[2].ping(if_b.ip) != 0)
+        self.failIf(sta[0].ping(if_d.ip) != 0)
+        self.failIf(sta[0].ping(eth2.ip) != 0)
         self.failIf(sta[1].ping(if_a.ip) != 0)
         self.failIf(sta[1].ping(if_d.ip) != 0)
-        self.failIf(sta[0].ping(if_d.ip) != 0)
+        self.failIf(sta[1].ping(eth2.ip) != 0)
+        self.failIf(sta[2].ping(if_b.ip) != 0)
+        self.failIf(sta[2].ping(eth2.ip) != 0)
         self.failIf(sta[3].ping(if_a.ip) != 0)
+        self.failIf(sta[3].ping(if_b.ip) != 0)
         self.failIf(sta[3].ping(if_d.ip) != 0)
 
         if_a.stop_capture(path="/tmp/%s_a.cap" % (fname))
         if_b.stop_capture(path="/tmp/%s_b.cap" % (fname))
         if_d.stop_capture(path="/tmp/%s_d.cap" % (fname))
-        sta[3].iface[0].stop_capture(path="/tmp/%s_eth1.cap" % (fname))
+        eth2.stop_capture(path="/tmp/%s_eth1.cap" % (fname))
