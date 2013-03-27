@@ -360,7 +360,7 @@ class LinuxNode(NodeBase):
     def set_mcast(self, iface, mcast_route):
         self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route, iface.name))
 
-    def ping(self, host, timeout=2, count=1, verbosity=2):
+    def ping(self, host, timeout=3, count=1, verbosity=2):
         return self.comm.send_cmd("ping -c " + str(count) + " -w " +
                                   str(timeout) + " " + host, verbosity=verbosity)[0]
 
