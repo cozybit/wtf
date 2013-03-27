@@ -114,8 +114,6 @@ class Iface():
     def __init__(self, name=None, driver=None, ip=None, mcast_route=None, conf=None):
         if not name:
             raise InsufficientConfigurationError("need iface name")
-        if not driver:
-            raise InsufficientConfigurationError("need iface driver")
         self.ip = ip
         self.mcast_route = mcast_route
         self.name = name
@@ -222,7 +220,7 @@ class Iface():
 
 # note the low snaplen, this is to prioritize no dropped packets over getting
 # the whole payload
-    def start_capture(self, cap_file=None, snaplen=300):
+    def start_capture(self, cap_file=None, snaplen=300, promisc=False, eth=False):
         if not cap_file:
             cap_file = "/tmp/" + self.name + "_out.cap"
         if not self.cap:
@@ -231,13 +229,16 @@ class Iface():
             self.cap.node_cap = cap_file
         self.cap.snaplen = snaplen
 
+        if not self.cap.monif and eth:
+# capturing on an ethernet iface, nothing special
+            self.cap.monif = self.name
 # if no monif configured, attach to this interface in non-promiscuous
-        if not self.cap.monif:
+        elif not self.cap.monif:
             self.cap.monif = self.name + ".mon"
             self.node._cmd_or_die("iw %s interface add %s type monitor" %
                                   (self.name, self.cap.monif))
             self.node._cmd_or_die("ip link set %s up" % (self.cap.monif))
-            self.cap.promisc = False
+            self.cap.promisc = promisc
 
         cmd = "tcpdump -i %s -U " % (self.cap.monif)
         if not self.cap.promisc:
@@ -281,6 +282,9 @@ class Iface():
 
     def dump_phy_stats(self):
         self.node.comm.send_cmd("grep \"\" /sys/kernel/debug/ieee80211/%s/statistics/*" % (self.phy))
+
+    def link_up(self):
+        self.node.comm.send_cmd("ip link set %s up" % (self.name))
 
 
 
@@ -370,14 +374,16 @@ class LinuxNode(NodeBase):
         self.comm.send_cmd("brctl delbr " + self.brif)
 
 # bridge interfaces in ifaces[] and assign ip
+# bridge gets mac of first iface in ifaces[]
     def bridge(self, ifaces, ip):
         bridge="br0"
         self.del_brif();
         self.brif = bridge
         self._cmd_or_die("brctl addbr " + bridge)
         for iface in ifaces:
-            self._cmd_or_die("ip addr flush " + iface.name)
+            self.comm.send_cmd("ip addr flush " + iface.name)
             self._cmd_or_die("brctl addif %s %s " % (bridge, iface.name))
+        self._cmd_or_die("ip link set br0 address %s" % (ifaces[0].mac))
         self.set_ip("br0", ip)
 
     def bond_reload(self):

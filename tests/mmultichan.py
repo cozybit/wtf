@@ -108,18 +108,17 @@ class TestMMBSS(unittest.TestCase):
     def test_2_bridge(self):
         fname = sys._getframe().f_code.co_name
 
+        sta[1].reconf()
         sta[1].bridge([if_b, if_c], if_c.ip)
 
-        if mon:
-            mon.iface[0].start_capture()
-            mon.iface[1].start_capture()
+        if_b.start_capture()
+        if_d.start_capture()
 
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
 
-        if mon:
-            mon.iface[0].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[0].conf.channel))
-            mon.iface[1].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[1].conf.channel))
+        if_b.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_b.conf.channel))
+        if_d.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_d.conf.channel))
 
     def test_3_mmbss(self):
         fname = sys._getframe().f_code.co_name
@@ -129,18 +128,20 @@ class TestMMBSS(unittest.TestCase):
         if_c.conf.shared = True
         sta[1].reconf()
 
-        if mon:
-            mon.iface[0].start_capture()
-            mon.iface[1].start_capture()
+        if_b.start_capture()
+        if_d.start_capture()
 
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
 
-        if_b.dump_mesh_stats()
+        if_b.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_b.conf.channel))
+        if_d.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_d.conf.channel))
 
-        if mon:
-            mon.iface[0].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[0].conf.channel))
-            mon.iface[1].stop_capture(path="/tmp/%s_%d_out.cap" % (fname, mon.iface[1].conf.channel))
+        if_b.dump_mesh_stats()
+        if_b.dump_phy_stats()
+        if_c.dump_phy_stats()
+        if_d.dump_phy_stats()
+
 
     def test_4_same_ch_mhop(self):
         fname = sys._getframe().f_code.co_name
@@ -194,12 +195,17 @@ class TestMMBSS(unittest.TestCase):
 # test the following:
 # ip1               ip2                    ip3
 # mesh0 ---------- [mesh1-mesh2] -------- mesh1
+#                    |
+#                   br0
+#                    |
+#                   eth1
+#                    :
+#                    :
+#                   eth1 ip4
 # 
 # ip2 is attached to mesh1.
 # all ip addrs should be able to ping eachother.
         fname = sys._getframe().f_code.co_name
-        if mon:
-            mon.iface[0].start_capture()
 
 # TODO: a function to reset to default conf would be nice..
         for iface in [if_a, if_b, if_c, if_d]:
@@ -210,19 +216,36 @@ class TestMMBSS(unittest.TestCase):
             iface.enable = True
             iface.conf.mesh_params = "mesh_auto_open_plinks=0"
 
+# XXX: gross, need to store the topology subnet somewhere
+        sta[3].set_ip(sta[3].iface[0].name, "192.168.34.149")
+
         sta[0].reconf()
         sta[1].reconf()
         sta[2].reconf()
 
-# XXX: should work on both ends?
+        eth1 = sta[1].iface[2]
+        eth1.link_up()
+
+        if_a.start_capture()
+        if_b.start_capture()
+        if_d.start_capture()
+        sta[3].iface[0].start_capture(eth=True)
+
         time.sleep(3)
         if_a.add_mesh_peer(if_b)
         if_c.add_mesh_peer(if_d)
 
-#XXX: failIf
-        sta[0].ping(if_b.ip, count=3)
-        sta[2].ping(if_b.ip, count=3)
-        sta[1].ping(if_a.ip, count=3)
-        sta[1].ping(if_d.ip, count=3)
-        if mon:
-            mon.iface[0].stop_capture(path="/tmp/%s_out.cap" % (fname))
+        sta[1].bridge([if_b, eth1], if_b.ip)
+
+        self.failIf(sta[0].ping(if_b.ip) != 0)
+        self.failIf(sta[2].ping(if_b.ip) != 0)
+        self.failIf(sta[1].ping(if_a.ip) != 0)
+        self.failIf(sta[1].ping(if_d.ip) != 0)
+        self.failIf(sta[0].ping(if_d.ip) != 0)
+        self.failIf(sta[3].ping(if_a.ip) != 0)
+        self.failIf(sta[3].ping(if_d.ip) != 0)
+
+        if_a.stop_capture(path="/tmp/%s_a.cap" % (fname))
+        if_b.stop_capture(path="/tmp/%s_b.cap" % (fname))
+        if_d.stop_capture(path="/tmp/%s_d.cap" % (fname))
+        sta[3].iface[0].stop_capture(path="/tmp/%s_eth1.cap" % (fname))
