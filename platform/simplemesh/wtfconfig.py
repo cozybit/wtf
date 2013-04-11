@@ -4,7 +4,11 @@ import wtf.comm
 import wtf
 
 subnet="192.168.2"
+meshid="meshmesh"
+channel=1
+htmode="HT20"
 zotacs=[]
+
 
 # pre-configured zotac nodes
 for n in range(2,4):
@@ -17,9 +21,10 @@ for n in range(2,4):
     configs=[]
 
 # iface + ip
-    ifaces.append(wtf.node.Iface(name="wlan0", driver="ath9k", ip="%s.%d" % (subnet, str(10 + n))))
+    ifaces.append(wtf.node.Iface(name="wlan0", driver="ath9k", ip="%s.%d" % (subnet, 10 + n)))
 # BSS
-    configs.append(wtf.node.mesh.MeshConf(ssid="simplemesh", channel=channel, htmode="HT40+", iface=ifaces[0]))
+    configs.append(wtf.node.mesh.MeshConf(ssid=meshid, channel=channel, htmode=htmode, iface=ifaces[0]))
+    ifaces[-1].conf=configs[-1]
 
     z = wtf.node.mesh.MeshSTA(z_ssh, ifaces=ifaces)
     z.configs = configs
