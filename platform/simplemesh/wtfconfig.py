@@ -1,5 +1,4 @@
 import wtf.node.mesh
-import wtf.node.sniffer
 import wtf.comm
 import wtf
 
