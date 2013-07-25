@@ -274,7 +274,8 @@ class Iface():
                                 (self.name, peer.mac))
 
     def dump_mpaths(self):
-        self.node.comm.send_cmd("iw %s mpath dump mbss" % (self.name))
+        #self.node.comm.send_cmd("iw %s mpath dump mbss" % (self.name))
+        self.node.comm.send_cmd("iw %s mpath dump" % (self.name))
 
     def dump_mesh_stats(self):
         self.node.comm.send_cmd("grep \"\" /sys/kernel/debug/ieee80211/%s/netdev\:%s/mesh_stats/*" %
