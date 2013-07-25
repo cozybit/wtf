@@ -97,7 +97,7 @@ class pxssh (spawn):
         # disable only SSH_ASKPASS without also disabling X11 forwarding.
         # Unsetting SSH_ASKPASS on the remote side doesn't disable it! Annoying!
         #self.SSH_OPTS = "-x -o'RSAAuthentication=no' -o 'PubkeyAuthentication=no'"
-        self.force_password = False
+        self.force_password = True
         self.auto_prompt_reset = True 
 
     def levenshtein_distance(self, a,b):
@@ -154,7 +154,7 @@ class pxssh (spawn):
 
     ### TODO: This is getting messy and I'm pretty sure this isn't perfect.
     ### TODO: I need to draw a flow chart for this.
-    def login (self,server,username,password='',terminal_type='ansi',original_prompt=r"[#$]",login_timeout=10,port=None,auto_prompt_reset=True):
+    def login (self,server,username,password='bilbao',terminal_type='ansi',original_prompt=r"[#$]",login_timeout=10,port=None,auto_prompt_reset=True):
 
         """This logs the user into the given server. It uses the
         'original_prompt' to try to find the prompt right after login. When it

@@ -117,11 +117,11 @@ authsae:
         if config.mcast_rate:
             cmd +=  " mcast-rate %s" % (config.mcast_rate)
 
-        cmd += " share"
-        if config.shared:
-            cmd += " on"
-        else:
-            cmd += " off"
+#        cmd += " share"
+#        if config.shared:
+#            cmd += " on"
+#        else:
+#            cmd += " off"
         if config.mesh_params:
             cmd += " " + config.mesh_params
         self._cmd_or_die(cmd)
