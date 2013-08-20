@@ -274,7 +274,8 @@ class Iface():
                                 (self.name, peer.mac))
 
     def dump_mpaths(self):
-        self.node.comm.send_cmd("iw %s mpath dump mbss" % (self.name))
+        #self.node.comm.send_cmd("iw %s mpath dump mbss" % (self.name))
+        self.node.comm.send_cmd("iw %s mpath dump" % (self.name))
 
     def dump_mesh_stats(self):
         self.node.comm.send_cmd("grep \"\" /sys/kernel/debug/ieee80211/%s/netdev\:%s/mesh_stats/*" %
@@ -312,7 +313,9 @@ class LinuxNode(NodeBase):
         for iface in self.iface:
             if iface.enable != True:
                 continue
-            self._cmd_or_die("modprobe " + iface.driver)
+            # TODO: lsmod and grep for ath*
+            if iface.driver != "android":
+                self._cmd_or_die("modprobe " + iface.driver)
             # give ifaces time to come up
             import time
             time.sleep(1)
@@ -330,7 +333,8 @@ class LinuxNode(NodeBase):
         self.stop()
         for iface in self.iface:
             if iface.driver:
-                self.comm.send_cmd("modprobe -r " + iface.driver)
+                if iface.driver != "android":
+                    self.comm.send_cmd("modprobe -r " + iface.driver)
                 if iface.cap:
                     iface.cap.monif = None
         # stop meshkitd in case it's installed
@@ -387,8 +391,9 @@ class LinuxNode(NodeBase):
         self.set_ip("br0", ip)
 
     def bond_reload(self):
-        self.comm.send_cmd("modprobe -r bonding")
-        self.comm.send_cmd("modprobe bonding")
+        if iface.driver != "android":
+            self.comm.send_cmd("modprobe -r bonding")
+            self.comm.send_cmd("modprobe bonding")
 
 # bond interfaces in ifaces[] and assign ip
     def bond(self, ifaces, ip):

@@ -13,7 +13,6 @@ from wtf.util import *
 import sys; err = sys.stderr
 import time
 import os
-
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
 

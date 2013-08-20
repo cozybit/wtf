@@ -6,29 +6,32 @@ subnet="192.168.2"
 meshid="meshmesh"
 channel=1
 htmode="HT20"
-zotacs=[]
+androids=[]
+n=1
 
 
-# pre-configured zotac nodes
-for n in range(2,4):
+#static tplink ip addresses
+ips = { "CB1":"11.47.207.117" , "CB7":"11.201.207.89" }
+for device,ip in ips.iteritems():
 #comms
-    z_ssh = wtf.comm.SSH(ipaddr="192.168.3.15" + str(n))
-    z_ssh.name = "zotac-" + str(n)
-    z_ssh.verbosity = 2
+    a_ssh = wtf.comm.SSH(ipaddr=ip)
+    a_ssh.name = device
+    a_ssh.verbosity = 2
 
     ifaces=[]
     configs=[]
 
 # iface + ip
-    ifaces.append(wtf.node.Iface(name="wlan0", driver="ath9k", ip="%s.%d" % (subnet, 10 + n)))
+    ifaces.append(wtf.node.Iface(name="wlan0", driver="android", ip="%s.%d" % (subnet, 10 + n)))
+    n+=1
 # BSS
     configs.append(wtf.node.mesh.MeshConf(ssid=meshid, channel=channel, htmode=htmode, iface=ifaces[0]))
     ifaces[-1].conf=configs[-1]
 
-    z = wtf.node.mesh.MeshSTA(z_ssh, ifaces=ifaces)
-    z.configs = configs
+    a = wtf.node.mesh.MeshSTA(a_ssh, ifaces=ifaces)
+    a.configs = configs
 
-    zotacs.append(z)
+    androids.append(a)
 
 # XXX: decouple testbed description from the specific test suite
-wtf.conf = wtf.config("simplemesh", nodes=zotacs, name="simple two zotac mesh throughput test")
+wtf.conf = wtf.config("simplemesh", nodes=androids, name="simple two android mesh throughput test")
