@@ -308,6 +308,17 @@ class LinuxNode(NodeBase):
         self.comm.send_cmd("killall hostapd; killall wpa_supplicant",
                            verbosity=0)
 
+        # make sure debugfs is mounted
+        r, mounted = self.comm.send_cmd("mount | grep debugfs", verbosity=0)
+        # "debugfs /sys/kernel/debug debugfs rw,relatime 0 0" or empty
+        if len(mounted) > 0:
+            if mounted[0].split(' ')[1] != '/sys/kernel/debug':
+                self.comm.send_cmd("umount debugfs", verbosity=0)
+                self.comm.send_cmd("mount -t debugfs debugfs /sys/kernel/debug", verbosity=0)
+        else:
+            self.comm.send_cmd("mount -t debugfs debugfs /sys/kernel/debug", verbosity=0)
+
+
     def init(self):
         for iface in self.iface:
             if iface.enable != True:
