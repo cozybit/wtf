@@ -10,9 +10,9 @@ zotacs=[]
 
 
 # pre-configured zotac nodes
-for n in range(2,5):
+for n in range(4):
 #comms
-    z_ssh = wtf.comm.SSH(ipaddr="192.168.3.15" + str(n))
+    z_ssh = wtf.comm.SSH(ipaddr="192.168.3.15" + str(n + 1))
     z_ssh.name = "zotac-" + str(n)
     z_ssh.verbosity = 2
 
