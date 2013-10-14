@@ -304,4 +304,9 @@ class pxssh (spawn):
                 return False
         return True
 
+    def adbLogin(self, device_id, original_prompt=r"[#$]"):
+        """login process for android devices over adb"""
+        spawn._spawn(self, "adbs -s " + device_id + " shell")
+        self.expect([original_prompt, TIMEOUT])
+        return True
 # vi:ts=4:sw=4:expandtab:ft=python:

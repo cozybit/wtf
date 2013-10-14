@@ -324,7 +324,15 @@ class LinuxNode(NodeBase):
         for iface in self.iface:
             if iface.enable != True:
                 continue
-            self._cmd_or_die("modprobe " + iface.driver)
+#
+# Baaaaad
+#
+            if iface.driver != "mwl8787_sdio":
+                self._cmd_or_die("modprobe " + iface.driver)
+            else:
+                self._cmd_or_die("rmmod " + iface.driver)
+                cmd = "/system/bin/mwl8787_config.sh"
+                self._cmd_or_die(cmd)
             # give ifaces time to come up
             import time
             time.sleep(1)

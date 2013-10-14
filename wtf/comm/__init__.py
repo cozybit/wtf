@@ -98,6 +98,68 @@ class Serial(CommBase):
             raise CommandFailureError("Failed to find return code in stdout")
         return -1
 
+class ADB(CommBase):
+    """
+    communiacte with a node via adb
+    """
+    def __init__(self, device_id):
+        myLog = open("./loggy", "w")
+        self.session = pxssh.pxssh(logfile=myLog)
+        self.session.adbLogin(device_id)
+        CommBase.__init__(self)
+
+    def _send_cmd(self, command):
+        # TODO: Okay.  Here's a mystery.  If the command is 69 chars long,
+        # pxssh chokes on whatever it sees over ssh and all subsequent tests
+        # fail.  Amazing!  If it's longer, or shorter, everything works fine.
+        # But the magic number 69 breaks the command flow.  Why?  Could it be
+        # that the prompt "[PEXPECT]# " is 11 chars, and 69 + 11 is 80, and
+        # there's a line discipline problem somewhere?  If you figure it out
+        # you'll be my hero.
+        if len(command) == 69:
+            command = "  " + command
+        self.session.sendline(command)
+# maybe we want to block on command completion...
+        self.session.PROMPT=r"[a-z]+@[a-z]+:.*[\$\#]"
+# for some reason shell variables need an extra prompt call to be expanded
+        self.session.prompt(timeout=300)
+        output = self.session.before.split("\r\n")[1:-1]
+# take out return carriage which is the last character still...
+        for i in range(0,len(output)):
+            output[i] = output[i][0:-1]
+        return output
+
+    def _get_retcode(self):
+        rett = self.session.sendline("echo $?")
+        self.session.prompt()
+        try:
+            if len(self.session.before.split("\n")) > 2:
+                return int(self.session.before.split("\n")[-2])
+            return 0
+        except ValueError:
+            print "Failed to find return code in:"
+            print self.session.before
+            # try to recover
+            self.session.synch_original_prompt()
+        return -1
+
+# should be able to use existing SSH session for this
+# XXX: GARBAGE! Should really be handled by the ssh module
+# copy file from host:$src to $dst
+    def get_file(self, src, dst):
+        print "copying %s:%s to %s" % (self.name, src, dst)
+        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr,src,dst))
+        if r != 0:
+            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
+
+    def put_file(self, src, dst):
+        print "copying %s to %s:%s" % (src, self.name, dst)
+        r, o = commands.getstatusoutput("rsync %s root@%s:%s" % (src, self.ipaddr, dst))
+        if r != 0:
+            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
+
+
+
 class SSH(CommBase):
     """
     communicate with a node via ssh
