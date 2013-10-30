@@ -120,17 +120,17 @@ class ADB(CommBase):
             command = "  " + command
         self.session.sendline(command)
 # maybe we want to block on command completion...
-        self.session.PROMPT=r"[a-z]+@[a-z]+:.*[\$\#]"
+        self.session.PROMPT = r"[a-z]+@[a-z]+:.*[\$\#]"
 # for some reason shell variables need an extra prompt call to be expanded
         self.session.prompt(timeout=300)
         output = self.session.before.split("\r\n")[1:-1]
 # take out return carriage which is the last character still...
-        for i in range(0,len(output)):
+        for i in range(0, len(output)):
             output[i] = output[i][0:-1]
         return output
 
     def _get_retcode(self):
-        rett = self.session.sendline("echo $?")
+        self.session.sendline("echo $?")
         self.session.prompt()
         try:
             if len(self.session.before.split("\n")) > 2:
@@ -148,7 +148,7 @@ class ADB(CommBase):
 # copy file from host:$src to $dst
     def get_file(self, src, dst):
         print "copying %s:%s to %s" % (self.name, src, dst)
-        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr,src,dst))
+        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr, src, dst))
         if r != 0:
             raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
 
@@ -208,7 +208,7 @@ class SSH(CommBase):
 # copy file from host:$src to $dst
     def get_file(self, src, dst):
         print "copying %s:%s to %s" % (self.name, src, dst)
-        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr,src,dst))
+        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr, src, dst))
         if r != 0:
             raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
 

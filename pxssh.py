@@ -4,9 +4,8 @@ This adds methods for login, logout, and expecting the shell prompt.
 $Id: pxssh.py 487 2007-08-29 22:33:29Z noah $
 """
 
-from pexpect import *
-import pexpect
 import time
+from pexpect import ExceptionPexpect, spawn, TIMEOUT, EOF
 
 __all__ = ['ExceptionPxssh', 'pxssh']
 
@@ -30,10 +29,10 @@ class pxssh (spawn):
     shells.
 
     Example that runs a few commands on a remote server and prints the result::
-        
+
         import pxssh
         import getpass
-        try:                                                            
+        try:
             s = pxssh.pxssh()
             hostname = raw_input('hostname: ')
             username = raw_input('username: ')
@@ -74,7 +73,7 @@ class pxssh (spawn):
         spawn.__init__(self, None, timeout=timeout, maxread=maxread, searchwindowsize=searchwindowsize, logfile=logfile, cwd=cwd, env=env)
 
         self.name = '<pxssh>'
-        
+
         #SUBTLE HACK ALERT! Note that the command to set the prompt uses a
         #slightly different string than the regular expression to match it. This
         #is because when you set the prompt the command will echo back, but we
@@ -98,7 +97,7 @@ class pxssh (spawn):
         # Unsetting SSH_ASKPASS on the remote side doesn't disable it! Annoying!
         #self.SSH_OPTS = "-x -o'RSAAuthentication=no' -o 'PubkeyAuthentication=no'"
         self.force_password = False
-        self.auto_prompt_reset = True 
+        self.auto_prompt_reset = True
 
     def levenshtein_distance(self, a,b):
 
@@ -135,7 +134,7 @@ class pxssh (spawn):
         self.read_nonblocking(size=1000,timeout=1)
         self.sendline()
         time.sleep(0.5)
-        x = self.read_nonblocking(size=1000,timeout=1)
+        _ = self.read_nonblocking(size=1000,timeout=1)
         time.sleep(0.1)
         self.sendline()
         time.sleep(0.5)
@@ -171,7 +170,7 @@ class pxssh (spawn):
         to guess when we have reached the prompt. Then we hope for the best and
         blindly try to reset the prompt to something more unique. If that fails
         then login() raises an ExceptionPxssh exception.
-        
+
         In some situations it is not possible or desirable to reset the
         original prompt. In this case, set 'auto_prompt_reset' to False to
         inhibit setting the prompt to the UNIQUE_PROMPT. Remember that pxssh
@@ -192,7 +191,7 @@ class pxssh (spawn):
         i = self.expect(["(?i)are you sure you want to continue connecting", original_prompt, "(?i)(?:password)|(?:passphrase for key)", "(?i)permission denied", "(?i)terminal type", TIMEOUT, "(?i)connection closed by remote host"], timeout=login_timeout)
 
         # First phase
-        if i==0: 
+        if i==0:
             # New certificate -- always accept it.
             # This is what you get if SSH does not have the remote host's
             # public key stored in the 'known_hosts' cache.
@@ -210,14 +209,14 @@ class pxssh (spawn):
             # This is weird. This should not happen twice in a row.
             self.close()
             raise ExceptionPxssh ('Weird error. Got "are you sure" prompt twice.')
-        elif i==1: # can occur if you have a public key pair set to authenticate. 
+        elif i==1: # can occur if you have a public key pair set to authenticate.
             ### TODO: May NOT be OK if expect() got tricked and matched a false prompt.
             pass
         elif i==2: # password prompt again
             # For incorrect passwords, some ssh servers will
             # ask for the password again, others return 'denied' right away.
             # If we get the password prompt again then this means
-            # we didn't get the password right the first time. 
+            # we didn't get the password right the first time.
             self.close()
             raise ExceptionPxssh ('password refused')
         elif i==3: # permission denied -- password was bad.
@@ -237,7 +236,7 @@ class pxssh (spawn):
         elif i==6: # Connection closed by remote host
             self.close()
             raise ExceptionPxssh ('connection closed')
-        else: # Unexpected 
+        else: # Unexpected
             self.close()
             raise ExceptionPxssh ('unexpected login response')
         if not self.synch_original_prompt():
@@ -252,7 +251,6 @@ class pxssh (spawn):
         return True
 
     def logout (self):
-
         """This sends exit to the remote shell. If there are stopped jobs then
         this automatically sends exit twice. """
 
@@ -276,7 +274,7 @@ class pxssh (spawn):
         if i==1:
             return False
         return True
-        
+
     def set_unique_prompt (self):
 
         """This sets the remote prompt to something more unique than # or $.

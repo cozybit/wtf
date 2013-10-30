@@ -156,12 +156,12 @@ class Iface():
             if conf.fork:
                 cmd += " &"
 
-        r, o = self.node.comm.send_cmd(cmd)
+        _, o = self.node.comm.send_cmd(cmd)
         if conf.server != True and conf.fork != True:
 # we blocked on completion and report is ready now
             self.perf.report = o[1]
         else:
-            r, o = self.node.comm.send_cmd("echo $!")
+            _, o = self.node.comm.send_cmd("echo $!")
             self.perf.pid =  int(o[-1])
 
     def perf_serve(self, dst_ip=None, p=7777, tcp=False):
@@ -183,7 +183,7 @@ class Iface():
 
     def get_perf_report(self):
         self.killperf()
-        r, o = self.node.comm.send_cmd("cat " + self.perf.log)
+        _, o = self.node.comm.send_cmd("cat " + self.perf.log)
         print "parsing perf report"
         return parse_perf_report(self.perf, o)
 
@@ -247,7 +247,7 @@ class Iface():
             cmd += "-s %d " % (self.cap.snaplen)
         cmd += "-w %s &" % (self.cap.node_cap)
         self.node.comm.send_cmd(cmd)
-        r, o = self.node.comm.send_cmd("echo $!")
+        _, o = self.node.comm.send_cmd("echo $!")
         self.cap.pid =  int(o[-1])
 
 # return path to capture file now available on local system
@@ -310,7 +310,7 @@ class LinuxNode(NodeBase):
                            verbosity=0)
 
         # make sure debugfs is mounted
-        r, mounted = self.comm.send_cmd("mount | grep debugfs", verbosity=0)
+        _, mounted = self.comm.send_cmd("mount | grep debugfs", verbosity=0)
         # "debugfs /sys/kernel/debug debugfs rw,relatime 0 0" or empty
         if len(mounted) > 0:
             if mounted[0].split(' ')[1] != '/sys/kernel/debug':
@@ -337,8 +337,8 @@ class LinuxNode(NodeBase):
             import time
             time.sleep(1)
             # TODO: check for error and throw something!
-            r, iface.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + iface.name + " | cut -d/ -f6`", verbosity=0)
-            r, iface.mac = self.comm.send_cmd("echo `ip link show " + iface.name + " | awk '/ether/ {print $2}'`", verbosity=0)
+            _, iface.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + iface.name + " | cut -d/ -f6`", verbosity=0)
+            _, iface.mac = self.comm.send_cmd("echo `ip link show " + iface.name + " | awk '/ether/ {print $2}'`", verbosity=0)
 
             # XXX: Python people help!!
             iface.phy = iface.phy[0]

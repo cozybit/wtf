@@ -2,7 +2,7 @@
 # All rights reserved
 
 import wtf.node as node
-import re, sys, time
+import re, time
 
 class STABase(node.NodeBase):
     """
@@ -45,7 +45,7 @@ class LinuxSTA(node.LinuxNode, STABase):
 
     def stress(self, host):
         # do our worst
-        (r, o) = self.comm.send_cmd("iperf -c " + host + " -d -P 10", verbosity=2)
+        (_, o) = self.comm.send_cmd("iperf -c " + host + " -d -P 10", verbosity=2)
         return o
 
     def scan(self):
@@ -65,12 +65,11 @@ class LinuxSTA(node.LinuxNode, STABase):
         ret = []
         for r in results:
             fields = r.split(" "*20)
-            bssid = ""
             channel = None
             ssid = ""
             for f in fields:
                 if re.match(".*Address:.*", f):
-                    bssid = f.split("Address: ")[1]
+                    pass
                 if re.match(".*Channel:.*", f):
                     channel = int(f.split("Channel:")[1])
                 if re.match(".*ESSID:.*", f):
@@ -92,7 +91,7 @@ class LinuxSTA(node.LinuxNode, STABase):
         return r
 
     def _open_assoc(self, ssid):
-        (r, o) = self.comm.send_cmd("iw " + self.iface + " connect " + ssid)
+        (r, _) = self.comm.send_cmd("iw " + self.iface + " connect " + ssid)
         if r == 142:    # error code -114
             # operation already in progress, means we're already connected
             # or not ready, try again
@@ -100,7 +99,7 @@ class LinuxSTA(node.LinuxNode, STABase):
             self._cmd_or_die("iw " + self.iface + " connect " + ssid)
         elif r !=0:
             # something else went wrong
-            raise wtf.node.ActionFailureError("iw failed with code %d" % r)
+            raise node.ActionFailureError("iw failed with code %d" % r)
 
     def _secure_assoc(self, config="/tmp/sup.conf", sock_dir=None):
         cmd = "wpa_supplicant -B -Dwext -i" + self.iface + " -c" + config
@@ -109,17 +108,16 @@ class LinuxSTA(node.LinuxNode, STABase):
         self._cmd_or_die(cmd)
 
     def _check_assoc(self, ssid):
-        for i in range(1, 30):
+        for _ in range(1, 30):
             time.sleep(0.5)
             (r, o) = self.comm.send_cmd("iw " + self.iface + " link", verbosity=2)
             if r != 0:
-                raise wtf.node.ActionFailureError("iw failed with code %d" % r)
-
+                raise node.ActionFailureError("iw failed with code %d" % r)
             if o[0] == "Not connected.":
                 pass
             elif o[0].split()[0] == "Connected" and \
                  o[1].split()[1] == ssid:
-                     return 0
+                    return 0
         # not connected
         return -1
 

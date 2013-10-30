@@ -30,7 +30,7 @@ class MeshConf():
     def __init__(self, ssid, channel=1, htmode="", security=0, iface=None,
                  mesh_params=None, mcast_rate=None, shared=False):
         if not iface:
-            raise UninitializedError("need iface for mesh config")
+            raise node.UninitializedError("need iface for mesh config")
         self.iface = iface
         self.ssid = ssid
         self.channel = channel
@@ -49,7 +49,7 @@ class MeshSTA(node.LinuxNode, MeshBase):
         self.mccapipe = None
 
     def start(self):
-        # XXX: self.stop() should work since we extend LinuxNode?? 
+        # XXX: self.stop() should work since we extend LinuxNode??
         node.LinuxNode.stop(self)
 
         for iface in self.iface:

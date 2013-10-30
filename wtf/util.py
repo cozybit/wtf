@@ -2,7 +2,7 @@ import sys
 import commands
 import os
 
-CAP_FILE="/tmp/out.cap"
+CAP_FILE = "/tmp/out.cap"
 
 def reconf_stas(stas):
     for sta in stas:
@@ -137,11 +137,11 @@ def parse_perf_report(conf, r):
         tput = 0
         loss = 0
     elif conf.tcp == True:
-        tput = float(r[0].split(',')[-1]) / (1024 * 1024) # bits -> mbits
+        tput = float(r[0].split(',')[-1]) / (1024 * 1024)  # bits -> mbits
         loss = 0.0  # no loss stats with TCP...
     else:
 # output comes as list of strings, hence r[0]...
-        tput = float(r[0].split(',')[-6]) / (1024 * 1024) # bits -> mbits
+        tput = float(r[0].split(',')[-6]) / (1024 * 1024)  # bits -> mbits
         loss = float(r[0].split(',')[-2])
     return IperfReport(tput, loss)
 
@@ -150,7 +150,7 @@ def parse_perf_report(conf, r):
 def do_perf(ifaces, dst, tcp=False):
 
 # destination needs to match server in unicast.
-    server  = None
+    server = None
     for iface in ifaces:
         if dst == iface.ip:
             server = iface
@@ -176,7 +176,7 @@ def do_tshark(cap_file, tshark_filter, extra=""):
     return o
 
 def print_linkreports(results):
-    header="TEST             "
+    header = "TEST             "
 
 # assuming we have same stats for all the tests...
     if results.values()[0].perf != None:
