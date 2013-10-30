@@ -182,6 +182,7 @@ class Iface():
         if self.perf.pid == None:
             return
         self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.perf.pid,))
+        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.perf.pid,))
         self.perf.pid = None
 
     def get_perf_report(self):
