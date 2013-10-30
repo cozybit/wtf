@@ -5,6 +5,8 @@ import serial
 import fdpexpect
 import pxssh
 import commands
+import subprocess
+import time
 
 class CommandFailureError(Exception):
     """
@@ -51,6 +53,9 @@ class CommBase():
                 print self.name + ": " + l
         r = self._get_retcode()
         return (r, output)
+
+    def reboot(self):
+        raise NotImplementedError()
 
 class Serial(CommBase):
     """
@@ -103,10 +108,14 @@ class ADB(CommBase):
     communiacte with a node via adb
     """
     def __init__(self, device_id):
+        self._device_id = device_id
+        self._init_session()
+        CommBase.__init__(self)
+
+    def _init_session(self):
         myLog = open("./loggy", "w")
         self.session = pxssh.pxssh(logfile=myLog)
-        self.session.adbLogin(device_id)
-        CommBase.__init__(self)
+        self.session.adbLogin(self._device_id)
 
     def _send_cmd(self, command):
         # TODO: Okay.  Here's a mystery.  If the command is 69 chars long,
@@ -128,6 +137,17 @@ class ADB(CommBase):
         for i in range(0, len(output)):
             output[i] = output[i][0:-1]
         return output
+
+    def reboot(self):
+        adb_dev_id = subprocess.check_output(["adbs", "-s", self._device_id, "-i"]).strip()
+        retcode = subprocess.call(["adb", "-s", adb_dev_id, "reboot"])
+        if retcode != 0:
+            raise StandardError("Command 'reboot' via adb failed")
+        retcode = subprocess.call(["adb", "-s", adb_dev_id, "wait-for-device"])
+        if retcode != 0:
+            raise StandardError("Command 'wait-for-device' via adb failed")
+        time.sleep(1)
+        self._init_session()
 
     def _get_retcode(self):
         self.session.sendline("echo $?")
