@@ -1,6 +1,9 @@
 # Copyright cozybit, Inc 2010-2011
 # All rights reserved
 
+import os
+import time
+
 from wtf.util import *
 
 class UninitializedError(Exception):
@@ -192,7 +195,6 @@ class Iface():
         if ip == None or video == None:
             raise InsufficientConfigurationError("need a reference clip and destination ip!")
         print "%s: starting video server" % (self.ip,)
-        import os
         self.ref_clip = "/tmp/" + os.path.basename(video)
         self.comm.put_file(video, self.ref_clip)
 # prime mpath so we don't lose inital frames in unicast!
@@ -327,15 +329,22 @@ class LinuxNode(NodeBase):
 #
 # Baaaaad
 #
-            if iface.driver != "mwl8787_sdio":
+            no_modprobe = ["mwl8787_sdio", "wcn36xx_msm"]
+
+            if iface.driver not in no_modprobe:
                 self._cmd_or_die("modprobe " + iface.driver)
             else:
-                self._cmd_or_die("rmmod " + iface.driver)
-                cmd = "/system/bin/mwl8787_config.sh"
-                self._cmd_or_die(cmd)
-            # give ifaces time to come up
-            import time
-            time.sleep(1)
+                if iface.driver == "mwl8787_config":
+                    self._cmd_or_die("rmmod " + iface.driver)
+                    cmd = "/system/bin/mwl8787_config.sh"
+                    self._cmd_or_die(cmd)
+                    # give ifaces time to come up
+                    time.sleep(1)
+                elif iface.driver == "wcn36xx_msm":
+                    self.comm.reboot()
+                else:
+                    raise UnsupportedConfigurationError("Don't know what hack to use here")
+
             # TODO: check for error and throw something!
             _, iface.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + iface.name + " | cut -d/ -f6`", verbosity=0)
             _, iface.mac = self.comm.send_cmd("echo `ip link show " + iface.name + " | awk '/ether/ {print $2}'`", verbosity=0)
