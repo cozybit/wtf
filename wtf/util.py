@@ -1,6 +1,8 @@
 import sys
 import commands
 import os
+import subprocess
+import random
 
 CAP_FILE = "/tmp/out.cap"
 
@@ -197,3 +199,15 @@ def print_linkreports(results):
             line += "%s     %s  %s  %s      " % (vqm.ssim, vqm.psnr, vqm.dcm, vqm.out_clip)
 
         print line
+
+def gen_mesh_id():
+    return "wtfmesh" + str(random.randint(1,1000))
+
+def is_dev_connected(device_id):
+    try:
+        adb_id = subprocess.check_output(["adbs", "-s", device_id, "-i"]).strip()
+    except subprocess.CalledProcessError:
+        return False
+    ls = subprocess.check_output(["adb", "devices"]).strip().splitlines()
+    ls = [L.split()[0] for L in ls[1:]]
+    return adb_id in ls
