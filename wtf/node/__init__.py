@@ -133,7 +133,7 @@ class Iface():
         if conf.dst_ip == None:
             conf.dst_ip = self.ip
         self.perf = conf
-        self.perf.log = "/tmp/iperf_" + self.name + ".log"
+        self.perf.log = "/data/misc/iperf_" + self.name + ".log"
         if conf.server == True:
             cmd = "iperf -s -p" + str(conf.listen_port)
             if conf.tcp != True:
