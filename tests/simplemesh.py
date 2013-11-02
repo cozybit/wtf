@@ -2,16 +2,13 @@
 # All rights reserved
 
 """
-Simple test of throughput from one zotac to another.
+Simple test of throughput from one mesh node to another.
 """
 
-import wtf.node.mesh as mesh
 import unittest
-import time
 import wtf
 from wtf.util import *
 import sys; err = sys.stderr
-import time
 import os
 
 wtfconfig = wtf.conf
@@ -20,6 +17,7 @@ sta = wtfconfig.mps
 ref_clip = os.getenv("REF_CLIP")
 # XXX: nose probably has something like this?
 results={}
+path_heal_time = {}
 
 # global setup, called once during this suite
 def setUp(self):
@@ -28,7 +26,6 @@ def setUp(self):
     global if_1
     global if_2
     global if_3
-
 
     if_1 = sta[0].iface[0]
     if_2 = sta[1].iface[0]
@@ -44,7 +41,10 @@ def tearDown(self):
         n.stop()
 
     print "                                                     ref_clip=%s" % (ref_clip,)
-    print_linkreports(results)
+    if len(results) > 0:
+        print_linkreports(results)
+    if len(path_heal_time) > 0:
+        print "Path healed in:        " + str(path_heal_time["path_heal"]) + " seconds"
 
 class SimpleMeshTest(unittest.TestCase):
 
@@ -83,3 +83,36 @@ class SimpleMeshTest(unittest.TestCase):
         # test multi-hop performance using a single radio for forwarding
         results[fname] = LinkReport(perf_report=perf_report)
         if_2.dump_mesh_stats()
+
+    def test_3_path_healing(self):
+        """Kill a radio, then bring back and measure path heal time."""
+        count = 30
+        interval = .1
+        found = 0
+
+        # check if ping is alive
+        _, ping_results = if_1.node.ping_results(if_2.ip, count=3)
+        ping_results = ping_results[-2]
+        self.failIf(ping_results.find("100%") != -1, "not connected on initial ping")
+
+        # turn off radio and ping to make sure we drop all packets
+        if_2.node.set_radio(if_2, 0)
+        _, ping_results = if_1.node.ping_results(if_2.ip, count=20, interval=1, timeout=20)
+        ping_results = ping_results[-2]
+        self.failIf(ping_results.find("100%") == -1,
+                    "still connected")
+        if_1.dump_mpaths()
+
+        # turn back on radio and start ping
+        if_2.node.set_radio(if_2, 1)
+        _, ping_results = if_1.node.ping_results(if_2.ip, count=count, interval=interval)
+        # look for first icmp_seq= and grab the request number
+        for icmp in ping_results[1:]:
+            if icmp.find("icmp_seq="):
+                found = int(icmp.split(" ")[4][9:])
+                break
+        self.failIf(found == 0,
+                    "Never reconnected after %d seconds" % (count * interval))
+
+        #expects no loss after reconnected
+        path_heal_time["path_heal"] = found * interval

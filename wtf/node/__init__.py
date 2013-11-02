@@ -91,7 +91,7 @@ class NodeBase():
         """
         raise UnimplementedError("set_ip is not implemented for this node")
 
-    def ping(self, host, timeout=2, count=1):
+    def ping(self, host, timeout=2, count=1, interval=0):
         """
         ping a remote host from this node
 
@@ -99,9 +99,25 @@ class NodeBase():
 
         count: number of ping requests to send
 
+        interval: time in between pings
+
         return 0 on success, anything else on failure
         """
         raise UnimplementedError("ping is not implemented for this node")
+
+    def ping_results(self, host, timeout=2, count=1, interval=0):
+        """
+        ping a remote host from this node
+
+        timeout: seconds to wait before quitting
+
+        count: number of ping requests to send
+
+        interval: time in between pings
+
+        return the return code and output of command as a tuple
+        """
+        raise UnimplementedError("ping_results is not implemented for this node")
 
     def _cmd_or_die(self, cmd, verbosity=None):
         (r, o) = self.comm.send_cmd(cmd, verbosity)
@@ -288,7 +304,6 @@ class Iface():
         self.node.comm.send_cmd("ip link set %s up" % (self.name))
 
 
-
 class LinuxNode(NodeBase):
     """
     A linux network node
@@ -380,9 +395,19 @@ class LinuxNode(NodeBase):
     def set_mcast(self, iface, mcast_route):
         self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route, iface.name))
 
-    def ping(self, host, timeout=3, count=1, verbosity=2):
-        return self.comm.send_cmd("ping -c " + str(count) + " -w " +
-                                  str(timeout) + " " + host, verbosity=verbosity)[0]
+    def ping(self, host, timeout=3, count=1, verbosity=2, interval=0):
+        cmd = "ping -c " + str(count)
+        if interval != 0:
+            cmd += " -i " + str(interval)
+        cmd += " -w " + str(timeout) + " " + host
+        return self.comm.send_cmd(cmd, verbosity=verbosity)[0]
+
+    def ping_results(self, host, timeout=3, count=1, verbosity=2, interval=0):
+        cmd = "ping -c " + str(count)
+        if interval != 0:
+            cmd += " -i " + str(interval)
+        cmd += " -w " + str(timeout) + " " + host
+        return self.comm.send_cmd(cmd, verbosity=verbosity)
 
     def if_down(self, iface):
         self.comm.send_cmd("ifconfig " + iface + " down")
@@ -392,6 +417,16 @@ class LinuxNode(NodeBase):
             return
         self.if_down(self.brif)
         self.comm.send_cmd("brctl delbr " + self.brif)
+
+    def set_radio(self, iface, state):
+        """Turn on or off the radio."""
+#
+# baaaaad
+#
+        if iface.driver == "mwl8787_sdio":
+            self.comm.send_cmd("echo %d > /sys/kernel/debug/ieee80211/%s/mwl8787/radio_set" % (state, iface.phy))
+        else:
+            raise UnimplementedError("Not yet implemented for %s" % (iface.driver))
 
 # bridge interfaces in ifaces[] and assign ip
 # bridge gets mac of first iface in ifaces[]
