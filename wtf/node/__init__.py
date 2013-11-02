@@ -288,7 +288,6 @@ class Iface():
         self.node.comm.send_cmd("ip link set %s up" % (self.name))
 
 
-
 class LinuxNode(NodeBase):
     """
     A linux network node
@@ -372,9 +371,12 @@ class LinuxNode(NodeBase):
     def set_mcast(self, iface, mcast_route):
         self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route, iface.name))
 
-    def ping(self, host, timeout=3, count=1, verbosity=2):
-        return self.comm.send_cmd("ping -c " + str(count) + " -w " +
-                                  str(timeout) + " " + host, verbosity=verbosity)[0]
+    def ping(self, host, timeout=3, count=1, verbosity=2, interval=0):
+        cmd = "ping -c " + str(count)
+        if interval != 0:
+            cmd += " -i " + str(interval)
+        cmd += " -w " + str(timeout) + " " + host
+        return self.comm.send_cmd(cmd, verbosity=verbosity)[0]
 
     def if_down(self, iface):
         self.comm.send_cmd("ifconfig " + iface + " down")
@@ -384,6 +386,16 @@ class LinuxNode(NodeBase):
             return
         self.if_down(self.brif)
         self.comm.send_cmd("brctl delbr " + self.brif)
+
+    def set_radio(self, state):
+        """Turn on or off the radio."""
+#
+# baaaaad
+#
+        if self.iface.driver == "mwl8787_sdio":
+            self.comm.send_cmd("echo %d > /sys/kernel/debug/ieee80211/%s/mwl8787/radio_set" % (state, self.iface.phy))
+        else:
+            raise UnimplementedError("Not yet implemented for %s" % (self.iface.driver))
 
 # bridge interfaces in ifaces[] and assign ip
 # bridge gets mac of first iface in ifaces[]
