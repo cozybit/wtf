@@ -149,7 +149,7 @@ def parse_perf_report(conf, r):
 
 # perform performance report between interfaces listed in ifaces[] and return
 # report as an IperfReport
-def do_perf(ifaces, dst, tcp=False):
+def do_perf(ifaces, dst, tcp=False, bwidth=100):
 
 # destination needs to match server in unicast.
     server = None
@@ -165,7 +165,7 @@ def do_perf(ifaces, dst, tcp=False):
         client = ifaces[0]
 
     server.perf_serve(dst_ip=dst, tcp=tcp)
-    client.perf_client(dst_ip=dst, timeout=10, b=100, tcp=tcp)
+    client.perf_client(dst_ip=dst, timeout=10, b=bwidth, tcp=tcp)
     server.killperf()
     return  server.get_perf_report()
 
