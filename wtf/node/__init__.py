@@ -335,7 +335,7 @@ class LinuxNode(NodeBase):
             if iface.driver not in no_modprobe:
                 self._cmd_or_die("modprobe " + iface.driver)
             else:
-                if iface.driver == "mwl8787_config":
+                if iface.driver == "mwl8787_sdio":
                     self._cmd_or_die("rmmod " + iface.driver)
                     cmd = "/system/bin/mwl8787_config.sh"
                     self._cmd_or_die(cmd)
