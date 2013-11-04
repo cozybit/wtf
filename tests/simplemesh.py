@@ -6,25 +6,25 @@ Simple test of throughput from one zotac to another.
 """
 
 import wtf.node.mesh as mesh
-import unittest
-import time
-import wtf
 from wtf.util import *
-import sys; err = sys.stderr
-import time
+import unittest
+import wtf
+import sys
 import os
 
+err = sys.stderr
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
 
 ref_clip = os.getenv("REF_CLIP")
 # XXX: nose probably has something like this?
-results={}
+results = {}
 
 # set default test results and override if provided
-exp_results={"test1":0.01,"test2":0.01}
+exp_results = {"test1": 0.01, "test2": 0.01}
 if len(wtfconfig.exp_results) > 0:
-    exp_results=wtfconfig.exp_results
+    exp_results = wtfconfig.exp_results
+
 
 # global setup, called once during this suite
 def setUp(self):
@@ -33,7 +33,6 @@ def setUp(self):
     global if_1
     global if_2
     global if_3
-
 
     if_1 = sta[0].iface[0]
     if_2 = sta[1].iface[0]
@@ -44,12 +43,15 @@ def setUp(self):
         n.init()
         n.start()
 
+
 def tearDown(self):
     for n in wtfconfig.nodes:
         n.stop()
 
-    print "                                                     ref_clip=%s" % (ref_clip,)
+    print "                                                     \
+            ref_clip=%s" % (ref_clip,)
     print_linkreports(results)
+
 
 class SimpleMeshTest(unittest.TestCase):
 
@@ -67,7 +69,9 @@ class SimpleMeshTest(unittest.TestCase):
 
         perf_report = do_perf([if_1, if_2], dst_ip)
         results[fname] = LinkReport(perf_report=perf_report)
-        self.failIf(perf_report.tput < (exp_results["test1"]), "reported throughput (" + str(perf_report.tput) + ") is lower than expected (" + str(exp_results["test1"]) + ")")
+        self.failIf(perf_report.tput < (exp_results["test1"]),
+                    "reported throughput (" + str(perf_report.tput) + ") is \
+                    lower than expected (" + str(exp_results["test1"]) + ")")
 
     def test_2_same_ch_mhop(self):
         fname = sys._getframe().f_code.co_name
@@ -86,4 +90,6 @@ class SimpleMeshTest(unittest.TestCase):
         # test multi-hop performance using a single radio for forwarding
         results[fname] = LinkReport(perf_report=perf_report)
         if_2.dump_mesh_stats()
-        self.failIf(perf_report.tput < (exp_results["test2"]), "reported throughput (" + str(perf_report.tput) + ") is lower than expected (" + str(exp_results["test2"]) + ")")
+        self.failIf(perf_report.tput < (exp_results["test2"]),
+                    "reported throughput (" + str(perf_report.tput) + ") is \
+                    lower than expected (" + str(exp_results["test2"]) + ")")
