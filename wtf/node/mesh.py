@@ -1,6 +1,8 @@
 # Copyright cozybit, Inc 2010-2012
 # All rights reserved
 
+import textwrap
+
 import wtf.node as node
 import sys; err = sys.stderr
 
@@ -84,31 +86,31 @@ class MeshSTA(node.LinuxNode, MeshBase):
         # This is the configuration template for the authsae config
         confpath="/tmp/authsae-%s.conf" % (config.iface.name)
         logpath="/tmp/authsae-%s.log" % (config.iface.name)
-        security_config_base = '''
-/* this is a comment */
-authsae:
-{
- sae:
-  {
-    debug = 480;
-    password = \\"thisisreallysecret\\";
-    group = [19, 26, 21, 25, 20];
-    blacklist = 5;
-    thresh = 5;
-    lifetime = 3600;
-  };
- meshd:
-  {
-    meshid = \\"%s\\";
-    interface = \\"%s\\";
-    band = \\"11g\\";
-    channel = %s;
-    htmode = \\"none\\";
-    mcast-rate = 12;
-  };
-};
+        security_config_base = textwrap.dedent('''
+        /* this is a comment */
+        authsae:
+        {
+            sae:
+            {
+                debug = 480;
+                password = \\"thisisreallysecret\\";
+                group = [19, 26, 21, 25, 20];
+                blacklist = 5;
+                thresh = 5;
+                lifetime = 3600;
+            };
+            meshd:
+            {
+                meshid = \\"%s\\";
+                interface = \\"%s\\";
+                band = \\"11g\\";
+                channel = %s;
+                htmode = \\"none\\";
+                mcast-rate = 12;
+            };
+        };
+        ''' % (str(config.ssid), str(config.iface.name), str(config.channel)))
 
-''' % ( str(config.ssid), str(config.iface.name), str(config.channel))
         self._cmd_or_die("echo -e \"" + security_config_base + "\"> %s" % (confpath), verbosity=0);
         self._cmd_or_die("meshd-nl80211 -c %s %s &" % (confpath, logpath))
 
