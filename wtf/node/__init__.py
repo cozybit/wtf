@@ -296,6 +296,13 @@ class Iface():
     def link_up(self):
         self.node.comm.send_cmd("ip link set %s up" % (self.name))
 
+    def set_radio(self, state):
+        """Turn on or off the radio"""
+        # FIXME
+        if self.driver == "mwl8787_sdio":
+            self.node.comm.send_cmd("echo %d > /sys/kernel/debug/ieee80211/%s/mwl8787/radio_set" % (state, self.phy))
+        else:
+            raise UnimplementedError("Not yet implemented for %s" % (self.driver))
 
 # allows commands to return either return code or stdout so the caller
 # verbosely names which of the two if any they want to use
