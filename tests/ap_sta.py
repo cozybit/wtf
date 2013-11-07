@@ -39,7 +39,7 @@ class TestAPSTA(unittest.TestCase):
             n.start()
 
     def pingTest(self):
-        self.failIf(wtfconfig.stas[0].ping(AP_IP, timeout=5) != 0,
+        self.failIf(wtfconfig.stas[0].ping(AP_IP, timeout=5).return_code != 0,
                     "Failed to ping AP at %s" % AP_IP)
 
     def assocTest(self):
@@ -63,7 +63,7 @@ class TestAPSTA(unittest.TestCase):
         wtfconfig.stas[0].start()
         # try a few times since not all BSSs are found each scan
         found = None
-        for i in range(3): 
+        for i in range(3):
             results = wtfconfig.stas[0].scan()
             for r in results:
                 if r.ssid == "wtf-scantest":

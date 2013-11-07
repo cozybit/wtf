@@ -202,7 +202,7 @@ class TestMMBSS(unittest.TestCase):
 #                    :
 #                    :
 #                   eth2 ip4
-# 
+#
 # all ip addrs should be able to ping eachother.
         fname = sys._getframe().f_code.co_name
 
@@ -237,17 +237,17 @@ class TestMMBSS(unittest.TestCase):
 
         sta[1].bridge([if_b, eth1], if_b.ip)
 
-        self.failIf(sta[0].ping(if_b.ip) != 0)
-        self.failIf(sta[0].ping(if_d.ip) != 0)
-        self.failIf(sta[0].ping(eth2.ip) != 0)
-        self.failIf(sta[1].ping(if_a.ip) != 0)
-        self.failIf(sta[1].ping(if_d.ip) != 0)
-        self.failIf(sta[1].ping(eth2.ip) != 0)
-        self.failIf(sta[2].ping(if_b.ip) != 0)
-        self.failIf(sta[2].ping(eth2.ip) != 0)
-        self.failIf(sta[3].ping(if_a.ip) != 0)
-        self.failIf(sta[3].ping(if_b.ip) != 0)
-        self.failIf(sta[3].ping(if_d.ip) != 0)
+        self.failIf(sta[0].ping(if_b.ip).return_code != 0)
+        self.failIf(sta[0].ping(if_d.ip).return_code != 0)
+        self.failIf(sta[0].ping(eth2.ip).return_code != 0)
+        self.failIf(sta[1].ping(if_a.ip).return_code != 0)
+        self.failIf(sta[1].ping(if_d.ip).return_code != 0)
+        self.failIf(sta[1].ping(eth2.ip).return_code != 0)
+        self.failIf(sta[2].ping(if_b.ip).return_code != 0)
+        self.failIf(sta[2].ping(eth2.ip).return_code != 0)
+        self.failIf(sta[3].ping(if_a.ip).return_code != 0)
+        self.failIf(sta[3].ping(if_b.ip).return_code != 0)
+        self.failIf(sta[3].ping(if_d.ip).return_code != 0)
 
         if_a.stop_capture(path="/tmp/%s_a.cap" % (fname))
         if_b.stop_capture(path="/tmp/%s_b.cap" % (fname))

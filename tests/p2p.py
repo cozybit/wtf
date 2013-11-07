@@ -57,7 +57,7 @@ class TestP2P(unittest.TestCase):
         self.failIf(ret != 0, "Failed to connect to %s" % go.name)
         go.set_ip("192.168.88.1")
         client.set_ip("192.168.88.2")
-        self.failIf(client.ping("192.168.88.1", timeout=5) != 0,
+        self.failIf(client.ping("192.168.88.1", timeout=5).return_code != 0,
                     "client failed to ping GO")
         # Finally, perform a traffic test
         go.perf()
@@ -89,5 +89,5 @@ class TestP2P(unittest.TestCase):
         self.failIf(ret != 0, "Failed to connect to %s" % go.name)
         go.set_ip("192.168.88.1")
         client.set_ip("192.168.88.2")
-        self.failIf(client.ping("192.168.88.1", timeout=5) != 0,
+        self.failIf(client.ping("192.168.88.1", timeout=5).return_code != 0,
                     "client failed to ping GO")

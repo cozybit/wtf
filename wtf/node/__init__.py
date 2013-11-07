@@ -3,6 +3,7 @@
 
 import os
 import time
+from collections import namedtuple
 
 from wtf.util import *
 
@@ -94,7 +95,7 @@ class NodeBase():
         """
         raise UnimplementedError("set_ip is not implemented for this node")
 
-    def ping(self, host, timeout=2, count=1):
+    def ping(self, host, timeout=2, count=1, interval=1):
         """
         ping a remote host from this node
 
@@ -102,7 +103,9 @@ class NodeBase():
 
         count: number of ping requests to send
 
-        return 0 on success, anything else on failure
+        interval: time in between pings
+
+        return a named tuple return_code and stdout
         """
         raise UnimplementedError("ping is not implemented for this node")
 
@@ -294,6 +297,9 @@ class Iface():
         self.node.comm.send_cmd("ip link set %s up" % (self.name))
 
 
+# allows commands to return either return code or stdout so the caller
+# verbosely names which of the two if any they want to use
+CommandResult = namedtuple("CommandResult", ['return_code', 'stdout'])
 
 class LinuxNode(NodeBase):
     """
@@ -393,9 +399,12 @@ class LinuxNode(NodeBase):
     def set_mcast(self, iface, mcast_route):
         self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route, iface.name))
 
-    def ping(self, host, timeout=3, count=1, verbosity=2):
-        return self.comm.send_cmd("ping -c " + str(count) + " -w " +
-                                  str(timeout) + " " + host, verbosity=verbosity)[0]
+    def ping(self, host, timeout=3, count=1, verbosity=2, interval=1):
+        cmd = "ping -c " + str(count)
+        cmd += " -i " + str(interval)
+        cmd += " -w " + str(timeout) + " " + host
+        result = self.comm.send_cmd(cmd, verbosity=verbosity)
+        return CommandResult(return_code=result[0], stdout=result[1])
 
     def if_down(self, iface):
         self.comm.send_cmd("ifconfig " + iface + " down")

@@ -81,7 +81,7 @@ class TestMvdroid(unittest.TestCase):
 
         node1.set_ip("192.168.88.1")
         node2.set_ip("192.168.88.2")
-        self.failIf(node1.ping("192.168.88.1", timeout=5) != 0,
+        self.failIf(node1.ping("192.168.88.1", timeout=5).return_code != 0,
                     "%s failed to ping %s" % (node1.name, node2.name))
 
     def expect_pdreq(self, src, dest, method, expected_method):
@@ -124,7 +124,7 @@ class TestMvdroid(unittest.TestCase):
 
         node1.set_ip("192.168.88.1")
         node2.set_ip("192.168.88.2")
-        self.failIf(node1.ping("192.168.88.1", timeout=5) != 0,
+        self.failIf(node1.ping("192.168.88.1", timeout=5).return_code != 0,
                     "%s failed to ping %s" % (node1.name, node2.name))
 
     # Actual tests start here
