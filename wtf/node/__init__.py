@@ -115,8 +115,8 @@ class NodeBase():
             raise ActionFailureError("Failed to \"" + cmd + "\"")
         return o
 
-# wifi interface with associated driver and ip and maybe a monitor interface
 class Iface():
+    # wifi interface with associated driver and ip and maybe a monitor interface
     def __init__(self, name=None, driver=None, ip=None, mcast_route=None, conf=None):
         if not name:
             raise InsufficientConfigurationError("need iface name")
@@ -146,13 +146,13 @@ class Iface():
                 cmd += " -u"
             if conf.dst_ip:
                 cmd += " -B" + conf.dst_ip
-# -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
+            # -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
             cmd += " -y c -x CS > " + self.perf.log
             cmd += " &"
         else:
-# in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
-# yet), so prime it with a ping first. Takes care of initial "losses" as the
-# path is refreshed.
+            # in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
+            # yet), so prime it with a ping first. Takes care of initial "losses" as the
+            # path is refreshed.
             self.node.ping(conf.dst_ip, verbosity=3, timeout=3, count=3)
             self.dump_mpaths()
             cmd = "iperf -c " + conf.dst_ip + \
@@ -167,7 +167,7 @@ class Iface():
 
         _, o = self.node.comm.send_cmd(cmd)
         if conf.server != True and conf.fork != True:
-# we blocked on completion and report is ready now
+            # we blocked on completion and report is ready now
             self.perf.report = o[1]
         else:
             _, o = self.node.comm.send_cmd("echo $!")
@@ -197,14 +197,14 @@ class Iface():
         print "parsing perf report"
         return parse_perf_report(self.perf, o)
 
-# server @video to @dst_ip using VLC. Blocks until stream completion
     def video_serve(self, video=None, ip=None, port=5004):
+        # serve @video to @dst_ip using VLC. Blocks until stream completion
         if ip == None or video == None:
             raise InsufficientConfigurationError("need a reference clip and destination ip!")
         print "%s: starting video server" % (self.ip,)
         self.ref_clip = "/tmp/" + os.path.basename(video)
         self.comm.put_file(video, self.ref_clip)
-# prime mpath so we don't lose inital frames in unicast!
+        # prime mpath so we don't lose inital frames in unicast!
         self.node.ping(ip, verbosity=0)
         self.node.comm.send_cmd("su nobody -c 'vlc -I dummy %s :sout=\"#rtp{dst=%s,port=%d,mux=ts,ttl=1}\" :sout-all :sout-keep vlc://quit' &> /tmp/video.log" % (self.ref_clip, ip, port))
 
@@ -227,9 +227,9 @@ class Iface():
         self.killvideo()
         self.node.comm.get_file(self.video_file, path)
 
-# note the low snaplen, this is to prioritize no dropped packets over getting
-# the whole payload
     def start_capture(self, cap_file=None, snaplen=300, promisc=False, eth=False):
+        # note the low snaplen, this is to prioritize no dropped packets over getting
+        # the whole payload
         if not cap_file:
             cap_file = "/tmp/" + self.name + "_out.cap"
         if not self.cap:
@@ -239,9 +239,9 @@ class Iface():
         self.cap.snaplen = snaplen
 
         if not self.cap.monif and eth:
-# capturing on an ethernet iface, nothing special
+            # capturing on an ethernet iface, nothing special
             self.cap.monif = self.name
-# if no monif configured, attach to this interface in non-promiscuous
+        # if no monif configured, attach to this interface in non-promiscuous
         elif not self.cap.monif:
             self.cap.monif = self.name + ".mon"
             self.node._cmd_or_die("iw %s interface add %s type monitor" %
@@ -251,7 +251,7 @@ class Iface():
 
         cmd = "tcpdump -i %s -U " % (self.cap.monif)
         if not self.cap.promisc:
-            cmd += "-p "
+           cmd += "-p "
         if self.cap.snaplen:
             cmd += "-s %d " % (self.cap.snaplen)
         cmd += "-w %s &" % (self.cap.node_cap)
@@ -259,26 +259,26 @@ class Iface():
         _, o = self.node.comm.send_cmd("echo $!")
         self.cap.pid =  int(o[-1])
 
-# return path to capture file now available on local system
     def get_capture(self, path=None):
+        # return path to capture file now available on local system
         if not path:
             import tempfile
             path = tempfile.mktemp()
         self.node.comm.get_file(self.cap.node_cap, path)
-# save a pointer
+        # save a pointer
         self.cap.local_cap = path
         return path
 
-# stop capture and get a copy for analysis
     def stop_capture(self, path=None):
+        # stop capture and get a copy for analysis
         if not self.cap:
             return
         self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.cap.pid,))
         self.cap.pid = None
         return self.get_capture(path)
 
-    # XXX: ahem, mesh-specific goes in MeshIface?
     def add_mesh_peer(self, peer):
+        # TODO: Mesh-specific goes in MeshIface?
         self.node.comm.send_cmd("iw %s station set %s plink_action open" %
                                 (self.name, peer.mac))
 
@@ -304,9 +304,11 @@ class Iface():
         else:
             raise UnimplementedError("Not yet implemented for %s" % (self.driver))
 
+
 # allows commands to return either return code or stdout so the caller
 # verbosely names which of the two if any they want to use
 CommandResult = namedtuple("CommandResult", ['return_code', 'stdout'])
+
 
 class LinuxNode(NodeBase):
     """
@@ -343,9 +345,8 @@ class LinuxNode(NodeBase):
         for iface in self.iface:
             if iface.enable != True:
                 continue
-#
-# Baaaaad
-#
+
+            # TODO: Use an abstraction here
             no_modprobe = ["mwl8787_sdio", "wcn36xx_msm"]
 
             if iface.driver not in no_modprobe:
@@ -422,9 +423,9 @@ class LinuxNode(NodeBase):
         self.if_down(self.brif)
         self.comm.send_cmd("brctl delbr " + self.brif)
 
-# bridge interfaces in ifaces[] and assign ip
-# bridge gets mac of first iface in ifaces[]
     def bridge(self, ifaces, ip):
+        # bridge interfaces in ifaces[] and assign ip
+        # bridge gets mac of first iface in ifaces[]
         bridge="br0"
         self.del_brif();
         self.brif = bridge
@@ -439,8 +440,8 @@ class LinuxNode(NodeBase):
         self.comm.send_cmd("modprobe -r bonding")
         self.comm.send_cmd("modprobe bonding")
 
-# bond interfaces in ifaces[] and assign ip
     def bond(self, ifaces, ip):
+        # bond interfaces in ifaces[] and assign ip
         self.bond_reload()
         self.set_ip("bond0", ip)
         for iface in ifaces:
