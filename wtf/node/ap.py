@@ -1,6 +1,8 @@
 # Copyright cozybit, Inc 2010-2011
 # All rights reserved
 
+import textwrap
+
 import wtf.node as node
 
 class APBase(node.NodeBase):
@@ -54,6 +56,7 @@ class APConfig():
                (not password or not auth):
             raise InsufficientConfigurationError("WPA(2) requires a password and auth scheme")
 
+
 class Hostapd(node.LinuxNode, APBase):
     """
     Hostapd-based AP
@@ -80,25 +83,25 @@ class Hostapd(node.LinuxNode, APBase):
 
 # some of this stuff, like channel, ht_capab, and hw_mode are target-specific,
 # use 'iw <dev> list' to parse capabilities?
-    base_config = """
-driver=nl80211
-logger_syslog=-1
-logger_syslog_level=2
-logger_stdout=-1
-logger_stdout_level=0
-dump_file=/tmp/hostapd.dump
-ctrl_interface=/var/run/hostapd
-ctrl_interface_group=0
-beacon_int=100
-dtim_period=2
-max_num_sta=255
-rts_threshold=2347
-fragm_threshold=2346
-macaddr_acl=0
-auth_algs=3
-ignore_broadcast_ssid=0
-own_ip_addr=127.0.0.1
-"""
+    base_config = textwrap.dedent("""
+        driver=nl80211
+        logger_syslog=-1
+        logger_syslog_level=2
+        logger_stdout=-1
+        logger_stdout_level=0
+        dump_file=/tmp/hostapd.dump
+        ctrl_interface=/var/run/hostapd
+        ctrl_interface_group=0
+        beacon_int=100
+        dtim_period=2
+        max_num_sta=255
+        rts_threshold=2347
+        fragm_threshold=2346
+        macaddr_acl=0
+        auth_algs=3
+        ignore_broadcast_ssid=0
+        own_ip_addr=127.0.0.1
+        """)
 
     def _configure(self):
         config = self.base_config
@@ -107,7 +110,7 @@ own_ip_addr=127.0.0.1
         config += "channel=%d\n" % self.config.channel
         config += "interface=" + self.iface + "\n"
         if self.config.security != None:
-            if self.config.security == SECURITY_WPA: 
+            if self.config.security == SECURITY_WPA:
                 config += "wpa=1\n"
             elif self.config.security == SECURITY_WPA2:
                 config += "wpa=2\n"
@@ -129,28 +132,28 @@ own_ip_addr=127.0.0.1
                 # channel, band, and HT40+/- combination, we let hostapd take care of it.
                 config += "ht_capab=[HT40-]\n"
                 # is this really needed? linux-wireless wiki says so in an underhanded manner (http://wireless.kernel.org/en/users/Documentation/hostapd)
-                # check the 11n standard. Enabled for now. 
-                config += """wmm_enabled=1
-wmm_ac_bk_cwmin=4
-wmm_ac_bk_cwmax=10
-wmm_ac_bk_aifs=7
-wmm_ac_bk_txop_limit=0
-wmm_ac_bk_acm=0
-wmm_ac_be_aifs=3
-wmm_ac_be_cwmin=4
-wmm_ac_be_cwmax=10
-wmm_ac_be_txop_limit=0
-wmm_ac_be_acm=0
-wmm_ac_vi_aifs=2
-wmm_ac_vi_cwmin=3
-wmm_ac_vi_cwmax=4
-wmm_ac_vi_txop_limit=94
-wmm_ac_vi_acm=0
-wmm_ac_vo_aifs=2
-wmm_ac_vo_cwmin=2
-wmm_ac_vo_cwmax=3
-wmm_ac_vo_txop_limit=47
-wmm_ac_vo_acm=0"""
+                # check the 11n standard. Enabled for now.
+                config += textwrap.dedent("""wmm_enabled=1
+                    wmm_ac_bk_cwmin=4
+                    wmm_ac_bk_cwmax=10
+                    wmm_ac_bk_aifs=7
+                    wmm_ac_bk_txop_limit=0
+                    wmm_ac_bk_acm=0
+                    wmm_ac_be_aifs=3
+                    wmm_ac_be_cwmin=4
+                    wmm_ac_be_cwmax=10
+                    wmm_ac_be_txop_limit=0
+                    wmm_ac_be_acm=0
+                    wmm_ac_vi_aifs=2
+                    wmm_ac_vi_cwmin=3
+                    wmm_ac_vi_cwmax=4
+                    wmm_ac_vi_txop_limit=94
+                    wmm_ac_vi_acm=0
+                    wmm_ac_vo_aifs=2
+                    wmm_ac_vo_cwmin=2
+                    wmm_ac_vo_cwmax=3
+                    wmm_ac_vo_txop_limit=47
+                    wmm_ac_vo_acm=0""")
 
         self._cmd_or_die("echo -e \"" + config + "\"> /tmp/hostapd.conf",
                          verbosity=0)
