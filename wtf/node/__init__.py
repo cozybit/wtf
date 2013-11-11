@@ -8,44 +8,35 @@ from collections import namedtuple
 from wtf.util import *
 
 class UninitializedError(Exception):
-    """
-    Exception raised when routines are called prior to initialization.
-    """
-    pass
+
+    """Raised when routines are called prior to initialization."""
+
 
 class InsufficientConfigurationError(Exception):
-    """
-    Exception raised when sufficient configuration information is not available.
-    """
-    pass
+
+    """Raised on insufficient configuration information."""
+
 
 class UnsupportedConfigurationError(Exception):
-    """
-    Exception raised when an unsupported configuration has been attempted.
-    """
-    pass
+
+    """Raised when an unsupported configuration has been attempted."""
+
 
 class ActionFailureError(Exception):
-    """
-    Exception raised when an action on a node fails.
-    """
-    pass
 
-class UnimplementedError(Exception):
-    """
-    A method should have been implemented by a subclass but is not.
-    """
-    pass
+    """Raised when an action on a node fails."""
 
-class NodeBase():
-    """
-    A network node that will participate in tests
+
+class NodeBase(object):
+
+    """A network node that will participate in tests.
 
     A network node could be an AP, a mesh node, a client STA, or some new thing
     that you are inventing.  Minimally, it can be initialized and shutdown
     repeatedly.  So init and shutdown are really not the same thing as __init__
     and __del__.  Once a node has been successfully initialized, it can be
     started and stopped, repeatedly.
+
     """
 
     def __init__(self, comm):
@@ -53,61 +44,54 @@ class NodeBase():
         self.comm = comm
 
     def init(self):
-        """
-        initialize the node
+        """Initialize the node.
 
         override this method to customize how your node is initialized.  For
         some nodes, perhaps nothing is needed.  Others may have to be powered
         on and configured.
+
         """
         self.initialized = True
 
     def shutdown(self):
-        """
-        shutdown the node
+        """Shutdown the node.
 
-        override this method to customize how your node shuts down.
+        Override this method to customize how your node shuts down.
+
         """
         self.initialized = False
 
     def start(self):
-        """
-        start the node in its default configuration
+        """Start the node in its default configuration.
 
-        raises an UninitializedError if init was not called.
+        Raises an `UninitializedError` if `init` was not called.
 
-        raises an InsufficientConfigurationError exception if sufficient
+        Raises an `InsufficientConfigurationError` exception if sufficient
         default values are not available.
+
         """
-        if self.initialized != True:
+        if not self.initialized:
             raise UninitializedError()
         raise InsufficientConfigurationError()
 
     def stop(self):
-        """
-        stop the node
-        """
-        pass
+        """Stop the node."""
 
     def set_ip(self, iface, ipaddr):
+        """Set the ip address of a node."""
+        raise NotImplementedError("set_ip is not implemented for this node")
+
+    def ping(self, host, timeout=2, count=1):
+        """Ping a remote host from this node.
+
+        :param timeout: seconds to wait before quitting
+        :param count: number of ping requests to send
+        :param interval: time in between pings
+        :returns: 0 on success, anything else on failure
+        :returns: a named tuple return_code and stdout
+
         """
-        set the ip address of a node
-        """
-        raise UnimplementedError("set_ip is not implemented for this node")
-
-    def ping(self, host, timeout=2, count=1, interval=1):
-        """
-        ping a remote host from this node
-
-        timeout: seconds to wait before quitting
-
-        count: number of ping requests to send
-
-        interval: time in between pings
-
-        return a named tuple return_code and stdout
-        """
-        raise UnimplementedError("ping is not implemented for this node")
+        raise NotImplementedError("ping is not implemented for this node")
 
     def _cmd_or_die(self, cmd, verbosity=None):
         (r, o) = self.comm.send_cmd(cmd, verbosity)
@@ -174,62 +158,93 @@ class Iface():
             self.perf.pid =  int(o[-1])
 
     def perf_serve(self, dst_ip=None, p=7777, tcp=False):
+        """Start an iperf server."""
         self.start_perf(PerfConf(server=True, dst_ip=dst_ip, p=p, tcp=tcp))
 
-    def perf_client(self, dst_ip=None, timeout=5, dual=False, b=10, p=7777, L=6666, fork=False,
-                    tcp=False):
-        if dst_ip == None:
+    def perf_client(self, dst_ip=None, timeout=5, dual=False, b=10, p=7777,
+                    L=6666, fork=False, tcp=False):
+        """Start an iperf client."""
+        if dst_ip is None:
             raise InsufficientConfigurationError("need dst_ip for perf")
         self.start_perf(PerfConf(dst_ip=dst_ip, timeout=timeout,
                                  dual=dual, b=b, p=p, L=L, fork=fork,
                                  tcp=tcp))
 
     def killperf(self):
-        if self.perf.pid == None:
+        """Kill the remote iperf server."""
+        if self.perf.pid is None:
             return
-        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.perf.pid,))
-        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.perf.pid,))
+        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" %
+                                (self.perf.pid,))
+        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" %
+                                (self.perf.pid,))
         self.perf.pid = None
 
     def get_perf_report(self):
+        """Parse the remote iperf remote.
+
+        :returns: An `IperfReport` object.
+
+        """
         self.killperf()
         _, o = self.node.comm.send_cmd("cat " + self.perf.log)
         print "parsing perf report"
         return parse_perf_report(self.perf, o)
 
     def video_serve(self, video=None, ip=None, port=5004):
-        # serve @video to @dst_ip using VLC. Blocks until stream completion
-        if ip == None or video == None:
-            raise InsufficientConfigurationError("need a reference clip and destination ip!")
+        """Serve `video` to `dst_ip` using VLC.
+
+        Blocks until stream completion
+
+        """
+        if ip is None or video is None:
+            raise InsufficientConfigurationError(
+                "need a reference clip and destination ip!")
         print "%s: starting video server" % (self.ip,)
         self.ref_clip = "/tmp/" + os.path.basename(video)
         self.comm.put_file(video, self.ref_clip)
         # prime mpath so we don't lose inital frames in unicast!
         self.node.ping(ip, verbosity=0)
-        self.node.comm.send_cmd("su nobody -c 'vlc -I dummy %s :sout=\"#rtp{dst=%s,port=%d,mux=ts,ttl=1}\" :sout-all :sout-keep vlc://quit' &> /tmp/video.log" % (self.ref_clip, ip, port))
+        self.node.comm.send_cmd(
+            "su nobody -c 'vlc -I dummy %s"
+            " :sout=\"#rtp{dst=%s,port=%d,mux=ts,ttl=1}\" :sout-all"
+            " :sout-keep vlc://quit' &> /tmp/video.log"
+            % (self.ref_clip, ip, port))
 
     def video_client(self, out_file=None, ip=None, port=5004):
+        """Start VLC on the node."""
         print "%s: starting video client" % (self.ip,)
-        if ip == None:
-            raise InsufficientConfigurationError("need a reference clip and destination ip!")
-        if out_file == None:
+        if ip is None:
+            raise InsufficientConfigurationError(
+                "need a reference clip and destination ip!")
+        if out_file is None:
             out_file = "/tmp/" + self.name + "_video.ts"
         self.video_file = out_file
-        self.node.comm.send_cmd("su nobody -c 'vlc -I dummy rtp://%s:%d --sout file/ts:%s' &> /tmp/video.log &" % (ip, port, self.video_file))
+        self.node.comm.send_cmd(
+            "su nobody -c 'vlc -I dummy rtp://%s:%d "
+            "--sout file/ts:%s' &> /tmp/video.log &"
+            % (ip, port, self.video_file))
 
     def killvideo(self):
+        """Kill node's video client (vlc)."""
         self.node.comm.send_cmd("killall -w vlc")
         self.node.comm.send_cmd("cat /tmp/video.log")
 
     def get_video(self, path="/tmp/out.ts"):
-        if self.video_file == None:
+        """Fetch captured video file from node."""
+        if self.video_file is None:
             pass
         self.killvideo()
         self.node.comm.get_file(self.video_file, path)
 
-    def start_capture(self, cap_file=None, snaplen=300, promisc=False, eth=False):
-        # note the low snaplen, this is to prioritize no dropped packets over getting
-        # the whole payload
+    def start_capture(self, cap_file=None, snaplen=300, promisc=False,
+                      eth=False):
+        """Start a packet capture on the node.
+
+        Note the low `snaplen`, this is to prioritize no dropped packets over
+        getting the whole payload.
+
+        """
         if not cap_file:
             cap_file = "/tmp/" + self.name + "_out.cap"
         if not self.cap:
@@ -251,16 +266,16 @@ class Iface():
 
         cmd = "tcpdump -i %s -U " % (self.cap.monif)
         if not self.cap.promisc:
-           cmd += "-p "
+            cmd += "-p "
         if self.cap.snaplen:
             cmd += "-s %d " % (self.cap.snaplen)
         cmd += "-w %s &" % (self.cap.node_cap)
         self.node.comm.send_cmd(cmd)
         _, o = self.node.comm.send_cmd("echo $!")
-        self.cap.pid =  int(o[-1])
+        self.cap.pid = int(o[-1])
 
     def get_capture(self, path=None):
-        # return path to capture file now available on local system
+        """Return path to capture file now available on local system."""
         if not path:
             import tempfile
             path = tempfile.mktemp()
@@ -270,30 +285,38 @@ class Iface():
         return path
 
     def stop_capture(self, path=None):
-        # stop capture and get a copy for analysis
+        """Stop capture and return a copy for analysis."""
         if not self.cap:
             return
-        self.node.comm.send_cmd("while kill %d 2>/dev/null; do sleep 1; done" % (self.cap.pid,))
+        self.node.comm.send_cmd(
+            "while kill %d 2>/dev/null; do sleep 1; done" % (self.cap.pid,))
         self.cap.pid = None
         return self.get_capture(path)
 
     def add_mesh_peer(self, peer):
-        # TODO: Mesh-specific goes in MeshIface?
+        """Add a mesh peer to the node."""
+        # TODO: Mesh-specific goes in MeshIface (or MeshSTA)?
         self.node.comm.send_cmd("iw %s station set %s plink_action open" %
                                 (self.name, peer.mac))
 
     def dump_mpaths(self):
-        #self.node.comm.send_cmd("iw %s mpath dump mbss" % (self.name))
+        """Dump mpaths."""
         self.node.comm.send_cmd("iw %s mpath dump" % (self.name))
 
     def dump_mesh_stats(self):
-        self.node.comm.send_cmd("grep \"\" /sys/kernel/debug/ieee80211/%s/netdev\:%s/mesh_stats/*" %
-                                (self.phy, self.name))
+        """Dump mesh status of the node."""
+        self.node.comm.send_cmd(
+            "grep \"\" /sys/kernel/debug/ieee80211/%s/netdev\\:%s/mesh_stats/*"
+            % (self.phy, self.name))
 
     def dump_phy_stats(self):
-        self.node.comm.send_cmd("grep \"\" /sys/kernel/debug/ieee80211/%s/statistics/*" % (self.phy))
+        """Dump phy stats of the node."""
+        self.node.comm.send_cmd(
+            "grep \"\" /sys/kernel/debug/ieee80211/%s/statistics/*"
+            % (self.phy))
 
     def link_up(self):
+        """Bring the nodes link up."""
         self.node.comm.send_cmd("ip link set %s up" % (self.name))
 
     def set_radio(self, state):
@@ -302,7 +325,7 @@ class Iface():
         if self.driver == "mwl8787_sdio":
             self.node.comm.send_cmd("echo %d > /sys/kernel/debug/ieee80211/%s/mwl8787/radio_set" % (state, self.phy))
         else:
-            raise UnimplementedError("Not yet implemented for %s" % (self.driver))
+            raise NotImplementedError("Not yet implemented for %s" % (self.driver))
 
 
 # allows commands to return either return code or stdout so the caller
@@ -322,9 +345,8 @@ class LinuxNode(NodeBase):
             iface.node = self
         self.brif = None
         NodeBase.__init__(self, comm)
-        if path != None:
+        if path is not None:
             self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
-
         # who knows what was running on this machine before.  Be sure to kill
         # anything that might get in our way.
         self.comm.send_cmd("killall hostapd; killall wpa_supplicant",
@@ -364,16 +386,21 @@ class LinuxNode(NodeBase):
                     raise UnsupportedConfigurationError("Don't know what hack to use here")
 
             # TODO: check for error and throw something!
-            _, iface.phy = self.comm.send_cmd("echo `find /sys/kernel/debug/ieee80211 -name netdev:" + iface.name + " | cut -d/ -f6`", verbosity=0)
-            _, iface.mac = self.comm.send_cmd("echo `ip link show " + iface.name + " | awk '/ether/ {print $2}'`", verbosity=0)
+            _, iface.phy = self.comm.send_cmd(
+                "echo `find /sys/kernel/debug/ieee80211 -name netdev:" +
+                iface.name + " | cut -d/ -f6`", verbosity=0)
+            _, iface.mac = self.comm.send_cmd(
+                "echo `ip link show " + iface.name +
+                " | awk '/ether/ {print $2}'`", verbosity=0)
 
-            # XXX: Python people help!!
+            # TODO: Python people help!!
             iface.phy = iface.phy[0]
             iface.mac = iface.mac[0]
 
         self.initialized = True
 
     def shutdown(self):
+        """Shutdown the node: remove all modules, stop services."""
         self.stop()
         for iface in self.iface:
             if iface.driver:
@@ -385,29 +412,36 @@ class LinuxNode(NodeBase):
         self.initialized = False
 
     def start(self):
-        if self.initialized != True:
+        """Start the node: brind up interfaces, set address."""
+        if not self.initialized:
             raise UninitializedError()
         for iface in self.iface:
-            if iface.enable != True:
+            if not iface.enable:
                 continue
-            # FIXME: config.iface.set_ip()?
+            # TODO: config.iface.set_ip()?
             if iface.ip:
                 self.set_ip(iface.name, iface.ip)
             if iface.mcast_route:
                 self.set_mcast(iface, iface.mcast_route)
 
     def stop(self):
+        """Stop the node: interface downed and interface deleted."""
         for iface in self.iface:
             self.comm.send_cmd("ifconfig " + iface.name + " down")
         self.del_brif()
 
     def set_ip(self, name, ipaddr):
+        """Set the node's IP address."""
         self.comm.send_cmd("ifconfig " + name + " " + ipaddr + " up")
 
     def set_mcast(self, iface, mcast_route):
-        self.comm.send_cmd("route add -net %s netmask 255.255.255.255 %s" % (mcast_route, iface.name))
+        """Set node's multicast route."""
+        self.comm.send_cmd(
+            "route add -net %s netmask 255.255.255.255 %s"
+            % (mcast_route, iface.name))
 
     def ping(self, host, timeout=3, count=1, verbosity=2, interval=1):
+        """Start ping from this node to `host`. Return ping output."""
         cmd = "ping -c " + str(count)
         cmd += " -i " + str(interval)
         cmd += " -w " + str(timeout) + " " + host
@@ -415,19 +449,26 @@ class LinuxNode(NodeBase):
         return CommandResult(return_code=result[0], stdout=result[1])
 
     def if_down(self, iface):
+        """Bring down node's network interface."""
         self.comm.send_cmd("ifconfig " + iface + " down")
 
     def del_brif(self):
+        """Delete node's bridge interface."""
         if not self.brif:
             return
         self.if_down(self.brif)
         self.comm.send_cmd("brctl delbr " + self.brif)
 
     def bridge(self, ifaces, ip):
-        # bridge interfaces in ifaces[] and assign ip
-        # bridge gets mac of first iface in ifaces[]
-        bridge="br0"
-        self.del_brif();
+        """Bridge interfaces.
+
+        :param ifaces: interfaces to bridge, first mac of `ifaces` it assigned
+                       bridge interface.
+        :param ip: ip to assign to bridge
+
+        """
+        bridge = "br0"
+        self.del_brif()
         self.brif = bridge
         self._cmd_or_die("brctl addbr " + bridge)
         for iface in ifaces:
@@ -437,11 +478,12 @@ class LinuxNode(NodeBase):
         self.set_ip("br0", ip)
 
     def bond_reload(self):
+        """Reload the "bonding" module."""
         self.comm.send_cmd("modprobe -r bonding")
         self.comm.send_cmd("modprobe bonding")
 
     def bond(self, ifaces, ip):
-        # bond interfaces in ifaces[] and assign ip
+        """Bond interfaces in `ifaces` and assign `ip`."""
         self.bond_reload()
         self.set_ip("bond0", ip)
         for iface in ifaces:
