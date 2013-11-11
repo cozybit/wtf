@@ -1,10 +1,76 @@
+"""Collection of misc utils for WTF."""
 import sys
 import commands
 import os
 import subprocess
 import random
 
+
 CAP_FILE = "/tmp/out.cap"
+
+
+class LinkReport():
+
+    """A collection of different link metric results."""
+
+    def __init__(self, perf_report=None, vqm_report=None):
+        self.perf = perf_report
+        self.vqm = vqm_report
+
+
+class VQMReport():
+
+    """VQMReport."""
+
+    def __init__(self, ref_clip="", out_clip="", ssim=0, psnr=0, dcm=0):
+        self.ref_clip = ref_clip
+        self.out_clip = out_clip
+        self.ssim = ssim
+        self.psnr = psnr
+        self.dcm = dcm
+
+
+class CapData():
+
+    """CapData."""
+
+    def __init__(self, cap_file=None, monif=None, promisc=False):
+        # local to the monif
+        self.node_cap = cap_file
+        self.local_cap = None
+        self.monif = monif
+        self.promisc = promisc
+        self.pid = None
+        self.snaplen = None
+
+
+class PerfConf():
+
+    """PerfConf."""
+
+    def __init__(self, server=False, dst_ip=None, timeout=5,
+                 dual=False, b=10, p=7777, L=6666, fork=False,
+                 tcp=False):
+        self.server = server
+        self.dst_ip = dst_ip
+        self.timeout = timeout
+        self.dual = dual
+        self.bw = b
+        self.tcp = tcp
+        self.listen_port = p
+        self.dual_port = L
+        self.fork = fork
+        self.report = None
+        self.pid = None
+
+
+class IperfReport():
+
+    """IperfReport."""
+
+    def __init__(self, throughput=0.0, loss=0.0):
+        self.tput = throughput
+        self.loss = loss
 
 
 def reconf_stas(stas):
@@ -40,22 +106,6 @@ def killperfs(stas):
     for sta in stas:
         for iface in sta.iface:
             iface.killperf()
-
-
-class LinkReport():
-    """A collection of different link metric results.""""
-    def __init__(self, perf_report=None, vqm_report=None):
-        self.perf = perf_report
-        self.vqm = vqm_report
-
-
-class VQMReport():
-    def __init__(self, ref_clip="", out_clip="", ssim=0, psnr=0, dcm=0):
-        self.ref_clip = ref_clip
-        self.out_clip = out_clip
-        self.ssim = ssim
-        self.psnr = psnr
-        self.dcm = dcm
 
 
 def get_vqm_report(ref_clip, out_clip):
@@ -117,42 +167,8 @@ def do_vqm(ifaces, dst, ref_clip):
     return get_vqm_report(ref_clip, rcv_clip)
 
 
-class CapData():
-    def __init__(self, cap_file=None, monif=None, promisc=False):
-    # local to the monif
-        self.node_cap = cap_file
-        self.local_cap = None
-        self.monif = monif
-        self.promisc = promisc
-        self.pid = None
-        self.snaplen = None
-
-
-class PerfConf():
-    def __init__(self, server=False, dst_ip=None, timeout=5,
-                 dual=False, b=10, p=7777, L=6666, fork=False,
-                 tcp=False):
-        self.server = server
-        self.dst_ip = dst_ip
-        self.timeout = timeout
-        self.dual = dual
-        self.bw = b
-        self.tcp = tcp
-        self.listen_port = p
-        self.dual_port = L
-        self.fork = fork
-        self.report = None
-        self.pid = None
-
-
-class IperfReport():
-    def __init__(self, throughput=0.0, loss=0.0):
-        self.tput = throughput
-        self.loss = loss
-
-
 def parse_perf_report(conf, r):
-    """CSV iperf report as @r.""""
+    """CSV iperf report as @r."""
     if len(r) == 0:
         tput = 0
         loss = 0
