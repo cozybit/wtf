@@ -58,9 +58,9 @@ class MeshSTA(node.LinuxNode, MeshBase):
             if iface.enable != True:
                 continue
             #self.set_iftype("mesh")
-            self._cmd_or_die("iw " + iface.name + " set type mp")
+            self._cmd_or_die("iw dev " + iface.name + " set type mp")
             #node.set_channel(self.config.channel)
-            self._cmd_or_die("iw " + iface.name + " set channel " + str(iface.conf.channel) +
+            self._cmd_or_die("iw dev " + iface.name + " set channel " + str(iface.conf.channel) +
                              " " + iface.conf.htmode)
             # must be up for authsae or iw
             self._cmd_or_die("ifconfig " + iface.name + " up")
@@ -78,7 +78,7 @@ class MeshSTA(node.LinuxNode, MeshBase):
             if config.security:
                 self.comm.send_cmd("start-stop-daemon --quiet --stop --exec meshd-nl80211")
             else:
-                self.comm.send_cmd("iw " + config.iface.name + " mesh leave")
+                self.comm.send_cmd("iw dev " + config.iface.name + " mesh leave")
         self.mccatool_stop()
         node.LinuxNode.stop(self)
 

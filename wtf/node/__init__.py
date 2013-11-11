@@ -151,8 +151,11 @@ class Iface(object):
         self.phy = None
         self.mac = None
         self.cap = None
-        if ops is None:
-            self._ops = PlatformOps()
+        self.ref_clip = None
+        self.video_file = None
+        self._ops = PlatformOps(None)
+        if ops is not None:
+            self._ops = ops
 
     def start_perf(self, conf):
         """Start an iperf sessions."""
@@ -299,7 +302,7 @@ class Iface(object):
         # if no monif configured, attach to this interface in non-promiscuous
         elif not self.cap.monif:
             self.cap.monif = self.name + ".mon"
-            self.node._cmd_or_die("iw %s interface add %s type monitor" %
+            self.node._cmd_or_die("iw dev %s interface add %s type monitor" %
                                   (self.name, self.cap.monif))
             self.node._cmd_or_die("ip link set %s up" % (self.cap.monif))
             self.cap.promisc = promisc
@@ -376,7 +379,7 @@ class Iface(object):
             raise UnsupportedConfigurationError(
                 "Iface driver not loadable with modprobe")
 
-        self._cmd_or_die("modprobe " + iface.driver)
+        self._cmd_or_die("modprobe " + self.driver)
 
 
 # allows commands to return either return code or stdout so the caller
@@ -401,7 +404,7 @@ class Mwl8787Iface(Iface):
 
         self.node.comm.send_cmd("rmmod " + self.driver)
         cmd = "/system/bin/mwl8787_config.sh"
-        self._cmd_or_die(cmd)
+        self.node._cmd_or_die(cmd, verbosity=3)
         # give ifaces time to come up
         time.sleep(1)
 
@@ -424,7 +427,7 @@ class Wcn36xxIface(Iface):
             raise UnsupportedConfigurationError(
                 "Only the wcn36xx_msm driver is supported.")
 
-        self.comm.reboot()
+        self._ops.reboot()
 
 
 Iface.register_driver_specific("wcn36xx_msm", Wcn36xxIface)
@@ -472,6 +475,9 @@ class PlatformOps(object):
         """Return an iperf log appropriate for the platform."""
         return os.path.join(self._get_tmp(), "iperf_" + name + ".log")
 
+    def reboot(self):
+        self._comm.reboot()
+
 
 class AndroidPlatformOps(PlatformOps):
 
@@ -491,8 +497,9 @@ class LinuxNode(NodeBase):
     """
 
     def __init__(self, comm, ifaces=(), path=None, ops=None):
-        if ops is None:
-            self._ops = PlatformOps()
+        self._ops = PlatformOps(None)
+        if ops is not None:
+            self._ops = ops
         self.iface = list(ifaces)
         for iface in self.iface:
             iface.node = self
