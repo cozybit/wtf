@@ -1,7 +1,5 @@
 import wtf.node.mesh
-import wtf.node.sniffer
 import wtf.comm
-import wtf
 
 subnet="192.168.34"
 meshid="meshmesh"
