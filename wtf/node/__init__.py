@@ -1,11 +1,19 @@
 # Copyright cozybit, Inc 2010-2011
 # All rights reserved
 
+"""WTF network node definitions."""
+
 import os
 import time
 from collections import namedtuple
 
-from wtf.util import *
+from wtf.util import CapData
+from wtf.util import PerfConf
+from wtf.util import parse_perf_report
+
+
+NOT_MODPROBE_ABLE = ["mwl8787_sdio", "wcn36xx_msm"]
+
 
 class UninitializedError(Exception):
 
@@ -99,9 +107,37 @@ class NodeBase(object):
             raise ActionFailureError("Failed to \"" + cmd + "\"")
         return o
 
-class Iface():
-    # wifi interface with associated driver and ip and maybe a monitor interface
-    def __init__(self, name=None, driver=None, ip=None, mcast_route=None, conf=None):
+
+class Iface(object):
+
+    """Wifi interface.
+
+    Includes the associated driver, ip and maybe a monitor interface.
+
+    """
+
+    _driver_specific = {}
+
+    @classmethod
+    def register_driver_specific(cls, driver, klass):
+        """Register a driver specific class. See `create_iface`."""
+        cls._driver_specific[driver] = klass
+
+    @classmethod
+    def create_iface(cls, name=None, driver=None, ip=None,
+                     mcast_route=None, conf=None, ops=None):
+        """Return an Iface object specific to a `driver`."""
+
+        klass = cls.__class__
+        if driver in cls._driver_specific:
+            klass = cls._driver_specific[driver]
+
+        return klass(name=name, driver=driver, ip=ip, mcast_route=mcast_route,
+                     conf=conf, ops=ops)
+
+    def __init__(self, name=None, driver=None, ip=None, mcast_route=None,
+                 conf=None, ops=None):
+        # TODO: Just make name not optional...
         if not name:
             raise InsufficientConfigurationError("need iface name")
         self.ip = ip
@@ -115,34 +151,38 @@ class Iface():
         self.phy = None
         self.mac = None
         self.cap = None
+        if ops is None:
+            self._ops = PlatformOps()
 
     def start_perf(self, conf):
-        if conf.dst_ip == None:
+        """Start an iperf sessions."""
+
+        if conf.dst_ip is None:
             conf.dst_ip = self.ip
+
         self.perf = conf
-        if self.driver == "mwl8787_sdio":
-            self.perf.log = "/data/misc/iperf_" + self.name + ".log"
-        else:
-            self.perf.log = "/tmp/iperf_" + self.name + ".log"
-        if conf.server == True:
+        self.perf.log = self._ops.get_perf_log_loc(self.name)
+
+        if conf.server:
             cmd = "iperf -s -p" + str(conf.listen_port)
-            if conf.tcp != True:
+            if not conf.tcp:
                 cmd += " -u"
             if conf.dst_ip:
                 cmd += " -B" + conf.dst_ip
-            # -x  [CDMSV]   exclude C(connection) D(data) M(multicast) S(settings) V(server) reports
+            # -x  [CDMSV]   exclude C(connection) D(data) M(multicast)
+            # S(settings) V(server) reports
             cmd += " -y c -x CS > " + self.perf.log
             cmd += " &"
         else:
-            # in o11s the mpath expiration is pretty aggressive (or it hasn't been set up
-            # yet), so prime it with a ping first. Takes care of initial "losses" as the
-            # path is refreshed.
+            # in o11s the mpath expiration is pretty aggressive (or it hasn't
+            # been set up yet), so prime it with a ping first. Takes care of
+            # initial "losses" as the path is refreshed.
             self.node.ping(conf.dst_ip, verbosity=3, timeout=3, count=3)
             self.dump_mpaths()
             cmd = "iperf -c " + conf.dst_ip + \
                   " -i1 -t" + str(conf.timeout) + \
                   " -p" + str(conf.listen_port)
-            if conf.tcp != True:
+            if not conf.tcp:
                 cmd += " -u -b" + str(conf.bw) + "M"
             if conf.dual:
                 cmd += " -d -L" + str(conf.dual_port)
@@ -150,12 +190,12 @@ class Iface():
                 cmd += " &"
 
         _, o = self.node.comm.send_cmd(cmd)
-        if conf.server != True and conf.fork != True:
+        if not conf.server and not conf.fork:
             # we blocked on completion and report is ready now
             self.perf.report = o[1]
         else:
             _, o = self.node.comm.send_cmd("echo $!")
-            self.perf.pid =  int(o[-1])
+            self.perf.pid = int(o[-1])
 
     def perf_serve(self, dst_ip=None, p=7777, tcp=False):
         """Start an iperf server."""
@@ -327,63 +367,147 @@ class Iface():
         else:
             raise NotImplementedError("Not yet implemented for %s" % (self.driver))
 
+    def load_module(self):
+        """Load the driver's module, if this is a support configuration.
+
+        See also `Mwl8787Iface` and `Wc36xxIface`."""
+
+        if self.driver in NOT_MODPROBE_ABLE:
+            raise UnsupportedConfigurationError(
+                "Iface driver not loadable with modprobe")
+
+        self._cmd_or_die("modprobe " + iface.driver)
+
 
 # allows commands to return either return code or stdout so the caller
 # verbosely names which of the two if any they want to use
 CommandResult = namedtuple("CommandResult", ['return_code', 'stdout'])
 
 
-class LinuxNode(NodeBase):
+class Mwl8787Iface(Iface):
+
+    """Iface with ops specific to the Marvel 8787 chip.
+
+    See also `Iface`.
+
     """
-    A linux network node
+
+    def load_module(self):
+        """See `Iface.load_module`."""
+
+        if self.driver != "mwl8787_sdio":
+            raise UnsupportedConfigurationError(
+                "Only the mwl8787_sdio driver is supported.")
+
+        self.node.comm.send_cmd("rmmod " + self.driver)
+        cmd = "/system/bin/mwl8787_config.sh"
+        self._cmd_or_die(cmd)
+        # give ifaces time to come up
+        time.sleep(1)
+
+
+Iface.register_driver_specific("mwl8787_sdio", Mwl8787Iface)
+
+
+class Wcn36xxIface(Iface):
+
+    """Iface with ops specific to the WCN36XX chips on MSM.
+
+    See also `Iface`.
+
+    """
+
+    def load_module(self):
+        """See `Iface.load_module`."""
+
+        if self.driver != "wcn36xx_msm":
+            raise UnsupportedConfigurationError(
+                "Only the wcn36xx_msm driver is supported.")
+
+        self.comm.reboot()
+
+
+Iface.register_driver_specific("wcn36xx_msm", Wcn36xxIface)
+
+
+class PlatformOps(object):
+
+    """Abstraction for various paltforms specific operations."""
+
+    def __init__(self, comm):
+        self._comm = comm
+
+    def beforeInit(self, path):
+        """Perform initialization required prior to init().
+
+        Usually things like clearing system state and setting up the host
+        filesystem.
+
+        """
+
+        if path is not None:
+            self._comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
+
+        # who knows what was running on this machine before.  Be sure to kill
+        # anything that might get in our way.
+        self._comm.send_cmd("killall hostapd; killall wpa_supplicant",
+                            verbosity=0)
+
+        # make sure debugfs is mounted
+        _, mounted = self._comm.send_cmd("mount | grep debugfs", verbosity=0)
+        # "debugfs /sys/kernel/debug debugfs rw,relatime 0 0" or empty
+        if len(mounted) > 0:
+            if mounted[0].split(' ')[1] != '/sys/kernel/debug':
+                self._comm.send_cmd("umount debugfs", verbosity=0)
+                self._comm.send_cmd(
+                    "mount -t debugfs debugfs /sys/kernel/debug", verbosity=0)
+        else:
+            self._comm.send_cmd(
+                "mount -t debugfs debugfs /sys/kernel/debug", verbosity=0)
+
+    def _get_tmp(self):
+        return "/tmp"
+
+    def get_perf_log_loc(self, name):
+        """Return an iperf log appropriate for the platform."""
+        return os.path.join(self._get_tmp(), "iperf_" + name + ".log")
+
+
+class AndroidPlatformOps(PlatformOps):
+
+    """Provides platform specific code for Android nodes."""
+
+    def _get_tmp(self):
+        return "/data/misc/"
+
+
+class LinuxNode(NodeBase):
+
+    """
+    A linux network node.
 
     Expects: iw, mac80211 debugfs
+
     """
-    def __init__(self, comm, ifaces=[], path=None):
-        self.iface = ifaces
+
+    def __init__(self, comm, ifaces=(), path=None, ops=None):
+        if ops is None:
+            self._ops = PlatformOps()
+        self.iface = list(ifaces)
         for iface in self.iface:
             iface.node = self
         self.brif = None
         NodeBase.__init__(self, comm)
-        if path is not None:
-            self.comm.send_cmd("export PATH=" + path + ":$PATH:", verbosity=0)
-        # who knows what was running on this machine before.  Be sure to kill
-        # anything that might get in our way.
-        self.comm.send_cmd("killall hostapd; killall wpa_supplicant",
-                           verbosity=0)
-
-        # make sure debugfs is mounted
-        _, mounted = self.comm.send_cmd("mount | grep debugfs", verbosity=0)
-        # "debugfs /sys/kernel/debug debugfs rw,relatime 0 0" or empty
-        if len(mounted) > 0:
-            if mounted[0].split(' ')[1] != '/sys/kernel/debug':
-                self.comm.send_cmd("umount debugfs", verbosity=0)
-                self.comm.send_cmd("mount -t debugfs debugfs /sys/kernel/debug", verbosity=0)
-        else:
-            self.comm.send_cmd("mount -t debugfs debugfs /sys/kernel/debug", verbosity=0)
-
+        self._ops.beforeInit(path)
 
     def init(self):
+        """Initialize the node, including network interfaces."""
+
         for iface in self.iface:
-            if iface.enable != True:
+            if not iface.enable:
                 continue
 
-            # TODO: Use an abstraction here
-            no_modprobe = ["mwl8787_sdio", "wcn36xx_msm"]
-
-            if iface.driver not in no_modprobe:
-                self._cmd_or_die("modprobe " + iface.driver)
-            else:
-                if iface.driver == "mwl8787_sdio":
-                    self._cmd_or_die("rmmod " + iface.driver)
-                    cmd = "/system/bin/mwl8787_config.sh"
-                    self._cmd_or_die(cmd)
-                    # give ifaces time to come up
-                    time.sleep(1)
-                elif iface.driver == "wcn36xx_msm":
-                    self.comm.reboot()
-                else:
-                    raise UnsupportedConfigurationError("Don't know what hack to use here")
+            iface.load_module()
 
             # TODO: check for error and throw something!
             _, iface.phy = self.comm.send_cmd(

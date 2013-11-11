@@ -46,8 +46,8 @@ class MeshSTA(node.LinuxNode, MeshBase):
     """
     mesh STA node
     """
-    def __init__(self, comm, ifaces):
-        node.LinuxNode.__init__(self, comm, ifaces)
+    def __init__(self, comm, ifaces, ops=None):
+        node.LinuxNode.__init__(self, comm, ifaces, ops=ops)
         self.mccapipe = None
 
     def start(self):
