@@ -89,7 +89,7 @@ class Peer:
         self.intended_mac = mac
         self.name = name
 
-class Wpap2p(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
+class Wpap2p(P2PBase, node.sta.LinuxSTA):
     """
     wpa_supplicant-based AP
     """
@@ -191,7 +191,7 @@ device_type=1-0050F204-1
         self.comm.send_cmd("echo Waiting for WPS to finish. This may take a while.")
         return node.sta.LinuxSTA._check_auth(self)
 
-class Mvdroid(node.LinuxNode, P2PBase, node.sta.LinuxSTA):
+class Mvdroid(P2PBase, node.sta.LinuxSTA):
     """
     mvdroid p2p node uses mwu and mwu_cli for p2p negotiation, wps, and wpa
     """
