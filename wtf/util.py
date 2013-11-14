@@ -246,3 +246,15 @@ def is_dev_connected(device_id):
     ls = subprocess.check_output(["adb", "devices"]).strip().splitlines()
     ls = [L.split()[0] for L in ls[1:]]
     return adb_id in ls
+
+
+def logMeasurement(name, value):
+    '''
+    log a measurement result to stdout
+
+    @param name: a string name for measurement variable
+    @param value: a string representation of numeric value
+
+    '''
+    print '<measurement><name>%s</name>;' % (name) + \
+            '<value>%s</value></measurement>;' % (value)

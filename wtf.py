@@ -102,6 +102,7 @@ if __name__ == '__main__':
         args = args + ["-s"]
 
     # Now run the tests
+    args.append('--with-xunit')
     wtf.conf.setUp()
     print "======================================================================"
     print "Running " + wtf.conf.name

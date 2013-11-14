@@ -76,6 +76,8 @@ class SimpleMeshTest(unittest.TestCase):
         self.failIf(perf_report.tput < (exp_results["test1"]),
                     "reported throughput (" + str(perf_report.tput) + ") is \
                     lower than expected (" + str(exp_results["test1"]) + ")")
+        logMeasurement('tput', perf_report.tput)
+        logMeasurement('loss', perf_report.loss)
 
     def test_2_same_ch_mhop(self):
         fname = sys._getframe().f_code.co_name
@@ -97,6 +99,8 @@ class SimpleMeshTest(unittest.TestCase):
         self.failIf(perf_report.tput < (exp_results["test2"]),
                     "reported throughput (" + str(perf_report.tput) + ") is \
                     lower than expected (" + str(exp_results["test2"]) + ")")
+        logMeasurement('tput', perf_report.tput)
+        logMeasurement('loss', perf_report.loss)
 
     def test_3_path_healing(self):
         """Kill a radio, then bring back and measure path heal time."""
@@ -130,3 +134,4 @@ class SimpleMeshTest(unittest.TestCase):
 
         #expects no loss after reconnected
         path_heal_time["path_heal"] = found * interval
+        logMeasurement("found", path_heal_time["path_heal"])
