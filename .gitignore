@@ -4,3 +4,4 @@ loggy
 .*.sw?
 .ropeproject
 tags
+*.dot

@@ -258,3 +258,36 @@ def logMeasurement(name, value):
     '''
     print '<measurement><name>%s</name>;' % (name) + \
             '<value>%s</value></measurement>;' % (value)
+
+def get_topology(ifaces, filename="topology"):
+    """Make .svg file with topology."""
+    _filename = filename + ".dot"
+    neighbors = {}
+    alias = {}
+    # make alias for graph instead of using mac address
+    i = 1
+    for iface in ifaces:
+        alias[iface.mac] = "STA" + str(i)
+        i += 1
+
+    # dump mpaths and keep next hop
+    for iface in ifaces:
+        _, o = iface.node.comm.send_cmd("iw " + iface.name + " mpath dump")
+        out = []
+        for line in o:
+            if iface.name in line:
+                out.append(line.split()[1])
+        iface_mac = iface.mac
+        neighbors[iface_mac] = []
+        for next_hop in out:
+            if next_hop not in neighbors[iface.mac]:
+                neighbors[iface_mac].append(next_hop)
+
+    f = open(_filename, 'w')
+    f.write("digraph %s {\n" % (filename))
+    for key, macs in neighbors.iteritems():
+        for mac in macs:
+            f.write("%s " % (alias[key]))
+            f.write("-> %s;\n" %(alias[mac]))
+    f.write("}")
+    f.close()

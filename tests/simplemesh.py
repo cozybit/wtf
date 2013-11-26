@@ -72,6 +72,7 @@ class SimpleMeshTest(unittest.TestCase):
         dst_ip = if_2.ip
 
         perf_report = do_perf([if_1, if_2], dst_ip)
+        get_topology([if_1, if_2, if_3], fname)
         results[fname] = LinkReport(perf_report=perf_report)
         logMeasurement('tput', perf_report.tput)
         logMeasurement('loss', perf_report.loss)
@@ -93,6 +94,7 @@ class SimpleMeshTest(unittest.TestCase):
         if_3.add_mesh_peer(if_2)
 
         perf_report = do_perf([if_1, if_3], if_3.ip)
+        get_topology([if_1, if_2, if_3], fname)
         # test multi-hop performance using a single radio for forwarding
         results[fname] = LinkReport(perf_report=perf_report)
         if_2.dump_mesh_stats()
@@ -135,3 +137,4 @@ class SimpleMeshTest(unittest.TestCase):
         #expects no loss after reconnected
         path_heal_time["path_heal"] = found * interval
         logMeasurement("found", path_heal_time["path_heal"])
+        get_topology([if_1, if_2, if_3], fname)
