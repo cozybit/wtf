@@ -128,7 +128,7 @@ class Iface(object):
                      mcast_route=None, conf=None, ops=None):
         """Return an Iface object specific to a `driver`."""
 
-        klass = cls.__class__
+        klass = cls
         if driver in cls._driver_specific:
             klass = cls._driver_specific[driver]
 
@@ -379,7 +379,7 @@ class Iface(object):
             raise UnsupportedConfigurationError(
                 "Iface driver not loadable with modprobe")
 
-        self._cmd_or_die("modprobe " + self.driver)
+        self.node._cmd_or_die("modprobe " + self.driver)
 
 
 # allows commands to return either return code or stdout so the caller
