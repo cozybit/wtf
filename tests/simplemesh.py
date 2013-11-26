@@ -73,11 +73,11 @@ class SimpleMeshTest(unittest.TestCase):
 
         perf_report = do_perf([if_1, if_2], dst_ip)
         results[fname] = LinkReport(perf_report=perf_report)
+        logMeasurement('tput', perf_report.tput)
+        logMeasurement('loss', perf_report.loss)
         self.failIf(perf_report.tput < (exp_results["test1"]),
                     "reported throughput (" + str(perf_report.tput) + ") is \
                     lower than expected (" + str(exp_results["test1"]) + ")")
-        logMeasurement('tput', perf_report.tput)
-        logMeasurement('loss', perf_report.loss)
 
     def test_2_same_ch_mhop(self):
         fname = sys._getframe().f_code.co_name
@@ -96,11 +96,11 @@ class SimpleMeshTest(unittest.TestCase):
         # test multi-hop performance using a single radio for forwarding
         results[fname] = LinkReport(perf_report=perf_report)
         if_2.dump_mesh_stats()
+        logMeasurement('tput', perf_report.tput)
+        logMeasurement('loss', perf_report.loss)
         self.failIf(perf_report.tput < (exp_results["test2"]),
                     "reported throughput (" + str(perf_report.tput) + ") is \
                     lower than expected (" + str(exp_results["test2"]) + ")")
-        logMeasurement('tput', perf_report.tput)
-        logMeasurement('loss', perf_report.loss)
 
     def test_3_path_healing(self):
         """Kill a radio, then bring back and measure path heal time."""
