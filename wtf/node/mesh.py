@@ -170,3 +170,32 @@ class MeshSTA(node.LinuxNode, MeshBase):
             self.comm.send_cmd("killall mccatool")
             self.comm.send_cmd("rm %s" % self.mccapipe)
             self.mccapipe = None
+
+
+class MeshKitSTA(MeshSTA):
+
+    """MeshSTA that uses meshkit instead of iw."""
+
+    def start(self):
+        node.LinuxNode.stop(self)
+
+        for iface in self.iface:
+            if iface.enable is not True:
+                continue
+            if iface.conf.security:
+                raise NotImplementedError("This version of meshkit does not yet support secure mesh")
+            self.comm.send_cmd("mesh " + iface.name + " up " + iface.conf.ssid +
+                               " "+ str(iface.conf.channel) + " " + iface.conf.htmode)
+        node.LinuxNode.start(self)
+
+    def stop(self):
+        for iface in self.iface:
+            if iface.enable != True:
+                continue
+            config = iface.conf
+            if config.security:
+                raise NotImplementedError("This version of meshkit does not yet support secure mesh")
+            else:
+                self.comm.send_cmd("mesh " + config.iface.name + " down")
+        self.mccatool_stop()
+        node.LinuxNode.stop(self)
