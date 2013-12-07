@@ -366,9 +366,11 @@ class Iface(object):
         """Turn on or off the radio"""
         # FIXME
         if self.driver == "mwl8787_sdio":
-            self.node.comm.send_cmd("echo %d > /sys/kernel/debug/ieee80211/%s/mwl8787/radio_set" % (state, self.phy))
+            self.node.comm.send_cmd(
+                "echo %d > /sys/kernel/debug/ieee80211/%s/mwl8787/radio_set" % (state, self.phy))
         else:
-            raise NotImplementedError("Not yet implemented for %s" % (self.driver))
+            raise NotImplementedError(
+                "Not yet implemented for %s" % (self.driver))
 
     def load_module(self):
         """Load the driver's module, if this is a support configuration.

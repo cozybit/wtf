@@ -2,9 +2,12 @@
 # All rights reserved
 
 import wtf.node as node
-import re, time
+import re
+import time
+
 
 class STABase(node.NodeBase):
+
     """
     client STA
 
@@ -28,7 +31,9 @@ class STABase(node.NodeBase):
         """
         raise node.UnimplementedError("scan not implemented!")
 
+
 class LinuxSTA(node.LinuxNode, STABase):
+
     """
     Represent a typical linux STA with iwconfig, ifconfig, etc.  It should have
     wireless hardware controlled by the specified driver.
@@ -45,26 +50,28 @@ class LinuxSTA(node.LinuxNode, STABase):
 
     def stress(self, host):
         # do our worst
-        (_, o) = self.comm.send_cmd("iperf -c " + host + " -d -P 10", verbosity=2)
+        (_, o) = self.comm.send_cmd("iperf -c " +
+                                    host + " -d -P 10", verbosity=2)
         return o
 
     def scan(self):
         # first perform the scan.  Try a few times because the device still may
         # be coming up.
-        (r, o) = self.comm.send_cmd("iwlist " + self.iface + " scan", verbosity=2)
+        (r, o) = self.comm.send_cmd("iwlist " +
+                                    self.iface + " scan", verbosity=2)
         count = 10
         while count != 0 and \
-                  o[0].endswith("Interface doesn't support scanning : Device or resource busy"):
+                o[0].endswith("Interface doesn't support scanning : Device or resource busy"):
             (r, o) = self.comm.send_cmd("iwlist " + self.iface + " scan")
             count = count - 1
         if count == 0:
             return []
 
         # the first line is "<interface>     scan completed".  Skip it.
-        results = "".join(o[1:]).split(" "*10 + "Cell ")
+        results = "".join(o[1:]).split(" " * 10 + "Cell ")
         ret = []
         for r in results:
-            fields = r.split(" "*20)
+            fields = r.split(" " * 20)
             channel = None
             ssid = ""
             for f in fields:
@@ -73,7 +80,7 @@ class LinuxSTA(node.LinuxNode, STABase):
                 if re.match(".*Channel:.*", f):
                     channel = int(f.split("Channel:")[1])
                 if re.match(".*ESSID:.*", f):
-                    ssid = f.split("ESSID:")[1].replace('"','')
+                    ssid = f.split("ESSID:")[1].replace('"', '')
             ret.append(node.ap.APConfig(ssid=ssid, channel=channel))
         return ret
 
@@ -97,7 +104,7 @@ class LinuxSTA(node.LinuxNode, STABase):
             # or not ready, try again
             time.sleep(0.5)
             self._cmd_or_die("iw " + self.iface + " connect " + ssid)
-        elif r !=0:
+        elif r != 0:
             # something else went wrong
             raise node.ActionFailureError("iw failed with code %d" % r)
 
@@ -110,13 +117,14 @@ class LinuxSTA(node.LinuxNode, STABase):
     def _check_assoc(self, ssid):
         for _ in range(1, 30):
             time.sleep(0.5)
-            (r, o) = self.comm.send_cmd("iw " + self.iface + " link", verbosity=2)
+            (r, o) = self.comm.send_cmd("iw " +
+                                        self.iface + " link", verbosity=2)
             if r != 0:
                 raise node.ActionFailureError("iw failed with code %d" % r)
             if o[0] == "Not connected.":
                 pass
             elif o[0].split()[0] == "Connected" and \
-                 o[1].split()[1] == ssid:
+                    o[1].split()[1] == ssid:
                     return 0
         # not connected
         return -1
@@ -139,7 +147,6 @@ class LinuxSTA(node.LinuxNode, STABase):
         # not authenticated
         return -1
 
-
     base_config = """
 ctrl_interface=/var/run/wpa_supplicant
 ctrl_interface_group=root
@@ -157,5 +164,3 @@ ctrl_interface_group=root
 
         self._cmd_or_die("echo -e '" + config + "'> /tmp/sup.conf",
                          verbosity=0)
-
-

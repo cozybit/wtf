@@ -4,7 +4,8 @@ import wtf.comm
 import wtf
 
 # I've got an mwl8k dev board on serial port ttyUSB4
-mwl8k_comm = wtf.comm.Serial(port="/dev/ttyUSB4", prompt="[root@fedora-arm /]# ")
+mwl8k_comm = wtf.comm.Serial(
+    port="/dev/ttyUSB4", prompt="[root@fedora-arm /]# ")
 mwl8k_comm.name = "mwl8k"
 mwl8k_comm.verbosity = 2
 mwl8k_ap = wtf.node.ap.Hostapd(mwl8k_comm, "wlan0")

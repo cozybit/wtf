@@ -3,9 +3,12 @@
 
 from wtf.util import *
 import wtf.node as node
-import sys; err = sys.stderr
+import sys
+err = sys.stderr
 
-class SnifferBase(node.NodeBase) :
+
+class SnifferBase(node.NodeBase):
+
     """
     Sniffer STA
 
@@ -20,6 +23,7 @@ class SnifferBase(node.NodeBase) :
         """
         node.NodeBase.__init__(self, comm=comm)
 
+
 class SnifferConf():
 
     def __init__(self, channel=1, htmode="", iface=None):
@@ -27,7 +31,9 @@ class SnifferConf():
         self.htmode = htmode
         self.iface = iface
 
+
 class SnifferSTA(node.LinuxNode, SnifferBase):
+
     def __init__(self, comm, ifaces):
         node.LinuxNode.__init__(self, comm, ifaces)
 

@@ -28,4 +28,3 @@ p2 = wtf.node.p2p.Wpap2p(p2_comm, "wlan0", path="/root")
 #p2 = wtf.node.p2p.Mvdroid(p2_comm, force_driver_reload=True)
 
 wtf.conf = wtf.config("p2p", nodes=[p1, p2], name="wpa supplicant p2p")
-

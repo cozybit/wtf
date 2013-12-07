@@ -4,9 +4,12 @@
 import textwrap
 
 import wtf.node as node
-import sys; err = sys.stderr
+import sys
+err = sys.stderr
+
 
 class MeshBase(node.NodeBase):
+
     """
     Mesh STA
 
@@ -21,7 +24,9 @@ class MeshBase(node.NodeBase):
         """
         node.NodeBase.__init__(self, comm=comm)
 
+
 class MeshConf():
+
     """
     Mesh STA configuration object
 
@@ -42,10 +47,13 @@ class MeshConf():
         self.mcast_rate = mcast_rate
         self.shared = shared
 
+
 class MeshSTA(node.LinuxNode, MeshBase):
+
     """
     mesh STA node
     """
+
     def __init__(self, comm, ifaces, ops=None):
         node.LinuxNode.__init__(self, comm, ifaces, ops=ops)
         self.mccapipe = None
@@ -57,9 +65,9 @@ class MeshSTA(node.LinuxNode, MeshBase):
         for iface in self.iface:
             if iface.enable != True:
                 continue
-            #self.set_iftype("mesh")
+            # self.set_iftype("mesh")
             self._cmd_or_die("iw dev " + iface.name + " set type mp")
-            #node.set_channel(self.config.channel)
+            # node.set_channel(self.config.channel)
             self._cmd_or_die("iw dev " + iface.name + " set channel " + str(iface.conf.channel) +
                              " " + iface.conf.htmode)
             # must be up for authsae or iw
@@ -76,16 +84,18 @@ class MeshSTA(node.LinuxNode, MeshBase):
                 continue
             config = iface.conf
             if config.security:
-                self.comm.send_cmd("start-stop-daemon --quiet --stop --exec meshd-nl80211")
+                self.comm.send_cmd(
+                    "start-stop-daemon --quiet --stop --exec meshd-nl80211")
             else:
-                self.comm.send_cmd("iw dev " + config.iface.name + " mesh leave")
+                self.comm.send_cmd(
+                    "iw dev " + config.iface.name + " mesh leave")
         self.mccatool_stop()
         node.LinuxNode.stop(self)
 
     def authsae_join(self, config):
         # This is the configuration template for the authsae config
-        confpath="/tmp/authsae-%s.conf" % (config.iface.name)
-        logpath="/tmp/authsae-%s.log" % (config.iface.name)
+        confpath = "/tmp/authsae-%s.conf" % (config.iface.name)
+        logpath = "/tmp/authsae-%s.log" % (config.iface.name)
         security_config_base = textwrap.dedent('''
         /* this is a comment */
         authsae:
@@ -111,13 +121,14 @@ class MeshSTA(node.LinuxNode, MeshBase):
         };
         ''' % (str(config.ssid), str(config.iface.name), str(config.channel)))
 
-        self._cmd_or_die("echo -e \"" + security_config_base + "\"> %s" % (confpath), verbosity=0);
+        self._cmd_or_die("echo -e \"" + security_config_base + "\"> %s" %
+                         (confpath), verbosity=0)
         self._cmd_or_die("meshd-nl80211 -c %s %s &" % (confpath, logpath))
 
     def mesh_join(self, config):
         cmd = "iw %s mesh join %s" % (config.iface.name, config.ssid)
         if config.mcast_rate:
-            cmd +=  " mcast-rate %s" % (config.mcast_rate)
+            cmd += " mcast-rate %s" % (config.mcast_rate)
 
 #        cmd += " share"
 #        if config.shared:
@@ -161,7 +172,9 @@ class MeshSTA(node.LinuxNode, MeshBase):
 # keep the pipe open :|
             self._cmd_or_die("nohup sleep 10000 > %s &" % self.mccapipe)
 
-        self._cmd_or_die("nohup mccatool %s > /tmp/mccatool.out 2> /dev/null < %s &" % (config.iface.name, self.mccapipe))
+        self._cmd_or_die(
+            "nohup mccatool %s > /tmp/mccatool.out 2> /dev/null < %s &" %
+            (config.iface.name, self.mccapipe))
 
     def mccatool_stop(self, config=None):
         if not config:
@@ -183,9 +196,10 @@ class MeshKitSTA(MeshSTA):
             if iface.enable is not True:
                 continue
             if iface.conf.security:
-                raise NotImplementedError("This version of meshkit does not yet support secure mesh")
+                raise NotImplementedError(
+                    "This version of meshkit does not yet support secure mesh")
             self.comm.send_cmd("mesh " + iface.name + " up " + iface.conf.ssid +
-                               " "+ str(iface.conf.channel) + " " + iface.conf.htmode)
+                               " " + str(iface.conf.channel) + " " + iface.conf.htmode)
         node.LinuxNode.start(self)
 
     def stop(self):
@@ -194,7 +208,8 @@ class MeshKitSTA(MeshSTA):
                 continue
             config = iface.conf
             if config.security:
-                raise NotImplementedError("This version of meshkit does not yet support secure mesh")
+                raise NotImplementedError(
+                    "This version of meshkit does not yet support secure mesh")
             else:
                 self.comm.send_cmd("mesh " + config.iface.name + " down")
         self.mccatool_stop()

@@ -5,7 +5,9 @@ import textwrap
 
 import wtf.node as node
 
+
 class APBase(node.NodeBase):
+
     """
     Access Point
 
@@ -33,7 +35,9 @@ AUTH_EAP = 2
 ENCRYPT_TKIP = 1
 ENCRYPT_CCMP = 2
 
+
 class APConfig():
+
     """
     Access Point configuration object
 
@@ -53,14 +57,17 @@ class APConfig():
         if security == SECURITY_WEP and not password:
             raise InsufficientConfigurationError("WEP requires a password")
         if (security == SECURITY_WPA or security == SECURITY_WPA2) and \
-               (not password or not auth):
-            raise InsufficientConfigurationError("WPA(2) requires a password and auth scheme")
+                (not password or not auth):
+            raise InsufficientConfigurationError(
+                "WPA(2) requires a password and auth scheme")
 
 
 class Hostapd(node.LinuxNode, APBase):
+
     """
     Hostapd-based AP
     """
+
     def __init__(self, comm, iface, driver=None):
         node.LinuxNode.__init__(self, comm, iface, driver)
         self.config = None
@@ -125,11 +132,12 @@ class Hostapd(node.LinuxNode, APBase):
                 config += "wpa_pairwise=CCMP\n"
         # can we enable 11n?
         if self.config.security == None or \
-            (self.config.security == SECURITY_WPA2 and \
-            self.config.encrypt == ENCRYPT_CCMP):
+            (self.config.security == SECURITY_WPA2 and
+             self.config.encrypt == ENCRYPT_CCMP):
                 config += "ieee80211n=1\n"
                 # these sensible defaults should work for most cards, instead of checking for valid
-                # channel, band, and HT40+/- combination, we let hostapd take care of it.
+                # channel, band, and HT40+/- combination, we let hostapd take
+                # care of it.
                 config += "ht_capab=[HT40-]\n"
                 # is this really needed? linux-wireless wiki says so in an underhanded manner (http://wireless.kernel.org/en/users/Documentation/hostapd)
                 # check the 11n standard. Enabled for now.

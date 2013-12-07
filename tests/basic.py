@@ -11,6 +11,7 @@ initialized and shutdown repeatedly without hanging, crashing, etc.
 import wtf
 wtfconfig = wtf.conf
 
+
 class TestBasic():
 
     def setUp(self):

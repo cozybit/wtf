@@ -202,7 +202,7 @@ def do_perf(ifaces, dst, tcp=False, bwidth=100):
     server.perf_serve(dst_ip=dst, tcp=tcp)
     client.perf_client(dst_ip=dst, timeout=10, b=bwidth, tcp=tcp)
     server.killperf()
-    return  server.get_perf_report()
+    return server.get_perf_report()
 
 
 def do_tshark(cap_file, tshark_filter, extra=""):
@@ -210,7 +210,9 @@ def do_tshark(cap_file, tshark_filter, extra=""):
     r, o = commands.getstatusoutput("tshark -r" + cap_file + " -R'" + tshark_filter +
                                     "' " + extra + " 2> /dev/null")
     if r != 0 and r != 256:
-        raise Exception("tshark error %d! Is tshark installed and %s exists? Please verify filter %s" % (r, cap_file, tshark_filter))
+        raise Exception(
+            "tshark error %d! Is tshark installed and %s exists? Please verify filter %s" %
+            (r, cap_file, tshark_filter))
     return o
 
 
@@ -230,17 +232,19 @@ def print_linkreports(results):
             line += "%f         %f      " % (perf.tput, perf.loss)
         if result.vqm != None:
             vqm = result.vqm
-            line += "%s     %s  %s  %s      " % (vqm.ssim, vqm.psnr, vqm.dcm, vqm.out_clip)
+            line += "%s     %s  %s  %s      " % (vqm.ssim,
+                                                 vqm.psnr, vqm.dcm, vqm.out_clip)
         print line
 
 
 def gen_mesh_id():
-    return "wtfmesh" + str(random.randint(1,1000))
+    return "wtfmesh" + str(random.randint(1, 1000))
 
 
 def is_dev_connected(device_id):
     try:
-        adb_id = subprocess.check_output(["adbs", "-s", device_id, "-i"]).strip()
+        adb_id = subprocess.check_output(
+            ["adbs", "-s", device_id, "-i"]).strip()
     except subprocess.CalledProcessError:
         return False
     ls = subprocess.check_output(["adb", "devices"]).strip().splitlines()
@@ -257,7 +261,8 @@ def logMeasurement(name, value):
 
     '''
     print '<measurement><name>%s</name>;' % (name) + \
-            '<value>%s</value></measurement>;' % (value)
+        '<value>%s</value></measurement>;' % (value)
+
 
 def get_topology(ifaces, filename="topology"):
     """Make .svg file with topology."""
@@ -288,6 +293,6 @@ def get_topology(ifaces, filename="topology"):
     for key, macs in neighbors.iteritems():
         for mac in macs:
             f.write("%s " % (alias[key]))
-            f.write("-> %s;\n" %(alias[mac]))
+            f.write("-> %s;\n" % (alias[mac]))
     f.write("}")
     f.close()

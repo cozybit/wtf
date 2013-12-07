@@ -7,7 +7,9 @@ import wtf.node.p2p as p2p
 import wtf.node.mesh as mesh
 import wtf.node.sniffer as sniffer
 
+
 class config():
+
     def __init__(self, suite=None, nodes=[], name="<unamed config>", exp_results={}):
         """
         A wtf config is a list of suites to run and the nodes to run them on.

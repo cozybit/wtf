@@ -32,7 +32,7 @@ def setUp(self):
     """Make global interface variable out of all sta iface[0]."""
     global g_ifs
 
-    g_ifs = [ STA.iface[0] for STA in sta ]
+    g_ifs = [STA.iface[0] for STA in sta]
 
 
 def tearDown(self):
@@ -45,6 +45,7 @@ def tearDown(self):
         print_linkreports(results)
     if len(path_heal_time) > 0:
         print "Path healed in:        " + str(path_heal_time["path_heal"]) + " seconds"
+
 
 def init_nodes(n=3):
     """Start up only number of nodes desired."""
@@ -126,11 +127,13 @@ class SimpleMeshTest(unittest.TestCase):
         # check if ping is alive
         ping_results = g_ifs[0].node.ping(g_ifs[1].ip, count=3).stdout
         ping_results = ping_results[-2]
-        self.failIf(ping_results.find("100%") != -1, "not connected on initial ping")
+        self.failIf(ping_results.find("100%") != -1,
+                    "not connected on initial ping")
 
         # turn off radio and ping to make sure we drop all packets
         g_ifs[1].set_radio(0)
-        ping_results = g_ifs[0].node.ping(g_ifs[1].ip, count=20, interval=.1, timeout=20).stdout
+        ping_results = g_ifs[0].node.ping(
+            g_ifs[1].ip, count=20, interval=.1, timeout=20).stdout
         ping_results = ping_results[-2]
         self.failIf(ping_results.find("100%") == -1,
                     "still connected")
@@ -138,7 +141,8 @@ class SimpleMeshTest(unittest.TestCase):
 
         # turn back on radio and start ping
         g_ifs[1].set_radio(1)
-        ping_results = g_ifs[0].node.ping(g_ifs[1].ip, count=count, interval=interval).stdout
+        ping_results = g_ifs[0].node.ping(
+            g_ifs[1].ip, count=count, interval=interval).stdout
         # look for first icmp_seq= and grab the request number
         for icmp in ping_results[1:]:
             if icmp.find("icmp_seq="):
@@ -147,7 +151,7 @@ class SimpleMeshTest(unittest.TestCase):
         self.failIf(found == 0,
                     "Never reconnected after %d seconds" % (count * interval))
 
-        #expects no loss after reconnected
+        # expects no loss after reconnected
         path_heal_time["path_heal"] = found * interval
         logMeasurement("found", path_heal_time["path_heal"])
         get_topology(g_ifs[:2], fname)

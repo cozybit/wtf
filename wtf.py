@@ -1,8 +1,11 @@
 #!/usr/bin/python
 
-import sys, getopt, os
+import sys
+import getopt
+import os
 import nose
 import wtf
+
 
 def usage():
     print """
@@ -62,11 +65,11 @@ if __name__ == '__main__':
     conf = os.path.basename(configfile)
     if conf.count('.py') != 1:
         print conf + " is a confusing name for a config file.  " + \
-        "I can't parse it."
+            "I can't parse it."
         sys.exit(1)
     if conf.count('.') != 1:
         print "I'm not that smart.  " + \
-        "Please don't use '.' as part of your config file name"
+            "Please don't use '.' as part of your config file name"
         sys.exit(1)
 
     print "Loading config file " + conf

@@ -2,7 +2,8 @@
 # All rights reserved
 
 import wtf.node as node
-import time, random
+import time
+import random
 
 WPS_METHOD_NONE = 0x0000
 WPS_METHOD_PBC = 0x0080
@@ -10,7 +11,9 @@ WPS_METHOD_DISPLAY = 0x0008
 WPS_METHOD_KEYPAD = 0x0100
 WPS_METHOD_LABEL = 0x0004
 
+
 class P2PBase(node.NodeBase):
+
     """
     Peer-to-Peer node (i.e., wifi direct)
 
@@ -77,27 +80,34 @@ class P2PBase(node.NodeBase):
         """
         pass
 
+
 class Peer:
+
     """
     Peer
 
     This is the wtf representation of a peer used to communicate detected peers
     between P2P classes and tests.
     """
+
     def __init__(self, mac, name):
         self.mac = mac
         self.intended_mac = mac
         self.name = name
 
+
 class Wpap2p(P2PBase, node.sta.LinuxSTA):
+
     """
     wpa_supplicant-based AP
     """
+
     def __init__(self, comm, iface, driver=None, path="/root"):
         node.LinuxNode.__init__(self, comm, iface, driver, path)
         P2PBase.__init__(self, comm)
         self.name = comm.name.replace(" ", "-")
-        (r, self.mac) = comm.send_cmd("cat /sys/class/net/" + iface + "/address")
+        (r, self.mac) = comm.send_cmd(
+            "cat /sys/class/net/" + iface + "/address")
         self.mac = self.mac[0]
 
     base_config = """
@@ -112,6 +122,7 @@ device_type=1-0050F204-1
 #p2p_oper_reg_class=81
 #p2p_oper_channel=1
 """
+
     def _configure(self):
         config = self.base_config
         config += "device_name=" + self.name + "\n"
@@ -126,7 +137,8 @@ device_type=1-0050F204-1
                          self.iface + " -B")
         time.sleep(1)
         if auto_go and client_only:
-            raise UnsupportedConfigurationError("Can't be an auto GO and a client only!")
+            raise UnsupportedConfigurationError(
+                "Can't be an auto GO and a client only!")
         if auto_go:
             self._cmd_or_die("wpa_cli p2p_group_add")
         self.auto_go = auto_go
@@ -149,12 +161,12 @@ device_type=1-0050F204-1
     def peers(self):
         # For some reason, the current version of wpa_supplicant returns -1
         # when it finds peers.  Maybe this is a bug?
-        [ret, peer_macs] = self.comm.send_cmd("wpa_cli -i " + self.iface + \
+        [ret, peer_macs] = self.comm.send_cmd("wpa_cli -i " + self.iface +
                                               " p2p_peers")
         peers = []
         for m in peer_macs:
-            [ret, pinfo] = self.comm.send_cmd("wpa_cli -i " + self.iface + \
-                                                  " p2p_peer " + m)
+            [ret, pinfo] = self.comm.send_cmd("wpa_cli -i " + self.iface +
+                                              " p2p_peer " + m)
             # The first line that is returned is the mac address.  Ignore it.
             pprops = dict(prop.split("=") for prop in pinfo[1:])
             peers.append(Peer(m, pprops['device_name']))
@@ -183,15 +195,18 @@ device_type=1-0050F204-1
         return 0
 
     def pbc_push(self):
-        [ret, o] = self.comm.send_cmd("wpa_cli -i " + self.iface + \
+        [ret, o] = self.comm.send_cmd("wpa_cli -i " + self.iface +
                                       " wps_pbc")
         return ret
 
     def connect_finish(self, peer):
-        self.comm.send_cmd("echo Waiting for WPS to finish. This may take a while.")
+        self.comm.send_cmd(
+            "echo Waiting for WPS to finish. This may take a while.")
         return node.sta.LinuxSTA._check_auth(self)
 
+
 class Mvdroid(P2PBase, node.sta.LinuxSTA):
+
     """
     mvdroid p2p node uses mwu and mwu_cli for p2p negotiation, wps, and wpa
     """
@@ -200,6 +215,7 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
     # config file after becoming a wfd client.
     wpa_conf = "/data/wfd/wpas_wfd.conf"
     wpa_socks = "/tmp/supsocks"
+
     def __init__(self, comm, iface="wfd0", force_driver_reload=False):
         P2PBase.__init__(self, comm)
         node.LinuxNode.__init__(self, comm, iface, driver=None)
@@ -216,12 +232,12 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
         r = 1
         count = 20
         while r != 0 and count > 0:
-            [r, o] = self.comm.send_cmd("ls /sys/class/net/ | grep " + \
+            [r, o] = self.comm.send_cmd("ls /sys/class/net/ | grep " +
                                         self.iface)
             count = count - 1
             time.sleep(0.5)
         if r != 0:
-            raise node.ActionFailureError("Interface " + self.iface + \
+            raise node.ActionFailureError("Interface " + self.iface +
                                           " never appeared")
 
     def unload_drivers(self):
@@ -239,10 +255,11 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
         node.LinuxNode.init(self)
 
         cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface
-        cmd = cmd + " -d /system/etc/wifidirect_defaults.conf -l /tmp/wfd.log -B"
+        cmd = cmd + \
+            " -d /system/etc/wifidirect_defaults.conf -l /tmp/wfd.log -B"
         self._cmd_or_die(cmd)
 
-        time.sleep(0.1) # let mwu launch
+        time.sleep(0.1)  # let mwu launch
 
         # Make sure various directories and files exist or are cleaned up as
         # necessary
@@ -259,11 +276,13 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
 
         cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=sta_deinit"
         self._cmd_or_die(cmd)
-        cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=registrar_deinit"
+        cmd = "mwu_cli module=mwpsmod iface=" + \
+            self.iface + " cmd=registrar_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=ap_deinit"
         self._cmd_or_die(cmd)
-        cmd = "mwu_cli module=mwpsmod iface=" + self.iface + " cmd=enrollee_deinit"
+        cmd = "mwu_cli module=mwpsmod iface=" + \
+            self.iface + " cmd=enrollee_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=deinit"
         self._cmd_or_die(cmd)
@@ -388,12 +407,13 @@ DeviceState=4
 }
 
 '''
+
     def _configure(self):
         config = self.base_config.replace('$INTENT', str(self.intent))
         config = config.replace('$NAME', self.name)
         config = config.replace('$MY_MAC', self.mac)
         self._cmd_or_die("echo -e \"" + config + "\"> /tmp/wfd.conf",
-                             verbosity=0)
+                         verbosity=0)
 
     def _status_cmd(self, cmd):
         [ret, resp] = self.comm.send_cmd(cmd)
@@ -402,16 +422,18 @@ DeviceState=4
         try:
             kvs = resp[0].split(" ")
             if len(kvs) < 1:
-                raise node.ActionFailureError("failed to find kvs in response: " + resp[0])
+                raise node.ActionFailureError(
+                    "failed to find kvs in response: " + resp[0])
             for kv in kvs:
                 k = kv.split("=")[0]
                 v = kv.split("=")[1]
                 if k == "status" and v == "0":
-                    return 0;
+                    return 0
                 elif k == "status" and v != "0":
-                    return int(v);
+                    return int(v)
         except IndexError:
-            raise node.ActionFailureError("failed to find kvs in: " + " ".join(resp))
+            raise node.ActionFailureError(
+                "failed to find kvs in: " + " ".join(resp))
 
     def _status_cmd_or_die(self, cmd):
         ret = self._status_cmd(cmd)
@@ -421,7 +443,8 @@ DeviceState=4
 
     def start(self, auto_go=False, client_only=False, config_methods=WPS_METHOD_PBC):
         if auto_go and client_only:
-            raise UnsupportedConfigurationError("Can't be an auto GO and a client only!")
+            raise UnsupportedConfigurationError(
+                "Can't be an auto GO and a client only!")
 
         # NOTE: supported config_methods currently buried in the default config
         # values for mwu.  We will eventually be able to change it with the
@@ -440,11 +463,12 @@ DeviceState=4
         return self._status_cmd_or_die(cmd)
 
     def find_stop(self):
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=stop_find"
+        cmd = "mwu_cli module=wifidirect iface=" + \
+            self.iface + " cmd=stop_find"
         self.comm.send_cmd(cmd)
 
     def peers(self):
-        [ret, raw_peers] = self.comm.send_cmd("mwu_cli module=wifidirect iface=" + \
+        [ret, raw_peers] = self.comm.send_cmd("mwu_cli module=wifidirect iface=" +
                                               self.iface + " cmd=dump_peers")
         peers = []
         index = 0
@@ -468,11 +492,11 @@ DeviceState=4
         return self._status_cmd(cmd)
 
     def go_neg_finish(self, peer):
-        for i in range (1, 30):
+        for i in range(1, 30):
             expected = "module=wifidirect iface=" + self.iface + \
                        " event=neg_result"
             event = self.get_next_event()
-            eventstr =  " ".join(event)
+            eventstr = " ".join(event)
             if eventstr.startswith(expected):
                 break
 
@@ -511,13 +535,13 @@ DeviceState=4
         cmd += " model_name=wtftester model_number=12345"
         cmd += " methods=%04X" % WPS_METHOD_PBC
         cmd += " ssid=" + self.ssid
-        cmd += " auth=0020 encrypt=0008" # This means wps2psk with AES
+        cmd += " auth=0020 encrypt=0008"  # This means wps2psk with AES
         cmd += " key=" + self.key
         ret = self._status_cmd_or_die(cmd)
         if ret != 0:
             return ret
         ret = self._status_cmd_or_die("mwu_cli module=mwpsmod iface=" +
-                                      self.iface + \
+                                      self.iface +
                                       " cmd=registrar_start")
         if ret != 0:
             return ret
@@ -537,13 +561,14 @@ DeviceState=4
         if ret != 0:
             return ret
         ret = self._status_cmd_or_die("mwu_cli module=mwpamod iface=" +
-                                      self.iface + \
+                                      self.iface +
                                       " cmd=ap_start")
         return ret
 
     def go_start(self):
         # generate a random 32-letter passphrase
-        self.key = ''.join(random.choice("0123456789abcdef") for x in range(32))
+        self.key = ''.join(random.choice("0123456789abcdef")
+                           for x in range(32))
         ret = self.ap_start(self.ssid, self.key)
         if ret != 0:
             return ret
@@ -566,11 +591,11 @@ DeviceState=4
         if ret != 0:
             return ret
 
-        for i in range (1, 20):
+        for i in range(1, 20):
             expected = "module=mwpsmod iface=" + self.iface + \
                        " event=enrollee_done status=0"
             event = self.get_next_event()
-            eventstr =  " ".join(event)
+            eventstr = " ".join(event)
             if eventstr.startswith(expected):
                 break
         if not eventstr.startswith(expected):
@@ -591,9 +616,9 @@ DeviceState=4
         ret = self._status_cmd(cmd)
         if ret != 0:
             return ret
-        for i in range (1, 4):
+        for i in range(1, 4):
             expected = "module=mwpamod event=sta_connect status=0"
-            eventstr =  " ".join(self.get_next_event())
+            eventstr = " ".join(self.get_next_event())
             if eventstr.startswith(expected):
                 break
 
@@ -603,8 +628,9 @@ DeviceState=4
 
     def get_next_event(self, timeout=2):
         # check for event every half second
-        for i in range(0, timeout*2):
-            (r, o) = self.comm.send_cmd("mwu_cli module=mwu cmd=get_next_event")
+        for i in range(0, timeout * 2):
+            (r, o) = self.comm.send_cmd(
+                "mwu_cli module=mwu cmd=get_next_event")
             if r != 0:
                 raise node.ActionFailureError("Failed to get next event")
             if r == 0 and o != []:

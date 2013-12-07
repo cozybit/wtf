@@ -14,15 +14,18 @@ wtfconfig = wtf.conf
 AP_IP = "192.168.99.1"
 STA_IP = "192.168.99.2"
 
+
 def setUp(self):
     # start with all of the nodes initialized by idle
     for n in wtfconfig.nodes:
         n.shutdown()
         n.init()
 
+
 def tearDown(self):
     for n in wtfconfig.nodes:
         n.stop()
+
 
 class TestAPSTA(unittest.TestCase):
 
@@ -68,9 +71,9 @@ class TestAPSTA(unittest.TestCase):
             for r in results:
                 if r.ssid == "wtf-scantest":
                     found = r
-                    break;
+                    break
             if found != None:
-                break;
+                break
 
         self.failIf(found == None, "Failed to find ssid wtf-scantest")
         self.failIf(r.channel != 11, "Expected wtf-scantest on channel 11")
@@ -87,41 +90,40 @@ class TestAPSTA(unittest.TestCase):
 
     def test_wpa_psk_tkip_assoc(self):
         wtfconfig.aps[0].config = AP.APConfig(ssid="wtf-wpatest",
-                                          security=AP.SECURITY_WPA,
-                                          auth=AP.AUTH_PSK,
-                                          password="thisisasecret",
-                                          encrypt=AP.ENCRYPT_TKIP)
+                                              security=AP.SECURITY_WPA,
+                                              auth=AP.AUTH_PSK,
+                                              password="thisisasecret",
+                                              encrypt=AP.ENCRYPT_TKIP)
         self.startNodes()
         self.assocTest()
         self.pingTest()
 
     def test_wpa2_psk_tkip_assoc(self):
         wtfconfig.aps[0].config = AP.APConfig(ssid="wtf-wpatest",
-                                            security=AP.SECURITY_WPA2,
-                                            auth=AP.AUTH_PSK,
-                                            password="thisisasecret",
-                                            encrypt=AP.ENCRYPT_TKIP)
+                                              security=AP.SECURITY_WPA2,
+                                              auth=AP.AUTH_PSK,
+                                              password="thisisasecret",
+                                              encrypt=AP.ENCRYPT_TKIP)
         self.startNodes()
         self.assocTest()
         self.pingTest()
 
     def test_wpa_psk_ccmp_assoc(self):
         wtfconfig.aps[0].config = AP.APConfig(ssid="wtf-wpatest",
-                                          security=AP.SECURITY_WPA,
-                                          auth=AP.AUTH_PSK,
-                                          password="thisisasecret",
-                                          encrypt=AP.ENCRYPT_CCMP)
+                                              security=AP.SECURITY_WPA,
+                                              auth=AP.AUTH_PSK,
+                                              password="thisisasecret",
+                                              encrypt=AP.ENCRYPT_CCMP)
         self.startNodes()
         self.assocTest()
         self.pingTest()
 
     def test_wpa2_psk_ccmp_assoc(self):
         wtfconfig.aps[0].config = AP.APConfig(ssid="wtf-wpatest",
-                                            security=AP.SECURITY_WPA2,
-                                            auth=AP.AUTH_PSK,
-                                            password="thisisasecret",
-                                            encrypt=AP.ENCRYPT_CCMP)
+                                              security=AP.SECURITY_WPA2,
+                                              auth=AP.AUTH_PSK,
+                                              password="thisisasecret",
+                                              encrypt=AP.ENCRYPT_CCMP)
         self.startNodes()
         self.assocTest()
         self.pingTest()
-

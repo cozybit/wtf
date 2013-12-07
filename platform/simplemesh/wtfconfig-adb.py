@@ -29,7 +29,7 @@ potential_devices = [
 devices = []
 exp_results = {"test1": 30.0, "test2": 15.0}
 
-#add as DUT's connecte devices only
+# add as DUT's connecte devices only
 for device in potential_devices:
     if is_dev_connected(device):
         devices.append(device)
@@ -47,7 +47,7 @@ for dev in devices:
     if dev.startswith("XZ") or dev.startswith("SXZ"):
         driver = QCA_DRIVER
     elif dev.startswith("JGT") or dev.startswith("GT"):
-    	driver = MARVEL_DRIVER
+        driver = MARVEL_DRIVER
     else:
         raise ValueError("Don't know which driver to use")
 

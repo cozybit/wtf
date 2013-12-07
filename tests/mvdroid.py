@@ -2,10 +2,13 @@
 # eachother.  Don't expect them to work for anything else.  On that note, don't
 # expect the mvdroid nodes to pass any other test besides these.  C'est la vie.
 
-import wtf, time, unittest
+import wtf
+import time
+import unittest
 import wtf.node.p2p as p2p
 
 wtfconfig = wtf.conf
+
 
 def setUp(self):
     for n in wtfconfig.p2ps:
@@ -15,6 +18,7 @@ def setUp(self):
     for n in wtfconfig.p2ps:
         n.shutdown()
         n.init()
+
 
 class TestMvdroid(unittest.TestCase):
 
@@ -31,14 +35,15 @@ class TestMvdroid(unittest.TestCase):
             peers = n0.peers()
             for p in peers:
                 if p.mac == n1.mac and \
-                       p.name == n1.name:
+                        p.name == n1.name:
                     return p
             count = count - 1
             time.sleep(3)
         self.failIf(1, "%s failed to find %s" % (n0.name, n1.name))
 
     def expect_connect(self, node1, node2):
-        # Order of operations is a bit finicky here depending on who becomes GO.
+        # Order of operations is a bit finicky here depending on who becomes
+        # GO.
         self.failIf(node1.connect_allow(node2) != 0,
                     "%s failed to allow" % node1.name)
         self.failIf(node2.connect_allow(node1) != 0,
@@ -46,17 +51,17 @@ class TestMvdroid(unittest.TestCase):
         node1.clear_events()
         node2.clear_events()
         ret = node1.go_neg_start(node2)
-        self.failIf(ret != 0, "%s failed to initiate go negotiation with %s" % \
+        self.failIf(ret != 0, "%s failed to initiate go negotiation with %s" %
                     (node1.name, node2.name))
         ret = node1.go_neg_finish(node2)
-        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
+        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" %
                     (node1.name, node2.name))
         if node1.is_go:
             ret = node1.go_start()
             self.failIf(ret != 0, node1.name + " failed to start GO services")
 
         ret = node2.go_neg_finish(node1)
-        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
+        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" %
                     (node2.name, node1.name))
         if node2.is_go:
             ret = node2.go_start()
@@ -95,7 +100,7 @@ class TestMvdroid(unittest.TestCase):
         for i in range(1, 8):
             ret = src.pdreq(dest, method)
             self.failIf(ret != 0,
-                        "%s failed to send pd req to %s" % \
+                        "%s failed to send pd req to %s" %
                         (src.name, dest.name))
 
             # Other events (e.g, peer_found), may be in the queue.  So try a
@@ -103,7 +108,7 @@ class TestMvdroid(unittest.TestCase):
             for i in range(1, 4):
                 e = dest.get_next_event(timeout=1)
                 if e == expected:
-                    return;
+                    return
 
         self.failIf(e != expected, "%s failed to rx pdreq" % (dest.name))
 
@@ -170,7 +175,7 @@ class TestMvdroid(unittest.TestCase):
             e = node1.get_next_event(timeout=5)
             eventstr = " ".join(e)
             if eventstr.startswith(expected):
-                return;
+                return
 
         self.failIf(not eventstr.startswith(expected),
                     "Failed to get link lost event")
@@ -297,7 +302,7 @@ class TestMvdroid(unittest.TestCase):
             e = node1.get_next_event(timeout=1)
             eventstr = " ".join(e)
             if eventstr.startswith(expected):
-                return;
+                return
 
         self.failIf(not eventstr.startswith(expected),
                     "Failed to get disconnect event")
@@ -318,15 +323,15 @@ class TestMvdroid(unittest.TestCase):
         # that event because node1 will expect node2 to re-initiate within
         # 120s IF we call his allow function.
         ret = node1.go_neg_start(node2)
-        self.failIf(ret != 0, "%s failed to initiate go negotiation with %s" % \
+        self.failIf(ret != 0, "%s failed to initiate go negotiation with %s" %
                     (node1.name, node2.name))
         time.sleep(2)
 
         self.failIf(node2.connect_allow(node1) != 0,
                     "%s failed to allow" % node2.name)
         ret = node1.go_neg_finish(node2)
-        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
+        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" %
                     (node1.name, node2.name))
         ret = node2.go_neg_finish(node1)
-        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" % \
+        self.failIf(ret != 0, "%s failed to complete go negotiation with %s" %
                     (node2.name, node1.name))

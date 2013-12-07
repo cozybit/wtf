@@ -1,13 +1,17 @@
 # Copyright cozybit, Inc 2010-2011
 # All rights reserved
 
-import wtf, time, unittest
+import wtf
+import time
+import unittest
 wtfconfig = wtf.conf
+
 
 def setUp(self):
     for n in wtfconfig.nodes:
         n.shutdown()
         n.init()
+
 
 class TestP2P(unittest.TestCase):
 
@@ -23,7 +27,7 @@ class TestP2P(unittest.TestCase):
             peers = n0.peers()
             for p in peers:
                 if p.mac == n1.mac and \
-                       p.name == n1.name:
+                        p.name == n1.name:
                     return
             count = count - 1
             time.sleep(1)
@@ -49,7 +53,7 @@ class TestP2P(unittest.TestCase):
         client.find_stop()
         # can client connect to GO?
         ret = client.connect_start(go)
-        self.failIf(ret != 0, "%s failed to initiate connection from %s" % \
+        self.failIf(ret != 0, "%s failed to initiate connection from %s" %
                     (client.name, go.name))
         ret = go.pbc_push()
         self.failIf(ret != 0, "Failed to push button on GO %s" % go.name)
@@ -78,10 +82,10 @@ class TestP2P(unittest.TestCase):
 
         # can GO connect to client?
         ret = client.connect_allow(go)
-        self.failIf(ret != 0, "%s failed to allow connection to %s" % \
+        self.failIf(ret != 0, "%s failed to allow connection to %s" %
                     (client.name, go.name))
         ret = go.connect_start(client)
-        self.failIf(ret != 0, "%s failed to initiate connection to %s" % \
+        self.failIf(ret != 0, "%s failed to initiate connection to %s" %
                     (go.name, client.name))
         ret = go.connect_finish(client)
         self.failIf(ret != 0, "Failed to connect to %s" % client.name)

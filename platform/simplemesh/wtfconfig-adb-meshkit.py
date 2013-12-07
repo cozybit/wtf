@@ -29,7 +29,7 @@ potential_devices = [
 devices = []
 exp_results = {"test1": 30.0, "test2": 15.0}
 
-#add as DUT's connecte devices only
+# add as DUT's connecte devices only
 for device in potential_devices:
     if is_dev_connected(device):
         devices.append(device)

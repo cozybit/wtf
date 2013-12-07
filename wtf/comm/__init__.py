@@ -8,13 +8,17 @@ import commands
 import subprocess
 import time
 
+
 class CommandFailureError(Exception):
+
     """
     Exception raised when a comm fails to send a command.
     """
     pass
 
+
 class CommBase():
+
     """
     A command communication channel
 
@@ -23,6 +27,7 @@ class CommBase():
     """
     verbosity = 0
     name = ""
+
     def __init__(self):
         pass
 
@@ -57,13 +62,16 @@ class CommBase():
     def reboot(self):
         raise NotImplementedError()
 
+
 class Serial(CommBase):
+
     """
     communicate with a node via a serial port
 
     The console on the other end must at least be able to 'echo $?' so we can
     get the return code.
     """
+
     def __init__(self, port="/dev/ttyUSB0", baudrate=115200,
                  prompt="[root@localhost]# "):
         self.serial = serial.Serial(port, baudrate, timeout=1)
@@ -103,10 +111,13 @@ class Serial(CommBase):
             raise CommandFailureError("Failed to find return code in stdout")
         return -1
 
+
 class ADB(CommBase):
+
     """
     communiacte with a node via adb
     """
+
     def __init__(self, device_id):
         self._device_id = device_id
         self._init_session()
@@ -139,7 +150,8 @@ class ADB(CommBase):
         return output
 
     def reboot(self):
-        adb_dev_id = subprocess.check_output(["adbs", "-s", self._device_id, "-i"]).strip()
+        adb_dev_id = subprocess.check_output(
+            ["adbs", "-s", self._device_id, "-i"]).strip()
         retcode = subprocess.call(["adb", "-s", adb_dev_id, "reboot"])
         if retcode != 0:
             raise StandardError("Command 'reboot' via adb failed")
@@ -168,25 +180,30 @@ class ADB(CommBase):
 # copy file from host:$src to $dst
     def get_file(self, src, dst):
         print "copying %s:%s to %s" % (self.name, src, dst)
-        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr, src, dst))
+        r, o = commands.getstatusoutput(
+            "scp root@%s:%s %s" % (self.ipaddr, src, dst))
         if r != 0:
-            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
+            raise StandardError("couldn't copy file: %s to %s \n %s" %
+                                (src, dst, o))
 
     def put_file(self, src, dst):
         print "copying %s to %s:%s" % (src, self.name, dst)
-        r, o = commands.getstatusoutput("rsync %s root@%s:%s" % (src, self.ipaddr, dst))
+        r, o = commands.getstatusoutput(
+            "rsync %s root@%s:%s" % (src, self.ipaddr, dst))
         if r != 0:
-            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
-
+            raise StandardError("couldn't copy file: %s to %s \n %s" %
+                                (src, dst, o))
 
 
 class SSH(CommBase):
+
     """
     communicate with a node via ssh
 
     The console on the other end must at least be able to 'echo $?' so we can
     get the return code.
     """
+
     def __init__(self, ipaddr, user="root"):
         self.session = pxssh.pxssh()
         self.session.login(ipaddr, user)
@@ -228,17 +245,23 @@ class SSH(CommBase):
 # copy file from host:$src to $dst
     def get_file(self, src, dst):
         print "copying %s:%s to %s" % (self.name, src, dst)
-        r, o = commands.getstatusoutput("scp root@%s:%s %s" % (self.ipaddr, src, dst))
+        r, o = commands.getstatusoutput(
+            "scp root@%s:%s %s" % (self.ipaddr, src, dst))
         if r != 0:
-            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
+            raise StandardError("couldn't copy file: %s to %s \n %s" %
+                                (src, dst, o))
 
     def put_file(self, src, dst):
         print "copying %s to %s:%s" % (src, self.name, dst)
-        r, o = commands.getstatusoutput("rsync %s root@%s:%s" % (src, self.ipaddr, dst))
+        r, o = commands.getstatusoutput(
+            "rsync %s root@%s:%s" % (src, self.ipaddr, dst))
         if r != 0:
-            raise StandardError("couldn't copy file: %s to %s \n %s" % (src, dst, o))
+            raise StandardError("couldn't copy file: %s to %s \n %s" %
+                                (src, dst, o))
+
 
 class MvdroidSerial(Serial):
+
     """
     communicate with an mvdroid device via a serial port
 
@@ -247,6 +270,7 @@ class MvdroidSerial(Serial):
     non-standard places.  Also, the console printks are pretty loud and must be
     silenced.
     """
+
     def __init__(self, port="/dev/ttyUSB0", baudrate=115200, prompt="# "):
         Serial.__init__(self, port, baudrate, prompt)
         self.send_cmd("busybox sh", verbosity=2)
@@ -254,6 +278,7 @@ class MvdroidSerial(Serial):
         self.send_cmd("export PATH=/marvell/tel:$PATH")
         self.send_cmd("cd /marvell/tel/")
         self.send_cmd("mount -o remount,rw /dev/block/mtdblock11 /marvell")
-        busybox_cmds = [ "ifconfig", "rm", "mkdir", "killall", "grep", "rmdir" ];
+        busybox_cmds = ["ifconfig", "rm",
+                        "mkdir", "killall", "grep", "rmdir"]
         for c in busybox_cmds:
             self.send_cmd("ln -s busybox " + c)

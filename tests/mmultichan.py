@@ -19,7 +19,8 @@ import unittest
 import time
 import wtf
 from wtf.util import do_perf, print_linkreports, LinkReport
-import sys; err = sys.stderr
+import sys
+err = sys.stderr
 
 wtfconfig = wtf.conf
 sta = wtfconfig.mps
@@ -29,9 +30,11 @@ else:
     mon = None
 
 if_a, if_b, if_c, if_d, if_e, if_f = [None] * 6
-results={}
+results = {}
 
 # global setup, called once during this suite
+
+
 def setUp(self):
     global if_a
     global if_b
@@ -45,14 +48,15 @@ def setUp(self):
 
 # if_a -> if_b, if_c -> if_d
     if_a = sta[0].iface[0]
-    if_b = sta[1].iface[1] # switched
-    if_c = sta[1].iface[0] # because only the [0] interface supports ch. 149
+    if_b = sta[1].iface[1]  # switched
+    if_c = sta[1].iface[0]  # because only the [0] interface supports ch. 149
     if_d = sta[2].iface[0]
 
     if mon:
         mon.shutdown()
         mon.init()
         mon.start()
+
 
 def tearDown(self):
 
@@ -61,7 +65,9 @@ def tearDown(self):
 
     print_linkreports(results)
 
+
 class TestMMBSS(unittest.TestCase):
+
     def setUp(self):
         for n in wtfconfig.mps:
             n.stop()
@@ -117,8 +123,10 @@ class TestMMBSS(unittest.TestCase):
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
 
-        if_b.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_b.conf.channel))
-        if_d.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_d.conf.channel))
+        if_b.stop_capture(path="/tmp/%s_%d_out.cap" %
+                          (fname, if_b.conf.channel))
+        if_d.stop_capture(path="/tmp/%s_%d_out.cap" %
+                          (fname, if_d.conf.channel))
 
     def test_3_mmbss(self):
         fname = sys._getframe().f_code.co_name
@@ -134,14 +142,15 @@ class TestMMBSS(unittest.TestCase):
         perf_report = do_perf([if_a, if_d], if_d.ip)
         results[fname] = LinkReport(perf_report=perf_report)
 
-        if_b.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_b.conf.channel))
-        if_d.stop_capture(path="/tmp/%s_%d_out.cap" % (fname, if_d.conf.channel))
+        if_b.stop_capture(path="/tmp/%s_%d_out.cap" %
+                          (fname, if_b.conf.channel))
+        if_d.stop_capture(path="/tmp/%s_%d_out.cap" %
+                          (fname, if_d.conf.channel))
 
         if_b.dump_mesh_stats()
         if_b.dump_phy_stats()
         if_c.dump_phy_stats()
         if_d.dump_phy_stats()
-
 
     def test_4_same_ch_mhop(self):
         fname = sys._getframe().f_code.co_name

@@ -51,7 +51,8 @@ import unittest
 import time
 import wtf
 from wtf.util import *
-import sys; err = sys.stderr
+import sys
+err = sys.stderr
 import time
 import os
 
@@ -61,9 +62,11 @@ sta = wtfconfig.mps
 mcast_dst = "224.0.0.0"
 ref_clip = os.getenv("REF_CLIP")
 # XXX: nose probably has something like this?
-results={}
+results = {}
 
 # global setup, called once during this suite
+
+
 def setUp(self):
 
 # if_1 <-> if_2
@@ -75,12 +78,14 @@ def setUp(self):
         n.init()
         n.start()
 
+
 def tearDown(self):
     for n in wtfconfig.nodes:
         n.stop()
 
     print "                                                     ref_clip=%s" % (ref_clip,)
     print_linkreports(results)
+
 
 class Test11aa(unittest.TestCase):
 
@@ -100,7 +105,8 @@ class Test11aa(unittest.TestCase):
         vqm_report = do_vqm([if_1, if_2], dst_ip, ref_clip)
         vqm_report = do_vqm(sta[:2], dst_ip, ref_clip)
 
-        results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
+        results[fname] = LinkReport(
+            perf_report=perf_report, vqm_report=vqm_report)
 
     def test_2_unicast_noht(self):
         fname = sys._getframe().f_code.co_name
@@ -114,7 +120,8 @@ class Test11aa(unittest.TestCase):
         perf_report = do_perf([if_1, if_2], dst_ip)
         vqm_report = do_vqm(sta[:2], dst_ip, ref_clip)
 
-        results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
+        results[fname] = LinkReport(
+            perf_report=perf_report, vqm_report=vqm_report)
 
     def test_3_mcast_mcs7(self):
         # XXX: need new firmware, derp
@@ -134,4 +141,5 @@ class Test11aa(unittest.TestCase):
         perf_report = do_perf([if_1, if_2], mcast_dst)
         vqm_report = do_vqm(sta[:2], mcast_dst, ref_clip)
 
-        results[fname] = LinkReport(perf_report=perf_report, vqm_report=vqm_report)
+        results[fname] = LinkReport(
+            perf_report=perf_report, vqm_report=vqm_report)

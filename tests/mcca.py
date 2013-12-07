@@ -37,7 +37,8 @@ import unittest
 import time
 import wtf
 import wtf.util
-import sys; err = sys.stderr
+import sys
+err = sys.stderr
 import time
 import commands
 
@@ -45,27 +46,32 @@ wtfconfig = wtf.conf
 sta = wtfconfig.mps
 mon = wtfconfig.mons[0]
 
-BCN_INTVL=1000 #TUs
-DTIM_PERIOD=2
-DTIM_INTVL=BCN_INTVL * DTIM_PERIOD
+BCN_INTVL = 1000  # TUs
+DTIM_PERIOD = 2
+DTIM_INTVL = BCN_INTVL * DTIM_PERIOD
 
 # current target accuracy (us)
-ACCURACY=256
+ACCURACY = 256
 
 # offset and duration are in 32us units
+
+
 class MCCARes():
+
     def __init__(self, offset, duration, period):
         self.offset = offset
         self.duration = duration
         self.period = period
 
 # returns 0 if no traffic was transmitted by peer from tstop to tstart
+
+
 def check_no_traffic(cap_file, peer, tstop, tstart):
     tstop = int(tstop + (ACCURACY / 2.0))
     tstart = int(tstart - (ACCURACY / 2.0))
 # TODO: not only data frames are disallowed (?)
     print "checking for data from " + str(tstop) + " to " + str(tstart) + " by " + peer.mac
-    output = do_tshark(cap_file, "wlan.ta == " + peer.mac + " && data && (radiotap.mactime > " +\
+    output = do_tshark(cap_file, "wlan.ta == " + peer.mac + " && data && (radiotap.mactime > " +
                        str(tstop) + " && radiotap.mactime < " + str(tstart) + ")")
     if output:
         print output
@@ -75,11 +81,13 @@ def check_no_traffic(cap_file, peer, tstop, tstart):
 # parse beacon received at rx_t for owner or responder reservations.
 # returns a list of MCCARes reservation slots,
 # all units are in 32us units
+
+
 def get_mcca_res(cap_file, rx_t, owner=False):
     import struct
-    res_type="res"
+    res_type = "res"
     if owner:
-        res_type="own"
+        res_type = "own"
 
     ress = []
     raw_res = do_tshark(cap_file, "radiotap.mactime == " + str(rx_t),
@@ -91,7 +99,7 @@ def get_mcca_res(cap_file, rx_t, owner=False):
         idx = i * 5
         duration = int(raw_res[idx + 1], 16)
         period = int(raw_res[idx + 2], 16)
-        offset = "".join(raw_res[idx + 3 : idx + 6]) + "00"
+        offset = "".join(raw_res[idx + 3: idx + 6]) + "00"
         offset = struct.unpack("<L", offset.decode('hex'))
         ress.append(MCCARes(offset[0], duration, period))
         i += 1
@@ -102,6 +110,8 @@ def get_mcca_res(cap_file, rx_t, owner=False):
 # owner_dtim is a flag controlling who's DTIM we'll check against. Set
 # owner_dtim=False to merely check the parameters reported in the responder
 # DTIM beacon.
+
+
 def check_mcca_res(owner, responder, cap_file=None, owner_dtim=True):
     if not cap_file:
         cap_file = responder.local_cap
@@ -112,8 +122,10 @@ def check_mcca_res(owner, responder, cap_file=None, owner_dtim=True):
 # XXX: this test is not really helpful right now
     return 0
 
-    bcns = do_tshark(cap_file, "wlan.sa == " + rel_dtim + " && (wlan_mgt.tim.dtim_count == 0)",
-                     "-Tfields -e radiotap.mactime -e wlan_mgt.fixed.timestamp -e radiotap.datarate")
+    bcns = do_tshark(
+        cap_file, "wlan.sa == " + rel_dtim +
+        " && (wlan_mgt.tim.dtim_count == 0)",
+        "-Tfields -e radiotap.mactime -e wlan_mgt.fixed.timestamp -e radiotap.datarate")
 # (dtim TBTT, [res periods for DTIM])
     abs_dtims = []
     for bcn in bcns.splitlines():
@@ -122,12 +134,12 @@ def check_mcca_res(owner, responder, cap_file=None, owner_dtim=True):
 # adjust rx_t to account for beacon header tx time, since beacon timestamp is
 # when that field hits the transmitting phy
 # (24 bytes of header * 8 bits/byte) / rate(Mbps)
-        hdr_t = (24 * 8 ) / int(bcn.split()[2])
+        hdr_t = (24 * 8) / int(bcn.split()[2])
         ress = get_mcca_res(cap_file, rx_t, owner_dtim)
         abs_dtims.append((rx_t - (ts % tu_to_us(DTIM_INTVL) + hdr_t), ress))
 
     for dtim in abs_dtims:
-        print "DTIM by " + rel_dtim  + " at " + str(dtim[0])  + " in " + cap_file
+        print "DTIM by " + rel_dtim + " at " + str(dtim[0]) + " in " + cap_file
         for res in dtim[1]:
             tstop = dtim[0] + res.offset * 32
             tstart = tstop + res.duration * 32
@@ -139,6 +151,8 @@ def check_mcca_res(owner, responder, cap_file=None, owner_dtim=True):
     return 0
 
 # check peers in $peers respected our reservation
+
+
 def check_mcca_peers(owner, peers):
     for peer in peers:
         if check_mcca_res(owner, peer):
@@ -146,6 +160,8 @@ def check_mcca_peers(owner, peers):
     return 0
 
 # global setup, called once during this suite
+
+
 def setUp(self):
 
     global if_a
@@ -153,7 +169,7 @@ def setUp(self):
     global if_c
     global if_d
 
-    #XXX: check for collisions on these
+    # XXX: check for collisions on these
     sta[0].res = MCCARes(offset=100 * 32, duration=255, period=32)
     sta[1].res = MCCARes(offset=300 * 32, duration=255, period=32)
     sta[2].res = MCCARes(offset=550 * 32, duration=255, period=32)
@@ -185,9 +201,11 @@ def setUp(self):
     mon.init()
     mon.start()
 
+
 def tearDown(self):
     for n in wtfconfig.nodes:
         n.stop()
+
 
 class TestMCCA(unittest.TestCase):
 
@@ -255,9 +273,12 @@ class TestMCCA(unittest.TestCase):
         if_a.perf_serve(p=7002)
 
         dst_ip = if_a.ip
-        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60,
+                         fork=True)
+        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60,
+                         fork=True)
+        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60,
+                         fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "2")
 
@@ -286,9 +307,12 @@ class TestMCCA(unittest.TestCase):
         if_a.perf_serve(p=7002)
 
         dst_ip = if_a.ip
-        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60,
+                         fork=True)
+        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60,
+                         fork=True)
+        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60,
+                         fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "3")
         # TODO: failure conditions
@@ -305,9 +329,12 @@ class TestMCCA(unittest.TestCase):
         if_a.perf_serve(p=7002)
 
         dst_ip = sta[0].configs[0].iface.ip
-        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60, fork=True)
-        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60, fork=True)
-        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60, fork=False)
+        if_b.perf_client(dst_ip, timeout=10, dual=True, L=6666, p=7000, b=60,
+                         fork=True)
+        if_c.perf_client(dst_ip, timeout=10, dual=True, L=6667, p=7001, b=60,
+                         fork=True)
+        if_d.perf_client(dst_ip, timeout=10, dual=True, L=6668, p=7002, b=60,
+                         fork=False)
         killperfs(sta)
         mon.stop_capture(CAP_FILE + "4")
         # TODO: failure conditions
