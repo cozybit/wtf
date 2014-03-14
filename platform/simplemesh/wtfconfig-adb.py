@@ -24,15 +24,22 @@ potential_devices = [
     "GT9", "GT10", "GT11",
     "SXZ1", "SXZ2", "SXZ3",
     "XZ1", "XZ2", "XZ3", "XZ4",
+    "XZ5", "XZ6", "XZ7"
 ]
 
 devices = []
-exp_results = {"test1": 30.0, "test2": 15.0}
 
 # add as DUT's connecte devices only
 for device in potential_devices:
     if is_dev_connected(device):
+        print 'Connected:', device
         devices.append(device)
+
+if [X for X in devices if 'XZ' in X]:
+    exp_results = {"test1": 30.0, "test2": 15.0}
+else:
+    # Expect lower throughput for Xperia Z devices
+    exp_results = {"test1": 20.0, "test2": 10.0}
 
 for dev in devices:
     n += 1
@@ -71,3 +78,5 @@ if len(devices) > 2:
                           exp_results=exp_results)
 else:
     raise ValueError("Number of devices connected was too small!")
+
+# vim: ft=python

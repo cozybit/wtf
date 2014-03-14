@@ -241,11 +241,20 @@ def gen_mesh_id():
     return "wtfmesh" + str(random.randint(1, 1000))
 
 
+def get_adb_id(device_id):
+    cmd = ["adbs", "-s", device_id, "-i"]
+    sp = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    adb_id, err = sp.communicate()
+    if sp.returncode != 0:
+        print sp.returncode, adb_id, err
+        return None
+    adb_id = adb_id.strip()
+    return adb_id
+
+
 def is_dev_connected(device_id):
-    try:
-        adb_id = subprocess.check_output(
-            ["adbs", "-s", device_id, "-i"]).strip()
-    except subprocess.CalledProcessError:
+    adb_id = get_adb_id(device_id)
+    if adb_id is None:
         return False
     ls = subprocess.check_output(["adb", "devices"]).strip().splitlines()
     ls = [L.split()[0] for L in ls[1:]]

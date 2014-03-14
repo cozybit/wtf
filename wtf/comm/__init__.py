@@ -8,6 +8,7 @@ import commands
 import subprocess
 import time
 
+from wtf.util import get_adb_id
 
 class CommandFailureError(Exception):
 
@@ -46,7 +47,7 @@ class CommBase():
         implement _send_cmd() to send a command and return the stdout, and
         _get_retcode() to get the return code of the last command.
         """
-        if verbosity == None:
+        if verbosity is None:
             verbosity = self.verbosity
         elif verbosity > self.verbosity:
             verbosity = self.verbosity
@@ -115,7 +116,7 @@ class Serial(CommBase):
 class ADB(CommBase):
 
     """
-    communiacte with a node via adb
+    Communicate with a node via adb
     """
 
     def __init__(self, device_id):
@@ -150,8 +151,7 @@ class ADB(CommBase):
         return output
 
     def reboot(self):
-        adb_dev_id = subprocess.check_output(
-            ["adbs", "-s", self._device_id, "-i"]).strip()
+        adb_dev_id = get_adb_id(self._device_id)
         retcode = subprocess.call(["adb", "-s", adb_dev_id, "reboot"])
         if retcode != 0:
             raise StandardError("Command 'reboot' via adb failed")

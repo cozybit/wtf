@@ -5,6 +5,10 @@ $Id: pxssh.py 487 2007-08-29 22:33:29Z noah $
 """
 
 import time
+import subprocess
+
+from wtf.util import get_adb_id
+
 from pexpect import ExceptionPexpect, spawn, TIMEOUT, EOF
 
 __all__ = ['ExceptionPxssh', 'pxssh']
@@ -317,7 +321,11 @@ class pxssh (spawn):
 
     def adbLogin(self, device_id, original_prompt=r"[#$]"):
         """login process for android devices over adb"""
-        spawn._spawn(self, "adbs -s " + device_id + " shell")
+        adb_id = get_adb_id(device_id)
+        subprocess.call(["adb", "-s", adb_id, "root"])
+        time.sleep(2)
+        subprocess.call(["adb", "-s", adb_id, "wait-for-device"])
+        spawn._spawn(self, "adb -s " + adb_id + " shell")
         index = self.expect([original_prompt, TIMEOUT, EOF])
         if index == 1 or index == 2:
             return False
