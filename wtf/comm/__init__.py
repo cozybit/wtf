@@ -142,12 +142,13 @@ class ADB(CommBase):
         if len(command) == 69:
             command = "  " + command
         self.session.sendline(command)
-# maybe we want to block on command completion...
+        # maybe we want to block on command completion...
         self.session.PROMPT = r"[a-z]+@[a-z]+:.*[\$\#]"
-# for some reason shell variables need an extra prompt call to be expanded
+        # for some reason shell variables need an extra prompt call to be
+        # expanded
         self.session.prompt(timeout=300)
         output = self.session.before.split("\r\n")[1:-1]
-# take out return carriage which is the last character still...
+        # take out return carriage which is the last character still...
         for i in range(0, len(output)):
             output[i] = output[i][0:-1]
         return output
