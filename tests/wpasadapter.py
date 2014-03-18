@@ -15,6 +15,7 @@ import unittest
 import subprocess
 import threading
 import Queue as queue
+import importlib
 
 WTFCONFIG = wtf.conf
 STATIONS = WTFCONFIG.mps
@@ -22,7 +23,8 @@ ADAPTERS = None
 THIS_FILE = os.path.abspath(__file__)
 THIS_DIR = os.path.dirname(THIS_FILE)
 
-wpa_cli_error = "Expected exit status of 0 from wpa_cli, got %d instead"
+wpa_cli_error = ("Expected exit status of 0 from wpa_cli, got %d instead "
+                 "(for command: '%s')")
 
 
 def setUp(self):
@@ -30,9 +32,6 @@ def setUp(self):
     for station in STATIONS:
         station.comm.send_cmd("stop wpa_supplicant")
         station.comm.send_cmd("svc wifi disable")
-        #station.comm.send_cmd("stop")
-        #station.comm.send_cmd("start")
-        station.comm.send_cmd("start wpa_supplicant")
     time.sleep(2)
     ADAPTERS = [WpasTestAdapter(sta) for sta in STATIONS]
 
@@ -41,7 +40,7 @@ def tearDown(self):
     for n in WTFCONFIG.nodes:
         n.stop()
 
-    for adapter in adapters:
+    for adapter in ADAPTERS:
         adapter.cleanUp()
 
 
@@ -52,7 +51,7 @@ def buildAdbCommand(adb_id):
 
 class WpaCliMonitor(threading.Thread):
 
-    regex = re.compile(r'^[\s>]+')
+    EVENT_TRIM = re.compile(r'^[\s>]+')
 
     def __init__(self, q, adb_id):
         threading.Thread.__init__(self)
@@ -66,13 +65,14 @@ class WpaCliMonitor(threading.Thread):
             if not line:
                 return
             line = line.strip()
-            print 'LaunchMonitorProcess:', line
-            split = self.regex.split(line)
+            #print 'LaunchMonitorProcess:', repr(line)
+            split = self.EVENT_TRIM.split(line)
             if len(split) > 1:
                 line = split[1]
-            if not line.startswith("<3>"):
+            if line.startswith("<3>"):
+                yield line[3:]
+            else:
                 continue
-            yield line[3:]
 
     def run(self, *args, **kwargs):
         for line in self._gen():
@@ -95,7 +95,7 @@ class EventMonitor (object):
     def waitForEvent(self, eventName):
         while True:
             line = self._q.get(timeout=10)
-            print 'waitForEvent:', line
+            #print 'waitForEvent:', line
             if line.startswith(eventName):
                 return line
 
@@ -111,16 +111,24 @@ class WpasTestAdapter (object):
         self._monitor = EventMonitor(sta)
         self._monitor.launch()
 
+    def getSTA(self):
+        return self._sta
+
     def cleanUp(self):
         self._monitor.stopMonitor()
 
     def _send_to_wpa_cli(self, cmd):
         cmd = "wpa_cli -p/data/misc/wifi -iwlan0 " + cmd
-        print cmd
+        #print cmd
         code, resp = self._comm.send_cmd(cmd)
         if code != 0:
-            raise ValueError(wpa_cli_error % (code,))
+            raise ValueError(wpa_cli_error % (code, cmd))
         return str.join('', resp)
+
+    def ping(self):
+        cmd = "wpa_cli -p/data/misc/wifi -iwlan0 ping"
+        code, resp = self._comm.send_cmd(cmd)
+        return code == 0 and str.join('', resp) == "PONG"
 
     def _send_cmd_bool_resp(self, cmd):
         resp = self._send_to_wpa_cli(cmd).strip()
@@ -134,6 +142,12 @@ class WpasTestAdapter (object):
             raise ValueError(resp)
         return resp
 
+    def dump_monitor(self):
+        pass
+
+    def request(self, req):
+        return self._send_to_wpa_cli(req)
+
     def add_network(self):
         return self._send_cmd_int_resp("add_network")
 
@@ -146,6 +160,9 @@ class WpasTestAdapter (object):
 
     def mesh_group_add(self, meshId):
         return self._send_cmd_bool_resp("mesh_group_add " + meshId)
+
+    def mesh_group_remove(self):
+        return self._send_cmd_bool_resp("mesh_group_remove wlan0")
 
     def remove_network(self, networkId):
         return self._send_cmd_bool_resp("remove_network " + networkId)
@@ -171,13 +188,29 @@ class WpasMeshTest(unittest.TestCase):
                 self._tests[name] = module.__dict__[name]
 
     def setUp(self):
-        pass
+        for adapter in ADAPTERS:
+            adapter.getSTA().comm.send_cmd("start wpa_supplicant")
+            while not adapter.ping():
+                time.sleep(0.5)
 
     def tearDown(self):
-        pass
+        for adapter in ADAPTERS:
+            adapter.getSTA().comm.send_cmd("stop wpa_supplicant")
 
-    def test_wpas_mesh_mode_scan(self):
-        self._tests['test_wpas_mesh_mode_scan'](ADAPTERS)
+    def test_wpas_add_set_remove_support(self):
+        self._tests['test_wpas_add_set_remove_support'](ADAPTERS)
 
     def test_wpas_mesh_group_added(self):
         self._tests['test_wpas_mesh_group_added'](ADAPTERS)
+
+    def test_wpas_mesh_group_remove(self):
+        self._tests['test_wpas_mesh_group_remove'](ADAPTERS)
+
+    def test_wpas_mesh_peer_connected(self):
+        self._tests['test_wpas_mesh_peer_connected'](ADAPTERS)
+
+    def test_wpas_mesh_peer_disconnected(self):
+        self._tests['test_wpas_mesh_peer_disconnected'](ADAPTERS)
+
+    def test_wpas_mesh_mode_scan(self):
+        self._tests['test_wpas_mesh_mode_scan'](ADAPTERS)
