@@ -10,6 +10,7 @@ import time
 
 from wtf.util import get_adb_id
 
+
 class CommandFailureError(Exception):
 
     """
@@ -121,6 +122,7 @@ class ADB(CommBase):
 
     def __init__(self, device_id):
         self._device_id = device_id
+        self._adb_id = get_adb_id(self._device_id)
         self._init_session()
         CommBase.__init__(self)
 
@@ -150,12 +152,18 @@ class ADB(CommBase):
             output[i] = output[i][0:-1]
         return output
 
+    def get_device_id(self):
+        return self._device_id
+
+    def get_adb_id(self):
+        return self._adb_id
+
     def reboot(self):
-        adb_dev_id = get_adb_id(self._device_id)
-        retcode = subprocess.call(["adb", "-s", adb_dev_id, "reboot"])
+        retcode = subprocess.call(["adb", "-s", self.get_adb_id(), "reboot"])
         if retcode != 0:
             raise StandardError("Command 'reboot' via adb failed")
-        retcode = subprocess.call(["adb", "-s", adb_dev_id, "wait-for-device"])
+        retcode = subprocess.call(["adb", "-s", self.get_adb_id(),
+                                   "wait-for-device"])
         if retcode != 0:
             raise StandardError("Command 'wait-for-device' via adb failed")
         time.sleep(1)
