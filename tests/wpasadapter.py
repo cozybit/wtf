@@ -125,7 +125,7 @@ class WpasTestAdapter (object):
             raise ValueError(wpa_cli_error % (code, cmd))
         return str.join('', resp)
 
-    def ping(self):
+    def ping_wpa_supplicant(self):
         cmd = "wpa_cli -p/data/misc/wifi -iwlan0 ping"
         code, resp = self._comm.send_cmd(cmd)
         return code == 0 and str.join('', resp) == "PONG"
@@ -174,6 +174,21 @@ class WpasTestAdapter (object):
                 return ev
 
 
+def adb_ping_check(dev1, dev2):
+
+    dev1.getSTA().comm.send_cmd("ip addr flush dev wlan0")
+    dev1.getSTA().comm.send_cmd("ip addr add 10.0.0.2/24 dev wlan0")
+
+    dev2.getSTA().comm.send_cmd("ip addr flush dev wlan0")
+    dev2.getSTA().comm.send_cmd("ip addr add 10.0.0.3/24 dev wlan0")
+
+    code, outp = dev1.getSTA().comm.send_cmd("ping -c5 10.0.0.3")
+    if code != 0:
+        raise Exception("No connectivity from dev1 to dev2")
+
+    return
+
+
 class WpasMeshTest(unittest.TestCase):
 
     def __init__(self, *args, **kw):
@@ -190,7 +205,7 @@ class WpasMeshTest(unittest.TestCase):
     def setUp(self):
         for adapter in ADAPTERS:
             adapter.getSTA().comm.send_cmd("start wpa_supplicant")
-            while not adapter.ping():
+            while not adapter.ping_wpa_supplicant():
                 time.sleep(0.5)
 
     def tearDown(self):
@@ -214,3 +229,9 @@ class WpasMeshTest(unittest.TestCase):
 
     def test_wpas_mesh_mode_scan(self):
         self._tests['test_wpas_mesh_mode_scan'](ADAPTERS)
+
+    def test_wpas_mesh_open(self):
+        self._tests['_test_wpas_mesh_open'](ADAPTERS, None, adb_ping_check)
+
+    def test_wpas_mesh_secure(self):
+        self._tests['_test_wpas_mesh_secure'](ADAPTERS, None, adb_ping_check)
