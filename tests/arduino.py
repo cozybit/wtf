@@ -29,8 +29,22 @@ IDE = "/home/jacob/dev/arduino_project/MeshableMCU/arduino-1.5.6-r2"
 
 def setUp(self):
 	global cereal
+	global display
+	global old_display
 
 	cereal = wtfconfig.comm.serial
+	# set up a fake X server for a computer without one...
+	old_display = display = os.environ["DISPLAY"]
+	if display == '':
+		display = ':' + str(randint(10, 99))
+		call(["Xvfb", display])
+	os.environ["DISPLAY"] = display
+
+def tearDown(self):
+	# if we had to change the display, set it back and kill fake x server
+	if old_display != display:
+		call(["pkill", "Xvfb"])
+		os.environ["DISPLAY"] = old_display
 
 class ArduinoTest(unittest.TestCase):
 	""" Arduino test suite, builds, flashes, and expects. """
