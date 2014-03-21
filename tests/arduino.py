@@ -25,7 +25,6 @@ ref_clip = os.getenv("REF_CLIP")
 
 # hmmm, hardcoded arduino ide path??
 # TODO: FIXXX me
-IDE = "/home/jacob/dev/arduino_project/MeshableMCU/arduino-1.5.6-r2"
 COZYINSTALL = IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh"
 path = 0
 expected = 1
