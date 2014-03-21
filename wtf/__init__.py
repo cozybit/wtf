@@ -10,13 +10,14 @@ import wtf.node.sniffer as sniffer
 
 class config():
 
-    def __init__(self, suite=None, nodes=[], name="<unamed config>", exp_results={}):
+    def __init__(self, suite=None, nodes=[], name="<unamed config>", exp_results={}, comm=None):
         """
         A wtf config is a list of suites to run and the nodes to run them on.
         """
         self.suite = suite
         self.nodes = nodes
         self.exp_results = exp_results
+	self.comm = comm
 
         # populate node lists used by tests.
         self.aps = []
