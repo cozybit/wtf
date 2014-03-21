@@ -26,6 +26,7 @@ ref_clip = os.getenv("REF_CLIP")
 # hmmm, hardcoded arduino ide path??
 # TODO: FIXXX me
 IDE = "/home/jacob/dev/arduino_project/MeshableMCU/arduino-1.5.6-r2"
+COZYINSTALL = IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh"
 
 def setUp(self):
 	global cereal
@@ -60,6 +61,7 @@ class ArduinoTest(unittest.TestCase):
 
 	def expect_string(self, string):
 		read = cereal.read(len(string))
+		# debugg option? TODO: take out this ugly long message?
 		self.failIf(read != string, "Expect string not found \n\nfound\n%s\n\nlooking for\n%s" % (read, string))
 
 	def build(self, build_path):
@@ -75,16 +77,19 @@ class ArduinoTest(unittest.TestCase):
 		except OSError:
 			self.failIf(1, "You do not have the correct arduino ide directory path set")
 		
-		ret = call(["./arduino", "--verify", "--board", "cozybit:mc200:MC200", "--pref", "build.path=" + tmp_path, build_path])
+		ret = call(["./arduino", "--verify", "--board",
+			"cozybit:mc200:MC200", "-v", "--pref",
+			"build.path=" + tmp_path, build_path])
 		self.failIf(ret, "There was a problem while building %s a return value of %d was given" %
 				(build_path, ret))
 
+		# break off the ino extension and add cpp.axf in it's place
 		return tmp_path + "/" + os.path.basename(build_path)[:-3] + "cpp.axf"
 
 
 	def flash(self, flash_path):
 		try:
-			ret = call([IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh", flash_path])
+			ret = call([COZYINSTALL, flash_path])
 		except OSError:
 			self.failIf(1, "Problem when trying to cozyinstall %s" % flash_path)
 
