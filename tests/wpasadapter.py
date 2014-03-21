@@ -233,5 +233,13 @@ class WpasMeshTest(unittest.TestCase):
     def test_wpas_mesh_open(self):
         self._tests['_test_wpas_mesh_open'](ADAPTERS, None, adb_ping_check)
 
+    def test_wpas_mesh_open_no_auto(self):
+        self._tests['_test_wpas_mesh_open_no_auto'](ADAPTERS, None,
+                                                    adb_ping_check)
+
     def test_wpas_mesh_secure(self):
         self._tests['_test_wpas_mesh_secure'](ADAPTERS, None, adb_ping_check)
+
+    def test_wpas_mesh_secure_no_auto(self):
+        self._tests['_test_wpas_mesh_secure_no_auto'](ADAPTERS, None,
+                                                      adb_ping_check)
