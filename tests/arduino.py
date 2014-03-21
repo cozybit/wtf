@@ -36,13 +36,17 @@ class ArduinoTest(unittest.TestCase):
 	""" Arduino test suite, builds, flashes, and expects. """
 	def setUp(self):
 		""" flush before every test to clear serial buffer """
+		to = cereal.timeout
+		cereal.setTimeout(1)
+		cereal.readall()
+		cereal.setTimeout(to)
 		cereal.flushInput()
 		cereal.flushOutput()
+		cereal.flush()
 
-	def expect_string(self, string, test):
+	def expect_string(self, string):
 		read = cereal.read(len(string))
-		self.failIf(read != string, "Expect string not found for test %s" % test)
-		print "test %s passed" % test
+		self.failIf(read != string, "Expect string not found \n\nfound\n%s\n\nlooking for\n%s" % (read, string))
 
 	def build(self, build_path):
 		# random build directory
@@ -57,11 +61,11 @@ class ArduinoTest(unittest.TestCase):
 		except OSError:
 			self.failIf(1, "You do not have the correct arduino ide directory path set")
 		
-		ret = call(["sudo", "./arduino", "--verify", "--board", "cozybit:mc200:MC200", "--pref", "build.path=" + tmp_path, "-v", build_path])
+		ret = call(["./arduino", "--verify", "--board", "cozybit:mc200:MC200", "--pref", "build.path=" + tmp_path, build_path])
 		self.failIf(ret, "There was a problem while building %s a return value of %d was given" %
 				(build_path, ret))
 
-		return tmp_path
+		return tmp_path + "/" + os.path.basename(build_path)[:-3] + "cpp.axf"
 
 
 	def flash(self, flash_path):
@@ -73,12 +77,20 @@ class ArduinoTest(unittest.TestCase):
 		self.failIf(ret, "Something went wrong with flashing %s a return value of %d was given" %
 				(flash_path, ret))
 
-	def test_string_addition_operators(self):
+	def test_1_string_addition_operators(self):
 		to_build = "./examples/08.Strings/StringAdditionOperator/StringAdditionOperator.ino"
-		flash_path = self.build(to_build)
-		self.flash(flash_path)
+		expected_string = "\n\nAdding strings together (concatenation):\n\r\n\rstringThree = 123\n\rstringThree = 123456789\n\rstringThree = A\n\rstringThree = abc\n\rstringThree = this string\n\r"
+		self.flash(self.build(to_build))
+
 		# the last two lines printed are not checked since they are non
 		# deterministic, one is the sensor value, the other is milliseconds
 		# since the program started
-		expect_string("\n\nAdding strings together (concatenation):\n\r\n\rstringThree = 123\n\rstringThree = 123456789\n\rstringThree = A\n\rstringThree = abc\n\rstringThree = this string\n\r",
-				"string_addition_operators")
+		self.expect_string(expected_string)
+	
+	def test_2_string_replace(self):
+		to_build = "./examples/08.Strings/StringReplace/StringReplace.ino"
+		expected_string = "\n\nString  replace:\n\n\r\n\r<html><head><body>\n\rOriginal string: <html><head><body>\n\rModified string: </html></head></body>\n\rnormal: bookkeeper\n\rl33tspeak: b00kk33p3r\n\r"
+
+		self.flash(self.build(to_build))
+		self.expect_string(expected_string)
+
