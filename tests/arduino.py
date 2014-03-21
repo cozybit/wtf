@@ -23,9 +23,6 @@ sta = wtfconfig.mps
 
 ref_clip = os.getenv("REF_CLIP")
 
-# hmmm, hardcoded arduino ide path??
-# TODO: FIXXX me
-COZYINSTALL = IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh"
 path = 0
 expected = 1
 write = 2
@@ -34,8 +31,23 @@ def setUp(self):
 	global cereal
 	global display
 	global old_display
+	global IDE
+	global COZYINSTALL
 
 	cereal = wtfconfig.comm.serial
+	# require an IDE path
+	if 'IDE' in wtfconfig.data:
+		IDE = wtfconfig.data['IDE']
+	else:
+		IDE = ''
+
+	# validate the IDE path is a directory, and the arduino file exists inside of it
+	if not os.path.isdir(IDE) or not os.path.isfile(IDE + '/arduino'):
+		print 'There was a problem with the ide supplied in the wtfconfig.py... skipping all tests'
+		sys.exit(1)
+
+	COZYINSTALL = IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh"
+
 	# set up a fake X server for a computer without one...
 	old_display = display = os.environ["DISPLAY"]
 	if display == '':
