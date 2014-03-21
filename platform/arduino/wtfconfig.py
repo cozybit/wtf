@@ -3,9 +3,12 @@ import wtf.node.sta
 import wtf.comm
 import wtf
 
+# path to arduino directory... must be changed
+IDE = "/home/jacob/dev/arduino_project/MeshableMCU/arduino-1.5.6-r2"
+
 arduino_comm = wtf.comm.Serial(
     port="/dev/ttyUSB2", prompt="")
 arduino_comm.name = "arduino"
 arduino_comm.verbosity = 2
 
-wtf.conf = wtf.config("arduino", comm=arduino_comm, name="arduino as AP")
+wtf.conf = wtf.config("arduino", comm=arduino_comm, name="arduino as AP", data={'IDE': IDE})
