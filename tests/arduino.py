@@ -27,6 +27,8 @@ ref_clip = os.getenv("REF_CLIP")
 # TODO: FIXXX me
 IDE = "/home/jacob/dev/arduino_project/MeshableMCU/arduino-1.5.6-r2"
 COZYINSTALL = IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh"
+path = 0
+expected = 1
 
 def setUp(self):
 	global cereal
@@ -97,16 +99,16 @@ class ArduinoTest(unittest.TestCase):
 				(flash_path, ret))
 
 	def test_1_string_addition_operators(self):
-		self.flash(self.build(test_strings[self._testMethodName][0]))
-		self.expect_string(test_strings[self._testMethodName][1])
+		self.flash(self.build(test_strings[self._testMethodName][path]))
+		self.expect_string(test_strings[self._testMethodName][expected])
 	
 	def test_2_string_replace(self):
-		self.flash(self.build(test_strings[self._testMethodName][0]))
-		self.expect_string(test_strings[self._testMethodName][1])
+		self.flash(self.build(test_strings[self._testMethodName][path]))
+		self.expect_string(test_strings[self._testMethodName][expected])
 
 	def test_3_ascii_table(self):
-		self.flash(self.build(test_strings[self._testMethodName][0]))
-		self.expect_string(test_strings[self._testMethodName][1])
+		self.flash(self.build(test_strings[self._testMethodName][path]))
+		self.expect_string(test_strings[self._testMethodName][expected])
 
 
 test_strings = {}
