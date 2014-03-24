@@ -5,11 +5,9 @@ $Id: pxssh.py 487 2007-08-29 22:33:29Z noah $
 """
 
 import time
-import subprocess
-
-from wtf.util import get_adb_id
-
 from pexpect import ExceptionPexpect, spawn, TIMEOUT, EOF
+import subprocess
+from wtf.util import get_adb_id
 
 __all__ = ['ExceptionPxssh', 'pxssh']
 
