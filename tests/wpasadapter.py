@@ -5,17 +5,16 @@
 Simple test of throughput from one mesh node to another.
 """
 
+import importlib
 import os
-import re
-import sys
-import wtf
-import time
-import importlib
-import unittest
-import subprocess
-import threading
 import Queue as queue
-import importlib
+import re
+import subprocess
+import sys
+import threading
+import time
+import unittest
+import wtf
 
 WTFCONFIG = wtf.conf
 STATIONS = WTFCONFIG.mps
