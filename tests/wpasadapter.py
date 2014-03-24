@@ -1,8 +1,9 @@
-# Copyright cozybit, Inc 2010-2011
+# Copyright cozybit, Inc. - 2014
 # All rights reserved
 
 """
-Simple test of throughput from one mesh node to another.
+An adapter used to map the wpa_supplicant tests cases for mesh onto real
+hardware using wtf.
 """
 
 import importlib
