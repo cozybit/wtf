@@ -49,21 +49,39 @@ def buildAdbCommand(adb_id):
             "-p/data/misc/wifi", "-iwlan0"]
 
 
+def _read_std_err(fp, logfp):
+    while True:
+        line = fp.readline()
+        if not line:
+            break
+        logfp.write(line)
+
+
 class WpaCliMonitor(threading.Thread):
 
     EVENT_TRIM = re.compile(r'^[\s>]+')
 
-    def __init__(self, q, adb_id):
+    def __init__(self, q, adb_id, device_id):
+
         threading.Thread.__init__(self)
         self._q = q
+
         self._process = subprocess.Popen(buildAdbCommand(adb_id),
-                                         stdout=subprocess.PIPE)
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+
+        self._logfp = open("wpa_cli.%s.log" % device_id, "w")
+        self._stderr_thread = threading.Thread(target=_read_std_err,
+                                               args=(self._process.stderr,
+                                                     self._logfp))
+        self._stderr_thread.start()
 
     def _gen(self):
         while True:
             line = self._process.stdout.readline()
             if not line:
                 return
+            self._logfp.write(line)
             line = line.strip()
             #print 'LaunchMonitorProcess:', repr(line)
             split = self.EVENT_TRIM.split(line)
@@ -80,6 +98,9 @@ class WpaCliMonitor(threading.Thread):
 
     def stopMonitor(self):
         self._process.kill()
+        self.join()
+        self._stderr_thread.join()
+        self._logfp.close()
 
 
 class EventMonitor (object):
@@ -87,7 +108,9 @@ class EventMonitor (object):
     def __init__(self, sta):
         self._sta = sta
         self._q = queue.Queue()
-        self._monitor = WpaCliMonitor(self._q, self._sta.comm.get_adb_id())
+        self._monitor = WpaCliMonitor(self._q,
+                                      self._sta.comm.get_adb_id(),
+                                      self._sta.comm.get_device_id())
 
     def launch(self):
         self._monitor.start()
