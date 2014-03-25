@@ -13,7 +13,7 @@ import sys
 import os
 
 from shutil import rmtree
-from subprocess import call
+from subprocess import call, Popen
 import threading
 from random import randint
 
@@ -33,6 +33,7 @@ def setUp(self):
 	global old_display
 	global IDE
 	global COZYINSTALL
+	global proc
 
 	cereal = wtfconfig.comm.serial
 	# require an IDE path
@@ -49,10 +50,13 @@ def setUp(self):
 	COZYINSTALL = IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh"
 
 	# set up a fake X server for a computer without one...
+	if not 'DISPLAY' in os.environ:
+		os.environ['DISPLAY'] = ''
 	old_display = display = os.environ["DISPLAY"]
 	if display == '':
 		display = ':' + str(randint(10, 99))
-		call(["Xvfb", display])
+		FNULL = open(os.devnull, 'w')
+		proc = Popen(["Xvfb", display], stdout=FNULL, stderr=FNULL)
 	os.environ["DISPLAY"] = display
 
 def tearDown(self):
@@ -91,11 +95,12 @@ class ArduinoTest(unittest.TestCase):
 		except OSError:
 			self.failIf(1, "You do not have the correct arduino ide directory path set")
 		
-		ret = call(["./arduino", "--verify", "--board",
+		ret = Popen(["./arduino", "--verify", "--board",
 			"cozybit:mc200:MC200", "-v", "--pref",
-			"build.path=" + tmp_path, build_path])
-		self.failIf(ret, "There was a problem while building %s a return value of %d was given" %
-				(build_path, ret))
+			"build.path=" + tmp_path, build_path], env={"DISPLAY": os.environ["DISPLAY"]})
+		ret.wait()
+		self.failIf(ret.returncode, "There was a problem while building %s a return value of %d was given" %
+				(build_path, ret.returncode))
 
 		# break off the ino extension and add cpp.axf in it's place
 		return tmp_path + "/" + os.path.basename(build_path)[:-3] + "cpp.axf"
