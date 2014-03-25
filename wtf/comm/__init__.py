@@ -68,7 +68,7 @@ class CommBase():
 class Serial(CommBase):
 
     """
-    communicate with a node via a serial port
+    Communicate with a node via a serial port
 
     The console on the other end must at least be able to 'echo $?' so we can
     get the return code.
@@ -127,8 +127,8 @@ class ADB(CommBase):
         CommBase.__init__(self)
 
     def _init_session(self):
-        myLog = open("./loggy", "w")
-        self.session = pxssh.pxssh(logfile=myLog)
+        adb_log_fp = open("wtf.adb.log", "w")
+        self.session = pxssh.pxssh(logfile=adb_log_fp)
         self.session.adbLogin(self._device_id)
 
     def _send_cmd(self, command):
@@ -184,9 +184,9 @@ class ADB(CommBase):
             self.session.synch_original_prompt()
         return -1
 
-# should be able to use existing SSH session for this
-# XXX: GARBAGE! Should really be handled by the ssh module
-# copy file from host:$src to $dst
+    # should be able to use existing SSH session for this
+    # XXX: GARBAGE! Should really be handled by the ssh module
+    # copy file from host:$src to $dst
     def get_file(self, src, dst):
         print "copying %s:%s to %s" % (self.name, src, dst)
         r, o = commands.getstatusoutput(
@@ -219,8 +219,8 @@ class SSH(CommBase):
         self.ipaddr = ipaddr
         CommBase.__init__(self)
 
-# XXX: WARNING! _send_cmd() won't ever block for more than 5 minutes, see the
-# session.prompt() call below.
+    # XXX: WARNING! _send_cmd() won't ever block for more than 5 minutes, see
+    # the session.prompt() call below.
     def _send_cmd(self, command):
         # TODO: Okay.  Here's a mystery.  If the command is 69 chars long,
         # pxssh chokes on whatever it sees over ssh and all subsequent tests
@@ -232,7 +232,7 @@ class SSH(CommBase):
         if len(command) == 69:
             command = "  " + command
         self.session.sendline(command)
-# maybe we want to block on command completion...
+        # maybe we want to block on command completion...
         self.session.prompt(timeout=300)
         output = self.session.before.split("\r\n")[1:-1]
         return output
@@ -249,9 +249,9 @@ class SSH(CommBase):
             self.session.synch_original_prompt()
         return -1
 
-# should be able to use existing SSH session for this
-# XXX: GARBAGE! Should really be handled by the ssh module
-# copy file from host:$src to $dst
+    # should be able to use existing SSH session for this
+    # XXX: GARBAGE! Should really be handled by the ssh module
+    # copy file from host:$src to $dst
     def get_file(self, src, dst):
         print "copying %s:%s to %s" % (self.name, src, dst)
         r, o = commands.getstatusoutput(
