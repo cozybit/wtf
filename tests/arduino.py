@@ -54,7 +54,8 @@ def setUp(self):
 	if not 'DISPLAY' in os.environ:
 		os.environ['DISPLAY'] = ''
 	old_display = display = os.environ["DISPLAY"]
-	if display == '':
+	# ugly check of :55 for jenkins default display which doesn't work
+	if display == '' or display == ':55':
 		display = ':' + str(randint(10, 99))
 		FNULL = open(os.devnull, 'w')
 		proc = Popen(["Xvfb", display], stdout=FNULL, stderr=FNULL)
