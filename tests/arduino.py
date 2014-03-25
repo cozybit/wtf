@@ -50,6 +50,7 @@ def setUp(self):
 	COZYINSTALL = IDE + "/hardware/cozybit/mc200/system/wmsdk/tools/mc200/OpenOCD/cozyinstall.sh"
 
 	# set up a fake X server for a computer without one...
+	call(["printenv"])
 	if not 'DISPLAY' in os.environ:
 		os.environ['DISPLAY'] = ''
 	old_display = display = os.environ["DISPLAY"]
@@ -58,6 +59,7 @@ def setUp(self):
 		FNULL = open(os.devnull, 'w')
 		proc = Popen(["Xvfb", display], stdout=FNULL, stderr=FNULL)
 	os.environ["DISPLAY"] = display
+	call(["printenv"])
 
 def tearDown(self):
 	# if we had to change the display, set it back and kill fake x server
