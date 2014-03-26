@@ -11,4 +11,5 @@ arduino_comm = wtf.comm.Serial(
 arduino_comm.name = "arduino"
 arduino_comm.verbosity = 2
 
-wtf.conf = wtf.config("arduino", comm=arduino_comm, name="arduino as AP", data={'IDE': IDE})
+wtf.conf = wtf.config(
+    "arduino", comm=arduino_comm, name="arduino as AP", data={'IDE': IDE})
