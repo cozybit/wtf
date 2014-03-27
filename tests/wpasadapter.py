@@ -40,9 +40,6 @@ def tearDown(self):
     for n in WTFCONFIG.nodes:
         n.stop()
 
-    for adapter in ADAPTERS:
-        adapter.cleanUp()
-
 
 def buildAdbCommand(adb_id):
     return ["adb", "-s", adb_id, "shell", "wpa_cli",
@@ -57,24 +54,17 @@ def _read_std_err(fp, logfp):
         logfp.write(line)
 
 
-class WpaCliMonitor(threading.Thread):
+class WpaCliMonitor (object):
 
     EVENT_TRIM = re.compile(r'^[\s>]+')
 
     def __init__(self, q, adb_id, device_id):
-
-        threading.Thread.__init__(self)
         self._q = q
-
-        self._process = subprocess.Popen(buildAdbCommand(adb_id),
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE)
-
-        self._logfp = open("wpa_cli.%s.log" % device_id, "w")
-        self._stderr_thread = threading.Thread(target=_read_std_err,
-                                               args=(self._process.stderr,
-                                                     self._logfp))
-        self._stderr_thread.start()
+        self._adb_id = adb_id
+        self._device_id = device_id
+        self._process = None
+        self._logfp = None
+        self._stderr_thread = None
 
     def _gen(self):
         while True:
@@ -92,13 +82,30 @@ class WpaCliMonitor(threading.Thread):
             else:
                 continue
 
-    def run(self, *args, **kwargs):
+    def _wpa_cli_run(self, test_name):
+        self._process = subprocess.Popen(buildAdbCommand(self._adb_id),
+                                         stdout=subprocess.PIPE,
+                                         stderr=subprocess.PIPE)
+
+        self._logfp = open("wpa_cli.%s.%s.log" %
+                           (test_name, self._device_id), "w")
+
+        self._stderr_thread = threading.Thread(target=_read_std_err,
+                                               args=(self._process.stderr,
+                                                     self._logfp))
+        self._stderr_thread.start()
+
         for line in self._gen():
             self._q.put(line)
 
+    def start(self, test_name):
+        self._wpa_cli_thread = threading.Thread(target=self._wpa_cli_run,
+                                                args=(test_name,))
+        self._wpa_cli_thread.start()
+
     def stopMonitor(self):
         self._process.kill()
-        self.join()
+        self._wpa_cli_thread.join()
         self._stderr_thread.join()
         self._logfp.close()
 
@@ -112,15 +119,15 @@ class EventMonitor (object):
                                       self._sta.comm.get_adb_id(),
                                       self._sta.comm.get_device_id())
 
-    def launch(self):
-        self._monitor.start()
-
     def waitForEvent(self, eventName):
         while True:
             line = self._q.get(timeout=10)
             #print 'waitForEvent:', line
             if line.startswith(eventName):
                 return line
+
+    def startMonitor(self, test_name):
+        self._monitor.start(test_name=test_name)
 
     def stopMonitor(self):
         self._monitor.stopMonitor()
@@ -132,13 +139,15 @@ class WpasTestAdapter (object):
         self._sta = sta
         self._comm = sta.comm
         self._monitor = EventMonitor(sta)
-        self._monitor.launch()
+
+    def startWpaCliMonitor(self, test_name):
+        self._monitor.startMonitor(test_name)
+
+    def stopWpaCliMonitor(self):
+        self._monitor.stopMonitor()
 
     def getSTA(self):
         return self._sta
-
-    def cleanUp(self):
-        self._monitor.stopMonitor()
 
     def _send_to_wpa_cli(self, cmd):
         cmd = "wpa_cli -p/data/misc/wifi -iwlan0 " + cmd
@@ -230,9 +239,11 @@ class WpasMeshTest(unittest.TestCase):
             adapter.getSTA().comm.send_cmd("start wpa_supplicant")
             while not adapter.ping_wpa_supplicant():
                 time.sleep(0.5)
+            adapter.startWpaCliMonitor(self.id())
 
     def tearDown(self):
         for adapter in ADAPTERS:
+            adapter.stopWpaCliMonitor()
             adapter.getSTA().comm.send_cmd("stop wpa_supplicant")
 
     def test_wpas_add_set_remove_support(self):
