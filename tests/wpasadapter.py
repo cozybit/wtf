@@ -41,17 +41,23 @@ def tearDown(self):
         n.stop()
 
 
-def buildAdbCommand(adb_id):
-    return ["adb", "-s", adb_id, "shell", "wpa_cli",
-            "-p/data/misc/wifi", "-iwlan0"]
+class AdbCmdGen(object):
+    @staticmethod
+    def clear_logcat(adb_id):
+        return ["adb", "-s", adb_id, "logcat", "-c"]
 
+    @staticmethod
+    def start_logcat(adb_id):
+        return ["adb", "-s", adb_id, "logcat"]
 
-def _read_std_err(fp, logfp):
-    while True:
-        line = fp.readline()
-        if not line:
-            break
-        logfp.write(line)
+    @staticmethod
+    def wpa_cli(adb_id):
+        return ["adb", "-s", adb_id, "shell", "wpa_cli",
+                "-p/data/misc/wifi", "-iwlan0"]
+
+    @staticmethod
+    def dmesg(adb_id):
+        return ["adb", "-s", adb_id, "shell", "cat", "/proc/kmsg"]
 
 
 class WpaCliMonitor (object):
@@ -62,16 +68,28 @@ class WpaCliMonitor (object):
         self._q = q
         self._adb_id = adb_id
         self._device_id = device_id
-        self._process = None
-        self._logfp = None
-        self._stderr_thread = None
+
+        self._wpacli_process = None
+        self._logcat_process = None
+        self._dmesg_process = None
+
+        self._wpacli_logfp = None
+        self._logcat_logfp = None
+        self._dmesg_logfp = None
+
+        self._wpacli_thread = None
+        self._wpacli_stderr_thread = None
+        self._logcat_out_thread = None
+        self._logcat_err_thread = None
+        self._dmesg_out_thread = None
+        self._dmesg_err_thread = None
 
     def _gen(self):
         while True:
-            line = self._process.stdout.readline()
+            line = self._wpacli_process.stdout.readline()
             if not line:
                 return
-            self._logfp.write(line)
+            self._wpacli_logfp.write(line)
             line = line.strip()
             #print 'LaunchMonitorProcess:', repr(line)
             split = self.EVENT_TRIM.split(line)
@@ -82,32 +100,97 @@ class WpaCliMonitor (object):
             else:
                 continue
 
+    @staticmethod
+    def _dump_fp_to_log(fp, logfp):
+        while True:
+            line = fp.readline()
+            if not line:
+                break
+            logfp.write(line)
+
     def _wpa_cli_run(self, test_name):
-        self._process = subprocess.Popen(buildAdbCommand(self._adb_id),
-                                         stdout=subprocess.PIPE,
-                                         stderr=subprocess.PIPE)
+        self._wpacli_process = subprocess.Popen(
+            AdbCmdGen.wpa_cli(self._adb_id),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
 
-        self._logfp = open("wpa_cli.%s.%s.log" %
-                           (test_name, self._device_id), "w")
+        subprocess.call(AdbCmdGen.clear_logcat(self._adb_id))
 
-        self._stderr_thread = threading.Thread(target=_read_std_err,
-                                               args=(self._process.stderr,
-                                                     self._logfp))
-        self._stderr_thread.start()
+        self._logcat_process = (
+            subprocess.Popen(AdbCmdGen.start_logcat(self._adb_id),
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE))
+
+        self._dmesg_process = (
+            subprocess.Popen(AdbCmdGen.dmesg(self._adb_id),
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE))
+
+        self._wpacli_logfp = open("wpa_cli.%s.%s.log" %
+                                  (test_name, self._device_id), "w")
+
+        self._logcat_logfp = open("logcat.%s.%s.log" %
+                                  (test_name, self._device_id), "w")
+
+        self._dmesg_logfp = open("dmesg.%s.%s.log" %
+                                 (test_name, self._device_id), "w")
+
+        self._wpacli_stderr_thread = threading.Thread(
+            target=self._dump_fp_to_log,
+            args=(self._wpacli_process.stderr,
+                  self._wpacli_logfp))
+
+        self._wpacli_stderr_thread.start()
+
+        self._logcat_out_thread = threading.Thread(
+            target=self._dump_fp_to_log,
+            args=(self._logcat_process.stdout,
+                  self._logcat_logfp))
+
+        self._logcat_out_thread.start()
+
+        self._logcat_err_thread = threading.Thread(
+            target=self._dump_fp_to_log,
+            args=(self._logcat_process.stderr,
+                  self._logcat_logfp))
+
+        self._logcat_err_thread.start()
+
+        self._dmesg_out_thread = threading.Thread(
+            target=self._dump_fp_to_log,
+            args=(self._dmesg_process.stdout,
+                  self._dmesg_logfp))
+
+        self._dmesg_out_thread.start()
+
+        self._dmesg_err_thread = threading.Thread(
+            target=self._dump_fp_to_log,
+            args=(self._dmesg_process.stderr,
+                  self._dmesg_logfp))
+
+        self._dmesg_err_thread.start()
 
         for line in self._gen():
             self._q.put(line)
 
     def start(self, test_name):
-        self._wpa_cli_thread = threading.Thread(target=self._wpa_cli_run,
-                                                args=(test_name,))
-        self._wpa_cli_thread.start()
+        self._wpacli_thread = threading.Thread(target=self._wpa_cli_run,
+                                               args=(test_name,))
+        self._wpacli_thread.start()
 
     def stopMonitor(self):
-        self._process.kill()
-        self._wpa_cli_thread.join()
-        self._stderr_thread.join()
-        self._logfp.close()
+        self._wpacli_process.kill()
+        self._logcat_process.kill()
+        self._dmesg_process.kill()
+        self._wpacli_thread.join()
+        self._wpacli_stderr_thread.join()
+        self._logcat_out_thread.join()
+        self._logcat_err_thread.join()
+        self._dmesg_out_thread.join()
+        self._dmesg_err_thread.join()
+        self._wpacli_logfp.close()
+        self._logcat_logfp.close()
+        self._dmesg_logfp.close()
 
 
 class EventMonitor (object):
