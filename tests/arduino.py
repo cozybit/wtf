@@ -11,9 +11,11 @@ import re
 from shutil import rmtree
 from subprocess import Popen
 from tempfile import mkdtemp
+import time
 import unittest
 
 import wtf
+import wtf.node.ap as ap
 import wtf.node.mesh as mesh
 
 wtfconfig = wtf.conf
@@ -29,6 +31,7 @@ class ArduinoTest(unittest.TestCase):
         cls.proc = None
         cls.env = os.environ
         cls.ffd = wtfconfig.comm.ffd
+        cls.AP = wtfconfig.aps[0]
 
         # check for IDE path
         if 'IDE' in wtfconfig.data:
@@ -91,6 +94,16 @@ class ArduinoTest(unittest.TestCase):
         self.build_and_upload(path)
         if write:
             self.cereal.write(write)
+
+    def start_hostapd(self, apconf):
+        """ Set hostap.conf and init/start node """
+        self.AP.config = apconf
+        self.AP.init()
+        self.AP.start()
+        time.sleep(5)
+
+    def stop_hostapd(self):
+        self.AP.stop()
 
     def test_01_string_addition_operators(self):
         self.setup_run('./examples/08.Strings/StringAdditionOperator/'
@@ -233,3 +246,27 @@ class ArduinoTest(unittest.TestCase):
         self.ffd.expect(re.escape('String: \n'))
         self.ffd.expect(re.escape('Value:858'))
         self.ffd.expect(re.escape('String: 858'))
+
+    def test_15_connect_wifi_no_password(self):
+        self.start_hostapd(ap.APConfig(ssid="wtf-arduino-ap"))
+        self.setup_run(os.getcwd() + '/platform/arduino/SimpleWiFi/SimpleWiFi.ino')
+        # set to 20 incase connection takes longer than 10 seconds
+        time.sleep(20)
+        self.ffd.expect(re.escape("You're connected to the network"));
+        # [1-9] first so we don't match 0.0.0.0 with d+.d+.d+.d+
+        self.ffd.expect(re.escape("the ip is ") + r'[1-9]\d+\.\d+\.\d+\.\d+')
+        self.stop_hostapd()
+
+    def test_16_connect_wifi_with_password(self):
+        self.start_hostapd(ap.APConfig(ssid="wtf-arduino-pass-ap",
+                security=ap.SECURITY_WPA2,
+                auth=ap.AUTH_PSK,
+                password="thisisasecret",
+                encrypt=ap.ENCRYPT_CCMP))
+        self.setup_run(os.getcwd() + '/platform/arduino/SimpleWiFiPass/SimpleWiFiPass.ino')
+        # set to 20 incase connection takes longer than 10 seconds
+        time.sleep(20)
+        self.ffd.expect(re.escape("You're connected to the password protected network"));
+        # [1-9] first so we don't match 0.0.0.0 with d+.d+.d+.d+
+        self.ffd.expect(re.escape("the ip is ") + r'[1-9]\d+\.\d+\.\d+\.\d+')
+        self.stop_hostapd()
