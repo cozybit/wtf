@@ -68,14 +68,14 @@ class Hostapd(node.LinuxNode, APBase):
     Hostapd-based AP
     """
 
-    def __init__(self, comm, iface, driver=None):
-        node.LinuxNode.__init__(self, comm, iface, driver)
+    def __init__(self, comm, iface, ops=None):
+        node.LinuxNode.__init__(self, comm, iface, ops=ops)
         self.config = None
 
     def start(self):
         # iface must be down before we can set type
         node.LinuxNode.stop(self)
-        self._cmd_or_die("iw " + self.iface + " set type __ap")
+        self._cmd_or_die("iw " + self.iface[0].name + " set type __ap")
         node.LinuxNode.start(self)
         if not self.config:
             raise node.InsufficientConfigurationError()
@@ -85,8 +85,8 @@ class Hostapd(node.LinuxNode, APBase):
     def stop(self):
         node.LinuxNode.stop(self)
         self.comm.send_cmd("killall hostapd")
-        self.comm.send_cmd("iw dev mon." + self.iface + " del")
-        self.comm.send_cmd("rm -f /var/run/hostapd/" + self.iface)
+        self.comm.send_cmd("iw dev mon." + self.iface[0].name + " del")
+        self.comm.send_cmd("rm -f /var/run/hostapd/" + self.iface[0].name)
 
 # some of this stuff, like channel, ht_capab, and hw_mode are target-specific,
 # use 'iw <dev> list' to parse capabilities?
@@ -115,7 +115,7 @@ class Hostapd(node.LinuxNode, APBase):
         config += "ssid=" + self.config.ssid + "\n"
         config += "hw_mode=%c\n" % self.config.band
         config += "channel=%d\n" % self.config.channel
-        config += "interface=" + self.iface + "\n"
+        config += "interface=" + self.iface[0].name + "\n"
         if self.config.security != None:
             if self.config.security == SECURITY_WPA:
                 config += "wpa=1\n"
@@ -141,7 +141,8 @@ class Hostapd(node.LinuxNode, APBase):
                 config += "ht_capab=[HT40-]\n"
                 # is this really needed? linux-wireless wiki says so in an underhanded manner (http://wireless.kernel.org/en/users/Documentation/hostapd)
                 # check the 11n standard. Enabled for now.
-                config += textwrap.dedent("""wmm_enabled=1
+                config += textwrap.dedent("""
+                    wmm_enabled=1
                     wmm_ac_bk_cwmin=4
                     wmm_ac_bk_cwmax=10
                     wmm_ac_bk_aifs=7
