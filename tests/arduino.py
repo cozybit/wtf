@@ -38,6 +38,10 @@ class ArduinoTest(unittest.TestCase):
             cls.IDE = wtfconfig.data['IDE']
         else:
             cls.IDE = ''
+        if 'BOARD' in wtfconfig.data:
+            cls.BOARD = wtfconfig.data['BOARD']
+        else:
+            cls.BOARD = 'mc200_dbg'
 
         # set up a fake X server for a computer without one...
         if not 'DISPLAY' in cls.env or cls.env['DISPLAY'] == '':
@@ -81,7 +85,7 @@ class ArduinoTest(unittest.TestCase):
             self.fail("You do not have the correct arduino ide directory path set")
 
         ret = Popen(["./arduino", "--upload", "--board",
-                "cozybit:mc200:mc200_dbg", "-v", "--pref",
+                "cozybit:mc200:%s" % self.BOARD, "-v", "--pref",
                 "build.path=" + self.build_dir, "--port", self.cereal.port,
                 build_path], env=self.env)
         ret.wait()
