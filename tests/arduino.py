@@ -101,6 +101,7 @@ class ArduinoTest(unittest.TestCase):
 
     def start_hostapd(self, apconf):
         """ Set hostap.conf and init/start node """
+        self.stop_hostapd()
         self.AP.config = apconf
         self.AP.init()
         self.AP.start()
@@ -254,12 +255,9 @@ class ArduinoTest(unittest.TestCase):
     def test_15_connect_wifi_no_password(self):
         self.start_hostapd(ap.APConfig(ssid="wtf-arduino-ap"))
         self.setup_run(os.getcwd() + '/platform/arduino/SimpleWiFi/SimpleWiFi.ino')
-        # set to 20 incase connection takes longer than 10 seconds
-        time.sleep(20)
         self.ffd.expect(re.escape("You're connected to the network"));
         # [1-9] first so we don't match 0.0.0.0 with d+.d+.d+.d+
         self.ffd.expect(re.escape("the ip is ") + r'[1-9]\d+\.\d+\.\d+\.\d+')
-        self.stop_hostapd()
 
     def test_16_connect_wifi_with_password(self):
         self.start_hostapd(ap.APConfig(ssid="wtf-arduino-pass-ap",
@@ -268,9 +266,6 @@ class ArduinoTest(unittest.TestCase):
                 password="thisisasecret",
                 encrypt=ap.ENCRYPT_CCMP))
         self.setup_run(os.getcwd() + '/platform/arduino/SimpleWiFiPass/SimpleWiFiPass.ino')
-        # set to 20 incase connection takes longer than 10 seconds
-        time.sleep(20)
         self.ffd.expect(re.escape("You're connected to the password protected network"));
         # [1-9] first so we don't match 0.0.0.0 with d+.d+.d+.d+
         self.ffd.expect(re.escape("the ip is ") + r'[1-9]\d+\.\d+\.\d+\.\d+')
-        self.stop_hostapd()
