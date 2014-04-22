@@ -4,8 +4,9 @@
 """WTF network node definitions."""
 
 import os
-import time
 from collections import namedtuple
+from textwrap import dedent
+import time
 
 from wtf.util import CapData
 from wtf.util import PerfConf
@@ -622,3 +623,18 @@ class LinuxNode(NodeBase):
         for iface in ifaces:
             self._cmd_or_die("ip addr flush " + iface.name)
             self._cmd_or_die("ifenslave bond0 " + iface.name)
+
+    def start_udhcpd(self):
+        """Start udhcpd, assumes it is on the system"""
+        n = 10
+        for iface in self.iface:
+            self.set_ip(iface.name, "192.168.%d.1" % n)
+            dhcp_conf = dedent("""
+                    start 192.168.%d.10
+                    end 192.168.%d.100
+                    interface %s
+                    """ % (n, n, iface.name))
+            self.comm.send_cmd("killall udhcpd")
+            self._cmd_or_die("echo -e \"" + dhcp_conf + "\">/tmp/udhcp.conf")
+            self._cmd_or_die("udhcpd /tmp/udhcp.conf")
+            n += 1

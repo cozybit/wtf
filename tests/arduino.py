@@ -101,14 +101,11 @@ class ArduinoTest(unittest.TestCase):
 
     def start_hostapd(self, apconf):
         """ Set hostap.conf and init/start node """
-        self.stop_hostapd()
+        self.AP.stop()
         self.AP.config = apconf
         self.AP.init()
         self.AP.start()
         time.sleep(5)
-
-    def stop_hostapd(self):
-        self.AP.stop()
 
     def test_01_string_addition_operators(self):
         self.setup_run('./examples/08.Strings/StringAdditionOperator/'

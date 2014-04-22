@@ -81,6 +81,7 @@ class Hostapd(node.LinuxNode, APBase):
             raise node.InsufficientConfigurationError()
         self._configure()
         self._cmd_or_die("hostapd -B /tmp/hostapd.conf")
+        self.start_udhcpd()
 
     def stop(self):
         node.LinuxNode.stop(self)
