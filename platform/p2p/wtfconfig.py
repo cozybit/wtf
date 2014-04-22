@@ -3,14 +3,16 @@ import wtf.comm
 import wtf
 
 p1_comm = wtf.comm.SSH(ipaddr="192.168.1.80")
+ops = wtf.node.PlatformOps(p1_comm)
 p1_comm.name = "NODE 1"
 p1_comm.verbosity = 2
-p1 = wtf.node.p2p.Wpap2p(p1_comm, "wlan0", path="/root")
+p1 = wtf.node.p2p.Wpap2p(p1_comm, [wtf.node.Iface.create_iface(name="wlan0", driver="ath9k")], path="/root", ops=ops)
 
 p2_comm = wtf.comm.SSH(ipaddr="192.168.1.90")
+ops2 = wtf.node.PlatformOps(p2_comm)
 p2_comm.name = "NODE 2"
 p2_comm.verbosity = 2
-p2 = wtf.node.p2p.Wpap2p(p2_comm, "wlan0", path="/root")
+p2 = wtf.node.p2p.Wpap2p(p2_comm, [wtf.node.Iface.create_iface(name="wlan0", driver="ath9k")], path="/root", ops=ops2)
 
 # Marvell's mvdroid p2p node, which uses wfdd, wfd_cli, and wpa_supplicant is
 # also supported.  Create such a node like this:

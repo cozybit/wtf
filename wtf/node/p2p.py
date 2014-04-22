@@ -102,12 +102,12 @@ class Wpap2p(P2PBase, node.sta.LinuxSTA):
     wpa_supplicant-based AP
     """
 
-    def __init__(self, comm, iface, driver=None, path="/root"):
-        node.LinuxNode.__init__(self, comm, iface, driver, path)
+    def __init__(self, comm, iface, path="/root", ops=None):
+        node.LinuxNode.__init__(self, comm, iface, path, ops)
         P2PBase.__init__(self, comm)
         self.name = comm.name.replace(" ", "-")
         (r, self.mac) = comm.send_cmd(
-            "cat /sys/class/net/" + iface + "/address")
+            "cat /sys/class/net/" + iface[0].name + "/address")
         self.mac = self.mac[0]
 
     base_config = """
@@ -134,7 +134,7 @@ device_type=1-0050F204-1
         node.LinuxNode.start(self)
         self._configure()
         self._cmd_or_die("wpa_supplicant -Dnl80211 -c /tmp/p2p.conf -i " +
-                         self.iface + " -B")
+                         self.iface[0].name + " -B")
         time.sleep(1)
         if auto_go and client_only:
             raise UnsupportedConfigurationError(
@@ -148,7 +148,7 @@ device_type=1-0050F204-1
         node.LinuxNode.stop(self)
         node.LinuxNode.stop(self)
         self.comm.send_cmd("killall wpa_supplicant")
-        self.comm.send_cmd("rm -f /var/run/wpa_supplicant/" + self.iface)
+        self.comm.send_cmd("rm -f /var/run/wpa_supplicant/" + self.iface[0].name)
 
     def find_start(self):
         self._cmd_or_die("wpa_cli p2p_find")
@@ -161,11 +161,11 @@ device_type=1-0050F204-1
     def peers(self):
         # For some reason, the current version of wpa_supplicant returns -1
         # when it finds peers.  Maybe this is a bug?
-        [ret, peer_macs] = self.comm.send_cmd("wpa_cli -i " + self.iface +
+        [ret, peer_macs] = self.comm.send_cmd("wpa_cli -i " + self.iface[0].name +
                                               " p2p_peers")
         peers = []
         for m in peer_macs:
-            [ret, pinfo] = self.comm.send_cmd("wpa_cli -i " + self.iface +
+            [ret, pinfo] = self.comm.send_cmd("wpa_cli -i " + self.iface[0].name +
                                               " p2p_peer " + m)
             # The first line that is returned is the mac address.  Ignore it.
             pprops = dict(prop.split("=") for prop in pinfo[1:])
@@ -173,7 +173,7 @@ device_type=1-0050F204-1
         return peers
 
     def connect_start(self, peer, method=WPS_METHOD_PBC):
-        cmd = "wpa_cli -i " + self.iface + " p2p_connect " + peer.mac
+        cmd = "wpa_cli -i " + self.iface[0].name + " p2p_connect " + peer.mac
         if method == WPS_METHOD_PBC:
             cmd += " pbc"
         else:
@@ -185,7 +185,7 @@ device_type=1-0050F204-1
         return ret
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
-        cmd = "wpa_cli -i " + self.iface + " p2p_connect " + peer.mac
+        cmd = "wpa_cli -i " + self.iface[0].name + " p2p_connect " + peer.mac
         if method == WPS_METHOD_PBC:
             cmd += " pbc"
         else:
@@ -195,7 +195,7 @@ device_type=1-0050F204-1
         return 0
 
     def pbc_push(self):
-        [ret, o] = self.comm.send_cmd("wpa_cli -i " + self.iface +
+        [ret, o] = self.comm.send_cmd("wpa_cli -i " + self.iface[0].name +
                                       " wps_pbc")
         return ret
 
@@ -216,9 +216,9 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
     wpa_conf = "/data/wfd/wpas_wfd.conf"
     wpa_socks = "/tmp/supsocks"
 
-    def __init__(self, comm, iface="wfd0", force_driver_reload=False):
+    def __init__(self, comm, iface=None, force_driver_reload=False, ops=None):
         P2PBase.__init__(self, comm)
-        node.LinuxNode.__init__(self, comm, iface, driver=None)
+        node.LinuxNode.__init__(self, comm, iface, ops=ops)
         self.name = comm.name.replace(" ", "-")
         self.force_driver_reload = force_driver_reload
 
@@ -233,11 +233,11 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
         count = 20
         while r != 0 and count > 0:
             [r, o] = self.comm.send_cmd("ls /sys/class/net/ | grep " +
-                                        self.iface)
+                                        self.iface[0].name)
             count = count - 1
             time.sleep(0.5)
         if r != 0:
-            raise node.ActionFailureError("Interface " + self.iface +
+            raise node.ActionFailureError("Interface " + self.iface[0].name +
                                           " never appeared")
 
     def unload_drivers(self):
@@ -248,13 +248,13 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
     def init(self):
         self.comm.send_cmd("killall mwu")
         self.load_drivers()
-        (r, self.mac) = self.comm.send_cmd("cat /sys/class/net/" + self.iface +
+        (r, self.mac) = self.comm.send_cmd("cat /sys/class/net/" + self.iface[0].name +
                                            "/address")
         self.mac = self.mac[0].upper()
         self.intended_mac = self.mac
         node.LinuxNode.init(self)
 
-        cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface
+        cmd = "mwu -c /system/bin/wfd_init.conf -p 00000000 -i " + self.iface[0].name
         cmd = cmd + \
             " -d /system/etc/wifidirect_defaults.conf -l /tmp/wfd.log -B"
         self._cmd_or_die(cmd)
@@ -274,17 +274,17 @@ class Mvdroid(P2PBase, node.sta.LinuxSTA):
             self.unload_drivers()
             return
 
-        cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=sta_deinit"
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface[0].name + " cmd=sta_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=mwpsmod iface=" + \
-            self.iface + " cmd=registrar_deinit"
+            self.iface[0].name + " cmd=registrar_deinit"
         self._cmd_or_die(cmd)
-        cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=ap_deinit"
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface[0].name + " cmd=ap_deinit"
         self._cmd_or_die(cmd)
         cmd = "mwu_cli module=mwpsmod iface=" + \
-            self.iface + " cmd=enrollee_deinit"
+            self.iface[0].name + " cmd=enrollee_deinit"
         self._cmd_or_die(cmd)
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + " cmd=deinit"
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface[0].name + " cmd=deinit"
         self._cmd_or_die(cmd)
         node.sta.LinuxSTA.stop(self)
 
@@ -453,23 +453,23 @@ DeviceState=4
             self.load_drivers()
             self.init()
 
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface[0].name + \
               " cmd=init name=" + self.name + " intent=%d" % self.intent
         return self._status_cmd_or_die(cmd)
 
     def find_start(self):
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface[0].name + \
               " cmd=start_find"
         return self._status_cmd_or_die(cmd)
 
     def find_stop(self):
         cmd = "mwu_cli module=wifidirect iface=" + \
-            self.iface + " cmd=stop_find"
+            self.iface[0].name + " cmd=stop_find"
         self.comm.send_cmd(cmd)
 
     def peers(self):
         [ret, raw_peers] = self.comm.send_cmd("mwu_cli module=wifidirect iface=" +
-                                              self.iface + " cmd=dump_peers")
+                                              self.iface[0].name + " cmd=dump_peers")
         peers = []
         index = 0
         while index < len(raw_peers):
@@ -485,7 +485,7 @@ DeviceState=4
         return peers
 
     def go_neg_start(self, peer, method=WPS_METHOD_PBC):
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface[0].name + \
               " cmd=negotiate_group device_id=" + peer.mac
         cmd += " methods=%04X" % method
         self.clear_events()
@@ -493,7 +493,7 @@ DeviceState=4
 
     def go_neg_finish(self, peer):
         for i in range(1, 30):
-            expected = "module=wifidirect iface=" + self.iface + \
+            expected = "module=wifidirect iface=" + self.iface[0].name + \
                        " event=neg_result"
             event = self.get_next_event()
             eventstr = " ".join(event)
@@ -514,13 +514,13 @@ DeviceState=4
         return 0
 
     def connect_allow(self, peer, method=WPS_METHOD_PBC):
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface[0].name + \
               " cmd=allow device_id=" + peer.mac
         cmd += " methods=%04X" % method
         return self._status_cmd(cmd)
 
     def pdreq(self, peer, method=WPS_METHOD_PBC):
-        cmd = "mwu_cli module=wifidirect iface=" + self.iface + \
+        cmd = "mwu_cli module=wifidirect iface=" + self.iface[0].name + \
               " cmd=pd_req device_id=" + peer.mac
         cmd += " methods=%04X" % method
         return self._status_cmd(cmd)
@@ -530,7 +530,7 @@ DeviceState=4
 
     def registrar_start(self, pin=None):
         # we're the GO.  Launch a registrar
-        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface[0].name
         cmd += " cmd=registrar_init device_name=" + self.name
         cmd += " model_name=wtftester model_number=12345"
         cmd += " methods=%04X" % WPS_METHOD_PBC
@@ -541,7 +541,7 @@ DeviceState=4
         if ret != 0:
             return ret
         ret = self._status_cmd_or_die("mwu_cli module=mwpsmod iface=" +
-                                      self.iface +
+                                      self.iface[0].name +
                                       " cmd=registrar_start")
         if ret != 0:
             return ret
@@ -549,19 +549,19 @@ DeviceState=4
         if pin == None:
             return 0
 
-        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface[0].name
         cmd += " cmd=registrar_set_pin pin=" + pin
         return self._status_cmd_or_die(cmd)
 
     def ap_start(self, ssid, key):
-        cmd = "mwu_cli module=mwpamod iface=" + self.iface
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface[0].name
         cmd += " cmd=ap_init ssid=" + ssid
         cmd += " key=" + key
         ret = self._status_cmd(cmd)
         if ret != 0:
             return ret
         ret = self._status_cmd_or_die("mwu_cli module=mwpamod iface=" +
-                                      self.iface +
+                                      self.iface[0].name +
                                       " cmd=ap_start")
         return ret
 
@@ -575,7 +575,7 @@ DeviceState=4
         return self.registrar_start()
 
     def do_enrollee(self, registrar):
-        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface[0].name
         cmd += " cmd=enrollee_init device_name=" + self.name
         cmd += " model_name=wtftester model_number=12345"
         cmd += " methods=%04X" % WPS_METHOD_PBC
@@ -583,7 +583,7 @@ DeviceState=4
         if ret != 0:
             return ret
         self.clear_events()
-        cmd = "mwu_cli module=mwpsmod iface=" + self.iface
+        cmd = "mwu_cli module=mwpsmod iface=" + self.iface[0].name
         cmd += " cmd=enrollee_start"
         cmd += " mac=" + registrar
         cmd += " pin="
@@ -592,7 +592,7 @@ DeviceState=4
             return ret
 
         for i in range(1, 20):
-            expected = "module=mwpsmod iface=" + self.iface + \
+            expected = "module=mwpsmod iface=" + self.iface[0].name + \
                        " event=enrollee_done status=0"
             event = self.get_next_event()
             eventstr = " ".join(event)
@@ -605,13 +605,13 @@ DeviceState=4
         return 0
 
     def do_wpa(self, ssid, key):
-        cmd = "mwu_cli module=mwpamod iface=" + self.iface
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface[0].name
         cmd += " cmd=sta_init"
         ret = self._status_cmd(cmd)
         if ret != 0:
             return ret
         self.clear_events()
-        cmd = "mwu_cli module=mwpamod iface=" + self.iface + " cmd=sta_connect"
+        cmd = "mwu_cli module=mwpamod iface=" + self.iface[0].name + " cmd=sta_connect"
         cmd += " ssid=" + ssid + " key=" + key
         ret = self._status_cmd(cmd)
         if ret != 0:
