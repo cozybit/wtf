@@ -1,5 +1,6 @@
-import wtf.node.mesh
 import wtf.comm
+from wtf.node import PlatformOps
+import wtf.node.mesh
 
 subnet = "192.168.34"
 meshid = "meshmesh"
@@ -11,6 +12,7 @@ zotacs = []
 for n in range(10, 13):
 # comms
     z_ssh = wtf.comm.SSH(ipaddr="10.10.10." + str(n))
+    ops = PlatformOps(z_ssh)
     z_ssh.name = "zotac-" + str(n)
     z_ssh.verbosity = 2
 
@@ -20,18 +22,18 @@ for n in range(10, 13):
     ifaces = []
 
 # iface + ip
-    ifaces.append(wtf.node.Iface(name="wlan0", driver="ath9k", ip="%s.%d" %
-                  (subnet, 10 + n)))
+    ifaces.append(wtf.node.Iface.create_iface(name="wlan0", driver="ath9k",
+            ip="%s.%d" % (subnet, 10 + n), ops=ops))
 # BSS
     ifaces[-1].conf = wtf.node.mesh.MeshConf(ssid=meshid, channel=channel,
                                              htmode=htmode, iface=ifaces[-1], shared=False)
 
 # "middle" node
     if n == 11:
-        ifaces.append(
-            wtf.node.Iface(name="wlan1", driver="ath9k", ip="%s.%d" % (subnet, 40 + n)))
+        ifaces.append(wtf.node.Iface.create_iface(name="wlan1", driver="ath9k",
+                ip="%s.%d" % (subnet, 40 + n), ops=ops))
         ifaces[-1].conf = wtf.node.mesh.MeshConf(ssid=meshid,
-                                                 channel=1, htmode=htmode, iface=ifaces[-1], shared=False)
+                channel=1, htmode=htmode, iface=ifaces[-1], shared=False)
         ifaces.append(wtf.node.Iface(name="eth1"))
         # XXX: hack! mesh nodes don't expect non-mesh configs
         ifaces[-1].enable = False
